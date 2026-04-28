@@ -186,6 +186,7 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
                 binding.dlMain.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             }
         }
+        setupPredictiveBack()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -695,27 +696,15 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
 
     override fun setupToolbar(title: CharSequence, canNavigateBack: Boolean) {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        val theme = toolbar.context.theme
-        val titleTypedValue  = TypedValue()
-        val bgTypedValue  = TypedValue()
-
-        setSupportActionBar(toolbar)
+        toolbar.menu.clear()
         supportActionBar?.apply {
             this.title = title
             setDisplayHomeAsUpEnabled(canNavigateBack)
-            setHomeAsUpIndicator(R.drawable.ic_baseline_arrow_back_24)
-        }
-
-        if (theme.resolveAttribute(com.google.android.material.R.attr.colorOnBackground, titleTypedValue , true)) {
-            toolbar.setTitleTextColor(titleTypedValue.data)
-        }
-
-        if (theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, bgTypedValue , true)) {
-            toolbar.setBackgroundColor(bgTypedValue.data)
-        }
-
-        toolbar.setNavigationOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
+            if (canNavigateBack) {
+                setHomeAsUpIndicator(R.drawable.ic_baseline_arrow_back_24)
+            } else {
+                setHomeAsUpIndicator(null)
+            }
         }
     }
 
@@ -851,6 +840,18 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
         val videoFragment =
             navHostFragment.childFragmentManager.primaryNavigationFragment as? VideoFragment
         videoFragment?.togglePlayPause()
+    }
+
+    private fun setupPredictiveBack() {
+        if (Preferences.disablePredictiveBack) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY
+                ) {
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        }
     }
 
 }
