@@ -38,7 +38,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -92,7 +91,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.transition.MaterialSharedAxis
 import com.yenaly.han1meviewer.R
-import com.yenaly.han1meviewer.ui.fragment.generateFakeCheckInRecords
 import com.yenaly.han1meviewer.ui.theme.HanimeTheme
 import com.yenaly.han1meviewer.ui.viewmodel.CheckInCalendarViewModel
 import com.yenaly.han1meviewer.ui.widget.CheckInWidgetProvider
@@ -585,7 +583,7 @@ private fun TodayCheckInCard(
                     Text(stringResource(R.string.checkin))
                 }
                 if (count > 0) {
-                    androidx.compose.material3.TextButton(onClick = onClear) {
+                    TextButton(onClick = onClear) {
                         Text(
                             stringResource(R.string.clear_checkin),
                             fontSize = 12.sp,
@@ -602,8 +600,7 @@ private fun TodayCheckInCard(
 private fun StatsCard(
     checkedDays: Int,
     monthlyTotal: Int,
-    bestStreak: Int,
-    currentStreak: Int
+    bestStreak: Int
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
