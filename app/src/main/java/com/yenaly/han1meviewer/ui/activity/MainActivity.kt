@@ -969,9 +969,7 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
      * Show the cached preview bitmap when back gesture starts
      */
     private fun showCachedPreview() {
-        val backStack = navController.currentBackStack.value
-        if (backStack.size < 2) return
-        val prevDestId = backStack[backStack.size - 2].destination.id
+        val prevDestId = navController.previousBackStackEntry?.destination?.id ?: return
         val bitmap = synchronized(previewBitmapCache) {
             previewBitmapCache[prevDestId]
         }
