@@ -186,6 +186,7 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
                 binding.dlMain.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
             }
         }
+        setupPredictiveBack()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -851,6 +852,18 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
         val videoFragment =
             navHostFragment.childFragmentManager.primaryNavigationFragment as? VideoFragment
         videoFragment?.togglePlayPause()
+    }
+
+    private fun setupPredictiveBack() {
+        if (Preferences.disablePredictiveBack) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY
+                ) {
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        }
     }
 
 }
