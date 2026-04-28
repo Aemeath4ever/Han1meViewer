@@ -367,10 +367,11 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
                 }
 
                 override fun onAuthenticationFailed() {
-                    onFailed()
+                    // 指纹被识别但不匹配（单次）
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    // 取消、锁定、连续失败后触发
                     onFailed()
                 }
             }
