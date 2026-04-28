@@ -301,8 +301,7 @@ fun CalendarCheckInScreen(
         StatsCard(
             checkedDays = animatedCheckedDays,
             monthlyTotal = animatedMonthlyTotal,
-            bestStreak = animatedBestStreak,
-            currentStreak = currentStreak
+            bestStreak = animatedBestStreak
         )
 
         Spacer(modifier = Modifier.height(16.dp))
