@@ -136,7 +136,6 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
 
     // Predictive back preview: cache of previous fragment for showing behind scaled view
     private var previewImageView: ImageView? = null
-    private var previewDimView: View? = null
     private val previewBitmapCache = HashMap<Int, android.graphics.Bitmap>() // destId → bitmap
     private val backCornerRadius by lazy { 24f.dp.toFloat() }
 
@@ -145,14 +144,7 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
         ActivityMainBinding.inflate(layoutInflater)
 
     override fun setUiStyle() {
-        enableEdgeToEdge(
-            statusBarStyle = androidx.activity.SystemBarStyle.auto(
-                android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
-            ),
-            navigationBarStyle = androidx.activity.SystemBarStyle.auto(
-                android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
-            )
-        )
+        enableEdgeToEdge()
     }
 
     override val onFragmentResumedListener: (Fragment) -> Unit = { fragment ->
@@ -180,8 +172,6 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
         previewImageView?.isClickable = false
         previewImageView?.isEnabled = false
         previewImageView?.setOnTouchListener { _, _ -> false }
-        previewDimView = binding.root.findViewById(R.id.preview_dim)
-        previewDimView?.setOnTouchListener { _, _ -> false }
 
         // Cache fragment views when they become primary for predictive back preview
         navHostFragment.childFragmentManager.registerFragmentLifecycleCallbacks(
@@ -976,8 +966,6 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
         if (bitmap != null && previewImageView != null) {
             previewImageView?.setImageBitmap(bitmap)
             previewImageView?.visibility = View.VISIBLE
-            previewDimView?.alpha = 0f
-            previewDimView?.visibility = View.VISIBLE
         }
     }
 
@@ -987,7 +975,6 @@ class MainActivity : YenalyActivity<ActivityMainBinding>(), DrawerListener, Tool
     private fun hidePreview() {
         previewImageView?.visibility = View.GONE
         previewImageView?.setImageBitmap(null)
-        previewDimView?.visibility = View.GONE
     }
 
     override fun onDestroy() {

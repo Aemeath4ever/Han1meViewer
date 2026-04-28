@@ -41,14 +41,6 @@
                 android:scaleType="fitXY"
                 app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-            <View
-                android:id="@+id/preview_dim"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#80000000"
-                android:visibility="gone"
-                app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
             <androidx.fragment.app.FragmentContainerView
                 android:id="@+id/fcv_main"
                 android:transitionGroup="true"

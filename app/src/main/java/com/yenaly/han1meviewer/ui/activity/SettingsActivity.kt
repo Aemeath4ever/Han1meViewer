@@ -1,11 +1,9 @@
 package com.yenaly.han1meviewer.ui.activity
 
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.widget.Toolbar
@@ -42,14 +40,7 @@ class SettingsActivity : YenalyActivity<ActivitySettingsBinding>() ,ToolbarHost{
     }
 
     override fun setUiStyle() {
-        enableEdgeToEdge(
-            statusBarStyle = androidx.activity.SystemBarStyle.auto(
-                android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
-            ),
-            navigationBarStyle = androidx.activity.SystemBarStyle.auto(
-                android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
-            )
-        )
+        enableEdgeToEdge()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
