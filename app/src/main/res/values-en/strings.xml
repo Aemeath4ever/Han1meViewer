@@ -418,6 +418,13 @@ Recommendations are as follows:\n
     <string name="egg_nice">%1$d times! Nice~ 😏</string>
     <string name="egg_streak">%1$d day streak! Can\'t stop, won\'t stop! 🫡</string>
     <string name="egg_singles">Happy Singles\' Day… not fapping today? 😢</string>
+    <string name="widget_description">Fap tracker widget — check in from home screen</string>
+    <string name="widget_checkin">Check In</string>
+    <string name="add_widget">Add Home Widget</string>
+    <string name="widget_not_supported">Your launcher does not support direct widget pinning</string>
+    <string name="widget_pick_hint">Find &quot;Fap Tracker&quot; and tap to add</string>
+    <string name="widget_today_label">Today</string>
+    <string name="widget_month_label">Month</string>
     <string name="original_comic">Original comic</string>
     <string name="fault_prompt">Something went wrong, please contact the developer!</string>
     <string name="read_download_dir_title">Read Download Directory</string>

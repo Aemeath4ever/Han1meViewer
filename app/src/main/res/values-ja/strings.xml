@@ -423,6 +423,13 @@ hanime1.me以外のドメインは、特定の時間帯にhanime1.meにリダイ
     <string name="egg_nice">%1$d回！ナイス～ 😏</string>
     <string name="egg_streak">%1$d日連続！手が止まらない！🫡</string>
     <string name="egg_singles">独身の日おめでとう…今日はシコらないの？😢</string>
+    <string name="widget_description">オナニー記録ウィジェット — ホーム画面からチェックイン</string>
+    <string name="widget_checkin">チェックイン</string>
+    <string name="add_widget">ウィジェットを追加</string>
+    <string name="widget_not_supported">お使いのランチャーはウィジェットの直接追加に対応していません</string>
+    <string name="widget_pick_hint">「オナニー記録」を見つけてタップして追加</string>
+    <string name="widget_today_label">今日</string>
+    <string name="widget_month_label">今月</string>
     <string name="original_comic">原作漫画</string>
     <string name="fault_prompt">エラー発生、開発者に連絡！</string>
     <string name="read_download_dir_title">ダウンロードディレクトリ読み込み</string>

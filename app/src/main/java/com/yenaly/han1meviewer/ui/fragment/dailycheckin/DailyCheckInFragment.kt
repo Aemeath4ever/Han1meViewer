@@ -1,6 +1,8 @@
 package com.yenaly.han1meviewer.ui.fragment.dailycheckin
 
 import android.content.Intent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.view.LayoutInflater
@@ -46,6 +48,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,6 +95,7 @@ import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.ui.fragment.generateFakeCheckInRecords
 import com.yenaly.han1meviewer.ui.theme.HanimeTheme
 import com.yenaly.han1meviewer.ui.viewmodel.CheckInCalendarViewModel
+import com.yenaly.han1meviewer.ui.widget.CheckInWidgetProvider
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -146,6 +150,27 @@ class DailyCheckInFragment : Fragment() {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = "Localized description"
+                                        )
+                                    }
+                                },
+                                actions = {
+                                    IconButton(onClick = {
+                                        val activity = requireActivity()
+                                        val mgr = AppWidgetManager.getInstance(activity)
+                                        Toast.makeText(activity, "部分rom不支持引导式添加，请手动添加小部件", Toast.LENGTH_SHORT).show()
+                                        if (mgr.isRequestPinAppWidgetSupported) {
+                                            mgr.requestPinAppWidget(
+                                                ComponentName(activity, CheckInWidgetProvider::class.java),
+                                                null,
+                                                null
+                                            )
+                                        } else {
+                                            Toast.makeText(activity, R.string.widget_not_supported, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Add,
+                                            contentDescription = stringResource(R.string.add_widget)
                                         )
                                     }
                                 },

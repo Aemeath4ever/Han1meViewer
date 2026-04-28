@@ -423,6 +423,13 @@
     <string name="egg_nice">%1$d 次！Nice～ 😏</string>
     <string name="egg_streak">连续 %1$d 天！手不能停！🫡</string>
     <string name="egg_singles">光棍节快乐…今天不冲吗？😢</string>
+    <string name="widget_description">手冲打卡小部件，桌面即可签到</string>
+    <string name="widget_checkin">打卡</string>
+    <string name="add_widget">添加桌面小工具</string>
+    <string name="widget_not_supported">你的桌面不支持直接添加小工具</string>
+    <string name="widget_pick_hint">请在手冲打卡小工具上点击添加</string>
+    <string name="widget_today_label">今日已冲</string>
+    <string name="widget_month_label">本月</string>
     <string name="original_comic">原作漫画</string>
     <string name="fault_prompt">出现错误，请联系开发者！</string>
     <string name="read_download_dir_title">读取下载目录</string>
