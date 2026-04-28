@@ -168,7 +168,6 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
             getString(R.string.settings),
             canNavigateBack = true
         )
-
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
