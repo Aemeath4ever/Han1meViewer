@@ -3,12 +3,14 @@ package com.yenaly.han1meviewer.ui.fragment.dailycheckin
 import android.content.Intent
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.os.Build
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.animateIntAsState
@@ -112,6 +114,7 @@ class DailyCheckInFragment : Fragment() {
         }
     }
 //test1
+    @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -298,8 +301,7 @@ fun CalendarCheckInScreen(
         StatsCard(
             checkedDays = animatedCheckedDays,
             monthlyTotal = animatedMonthlyTotal,
-            bestStreak = animatedBestStreak,
-            currentStreak = currentStreak
+            bestStreak = animatedBestStreak
         )
 
         Spacer(modifier = Modifier.height(16.dp))
