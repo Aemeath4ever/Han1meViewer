@@ -40,6 +40,7 @@
     <string name="comment_not_found">コメントはありません</string>
     <string name="hanime_list">新作リスト</string>
     <string name="latest_hanime_list_monthly">%s 裏アニメ新作リスト</string>
+    <string name="preview_page_updating">サイト側で新作プレビューページを更新中です。他の月を確認してください。</string>
     <string name="latest_hanime_comment">%s 新作コメント欄</string>
     <string name="my_list">マイリスト</string>
     <string name="watch_later">後で見る</string>

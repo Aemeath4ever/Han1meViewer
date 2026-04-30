@@ -40,6 +40,7 @@
     <string name="comment_not_found">未发现评论</string>
     <string name="hanime_list">新番列表</string>
     <string name="latest_hanime_list_monthly">%s 里番新番列表</string>
+    <string name="preview_page_updating">站方正在更新新番预告页面，请尝试查看其他月份</string>
     <string name="latest_hanime_comment">%s 新番评论区</string>
     <string name="my_list">我的清单</string>
     <string name="watch_later">稍后观看</string>

@@ -553,13 +553,24 @@ class HomePageFragment : YenalyFragment<FragmentHomePageBinding>(),
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, onBackPressedCallback)
     }
 
+    override fun onStart() {
+        super.onStart()
+        // 在onStart中确保toolbar状态正确，解决从其他Activity返回时的toolbar重叠问题
+        if (isAdded) {
+            (activity as? ToolbarHost)?.hideToolbar()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (isAdded) {
             onBackPressedCallback.isEnabled = true
+            // 延迟一帧以确保过渡动画完成后再处理toolbar
+            view?.post {
+                (activity as? ToolbarHost)?.hideToolbar()
+                (activity as MainActivity).setupToolbar()
+            }
         }
-        (activity as? ToolbarHost)?.hideToolbar()
-        (activity as MainActivity).setupToolbar()
     }
 
     override fun onPause() {
