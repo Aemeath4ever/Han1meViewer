@@ -42,6 +42,7 @@ import com.yenaly.han1meviewer.DATE_CODE
 import com.yenaly.han1meviewer.PREVIEW_COMMENT_PREFIX
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.databinding.FragmentPreviewBinding
+import com.yenaly.han1meviewer.logic.exception.HanimeNotFoundException
 import com.yenaly.han1meviewer.logic.state.WebsiteState
 import com.yenaly.han1meviewer.pienization
 import com.yenaly.han1meviewer.ui.adapter.HanimePreviewNewsRvAdapter
@@ -116,11 +117,21 @@ class PreviewFragment : YenalyFragment<FragmentPreviewBinding>() {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 viewModel.previewFlow.collect { state ->
                     binding.nsvPreview.isGone = state !is WebsiteState.Success
-                    binding.appBar.setExpanded(state is WebsiteState.Success, true)
+                    binding.llError.isGone = state !is WebsiteState.Error
+                    binding.appBar.setExpanded(state !is WebsiteState.Loading, true)
                     when (state) {
                         is WebsiteState.Error -> {
-                            (requireActivity() as AppCompatActivity).supportActionBar?.title =
+                            binding.cover.setImageDrawable(null)
+                            binding.tvError.text = if (state.throwable is HanimeNotFoundException) {
+                                getString(R.string.preview_page_updating)
+                            } else {
                                 state.throwable.pienization
+                            }
+                            (requireActivity() as AppCompatActivity).supportActionBar?.title =
+                                getString(R.string.hanime_list)
+                            binding.fabPrevious.isEnabled = true
+                            binding.fabPrevious.isVisible = true
+                            binding.fabNext.isVisible = false
                         }
                         is WebsiteState.Loading -> {
                             binding.fabPrevious.isEnabled = false
