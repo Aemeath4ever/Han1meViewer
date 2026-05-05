@@ -1,12 +1,12 @@
 package com.yenaly.han1meviewer.ui.view.video
 
 import android.annotation.SuppressLint
+import android.content.res.ColorStateList
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -82,6 +82,10 @@ class HJzvdStd @JvmOverloads constructor(
         fun onFullscreenChanged(isFullscreen: Boolean)
     }
     var fullscreenListener: FullscreenListener? = null
+
+    private val dialogAccentColor: Int
+        get() = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary)
+
     companion object {
         // 相當於重寫了
         /**
@@ -353,6 +357,45 @@ class HJzvdStd @JvmOverloads constructor(
 
     override fun getLayoutId() = R.layout.layout_jzvd_with_speed
 
+    override fun showProgressDialog(
+        deltaX: Float,
+        seekTime: String,
+        seekTimePosition: Long,
+        totalTime: String,
+        totalTimeDuration: Long,
+    ) {
+        super.showProgressDialog(deltaX, seekTime, seekTimePosition, totalTime, totalTimeDuration)
+        mDialogSeekTime.setTextColor(dialogAccentColor)
+        mDialogTotalTime.setTextColor(Color.WHITE)
+        applyDialogAccent(
+            progressBar = mDialogProgressBar,
+        )
+    }
+
+    override fun showVolumeDialog(deltaY: Float, volumePercent: Int) {
+        super.showVolumeDialog(deltaY, volumePercent)
+        applyDialogAccent(
+            progressBar = mDialogVolumeProgressBar,
+        )
+    }
+
+    override fun showBrightnessDialog(brightnessPercent: Int) {
+        super.showBrightnessDialog(brightnessPercent)
+        applyDialogAccent(
+            progressBar = mDialogBrightnessProgressBar,
+        )
+    }
+
+    private fun applyDialogAccent(
+        progressBar: ProgressBar? = null,
+    ) {
+        val color = dialogAccentColor
+        progressBar?.progressTintList = ColorStateList.valueOf(color)
+        progressBar?.progressBackgroundTintList = ColorStateList.valueOf(
+            MaterialColors.compositeARGBWithAlpha(color, 96)
+        )
+    }
+
     override fun init(context: Context?) {
         super.init(context)
         SAVE_PROGRESS = false
@@ -546,7 +589,7 @@ class HJzvdStd @JvmOverloads constructor(
     override fun changeUIToPreparingPlaying() {
         when (screen) {
             SCREEN_FULLSCREEN -> {
-                setAllControlsVisiblitySafe(
+                setAllControlsVisibilitySafe(
                     INVISIBLE, INVISIBLE, INVISIBLE,
                     VISIBLE, INVISIBLE, INVISIBLE, INVISIBLE
                 )
@@ -1040,7 +1083,7 @@ class HJzvdStd @JvmOverloads constructor(
     private fun changeUiToPreparingPlayingClear() {
         when (screen) {
             SCREEN_NORMAL, SCREEN_FULLSCREEN -> {
-                setAllControlsVisiblitySafe(
+                setAllControlsVisibilitySafe(
                     INVISIBLE, INVISIBLE, INVISIBLE,
                     VISIBLE, INVISIBLE, INVISIBLE, INVISIBLE
                 )
@@ -1051,7 +1094,7 @@ class HJzvdStd @JvmOverloads constructor(
     private fun changeUiToPreparingPlayingShow() {
         when (screen) {
             SCREEN_NORMAL, SCREEN_FULLSCREEN -> {
-                setAllControlsVisiblitySafe(
+                setAllControlsVisibilitySafe(
                     VISIBLE, VISIBLE, INVISIBLE,
                     VISIBLE, INVISIBLE, VISIBLE, INVISIBLE
                 )
@@ -1060,7 +1103,7 @@ class HJzvdStd @JvmOverloads constructor(
     }
 
     //安卓7会报错CalledFromWrongThreadException
-    fun setAllControlsVisiblitySafe(
+    fun setAllControlsVisibilitySafe(
         topCon: Int, bottomCon: Int, startBtn: Int, loadingPro: Int,
         posterImg: Int, bottomPro: Int, retryLayout: Int
     ) {
@@ -1105,19 +1148,10 @@ class HJzvdStd @JvmOverloads constructor(
             Log.d(TAG, "onStatePlaying:STATE_PREPARED ")
             mAudioManager =
                 applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                    .setOnAudioFocusChangeListener(onAudioFocusChangeListener)
-                    .build()
-                mAudioManager.requestAudioFocus(audioFocusRequest)
-            } else {
-                @Suppress("DEPRECATION")
-                mAudioManager.requestAudioFocus(
-                    onAudioFocusChangeListener,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-                )
-            }
+            val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setOnAudioFocusChangeListener(onAudioFocusChangeListener)
+                .build()
+            mAudioManager.requestAudioFocus(audioFocusRequest)
             if (seekToInAdvance != 0L) {
                 mediaInterface.seekTo(seekToInAdvance)
                 seekToInAdvance = 0
