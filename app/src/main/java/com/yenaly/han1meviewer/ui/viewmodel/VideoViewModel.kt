@@ -60,6 +60,8 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
 
     var fromDownload = false
 
+    // 平板横屏模式下，左栏不显示相关视频（右栏已显示）
+    var hideRelatedInIntro = false
     var hKeyframes: HKeyframeEntity? = null
     private val _videoList = MutableLiveData<List<HanimeInfo>>()
     val videoList: LiveData<List<HanimeInfo>> = _videoList

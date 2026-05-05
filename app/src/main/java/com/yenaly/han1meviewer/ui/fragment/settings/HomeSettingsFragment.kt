@@ -80,7 +80,7 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
         const val VIDEO_LANGUAGE = "video_language"
         const val DEFAULT_VIDEO_QUALITY = "default_video_quality"
         const val SHOW_PLAYED_INDICATOR = "show_played_indicator"
-        const val ALLOW_PIP_MDOE = "allow_pip_mode"
+        const val ALLOW_PIP_MODE = "allow_pip_mode"
         const val PLAYER_SETTINGS = "player_settings"
         const val H_KEYFRAME_SETTINGS = "h_keyframe_settings"
         const val UPDATE = "update"
@@ -104,6 +104,7 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
         const val DISABLE_MOBILE_DATA_WARNING = "disable_mobile_data_warning"
         const val COLLAPSE_DOWNLOADED_GROUP = "collapse_downloaded_group"
         const val DISABLE_PREDICTIVE_BACK = "disable_predictive_back"
+        const val TABLET_MODE = "tablet_mode"
     }
 
     private val videoLanguage
@@ -113,7 +114,7 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
     private val playerSettings
             by safePreference<Preference>(PLAYER_SETTINGS)
     private val allowPipMode
-            by safePreference<Preference>(ALLOW_PIP_MDOE)
+            by safePreference<Preference>(ALLOW_PIP_MODE)
     private val hKeyframeSettings
             by safePreference<Preference>(H_KEYFRAME_SETTINGS)
     private val downloadSettings
@@ -146,10 +147,6 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
             by safePreference<MaterialDialogPreference>(USE_DARK_MODE)
     private val useDynamicColor
             by safePreference<MaterialSwitchPreference>(USE_DYNAMIC_COLOR)
-    private val allowResumePlayback
-            by safePreference<MaterialSwitchPreference>(ALLOW_RESUME_PLAYBACK)
-    private val disableMobileDataWarning
-            by safePreference<MaterialSwitchPreference>(DISABLE_MOBILE_DATA_WARNING)
     private val disablePredictiveBack
             by safePreference<MaterialSwitchPreference>(DISABLE_PREDICTIVE_BACK)
 
@@ -317,14 +314,6 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
                 } else {
                     true
                 }
-            }
-        }
-        allowResumePlayback.apply {
-            setOnPreferenceChangeListener { _, newValue ->
-                if (newValue != Preferences.allowResumePlayback) {
-                    //TODO 可能做点什么？
-                }
-                return@setOnPreferenceChangeListener true
             }
         }
         disablePredictiveBack.apply {
@@ -615,7 +604,6 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
     }
 
     fun isPipPermissionGranted(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val mode = appOps.unsafeCheckOpNoThrow(
@@ -630,11 +618,9 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
     }
 
     private fun openPipPermissionSettings(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val intent = Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS",
-                "package:${context.packageName}".toUri())
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            context.startActivity(intent)
-        }
+        val intent = Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS",
+            "package:${context.packageName}".toUri())
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        context.startActivity(intent)
     }
 }

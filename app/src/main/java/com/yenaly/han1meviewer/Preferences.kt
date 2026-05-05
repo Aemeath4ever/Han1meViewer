@@ -237,6 +237,9 @@ object Preferences {
     val disablePredictiveBack: Boolean
         get() = preferenceSp.getBoolean(HomeSettingsFragment.DISABLE_PREDICTIVE_BACK, false)
 
+    val tabletMode: Boolean
+        get() = preferenceSp.getBoolean(HomeSettingsFragment.TABLET_MODE, false)
+
     /**
      * MPV播放器设置
      */
