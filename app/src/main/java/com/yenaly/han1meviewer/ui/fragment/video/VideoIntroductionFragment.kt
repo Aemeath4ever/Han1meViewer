@@ -10,6 +10,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.View.GONE
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -616,6 +617,7 @@ class VideoIntroductionFragment : YenalyFragment<FragmentVideoIntroductionBindin
         private fun ItemVideoIntroductionBinding.initTitle(info: HanimeVideo) {
             title.text = info.chineseTitle
             chineseTitle.text = info.title.also { initShareButton(it) }
+            if (info.title == info.chineseTitle) chineseTitle.visibility = GONE
             // #issue-80: 长按复制功能请求
             title.setOnLongClickListener {
                 title.text.copyToClipboard()
