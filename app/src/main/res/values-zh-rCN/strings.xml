@@ -96,6 +96,8 @@
     <string name="open_playlist_drawer">打开播放清单列表</string>
     <string name="add_to_playlist">加入清单</string>
     <string name="player_settings">播放器设置</string>
+    <string name="tablet_mode">平板模式</string>
+    <string name="tablet_mode_summary">开启后影片页面将以平板布局显示，提供更大观看区域</string>
     <string name="current_slide_sensitivity">当前灵敏度：%s</string>
     <string name="network">网络</string>
     <string name="proxy">代理</string>

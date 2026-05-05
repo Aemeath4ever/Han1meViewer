@@ -52,6 +52,13 @@
             app:summary="@string/disable_predictive_back_summary"
             app:title="@string/disable_predictive_back_title" />
 
+        <com.yenaly.yenaly_libs.base.preference.MaterialSwitchPreference
+            app:defaultValue="false"
+            app:icon="@drawable/ic_baseline_tablet_24"
+            app:key="tablet_mode"
+            app:summary="@string/tablet_mode_summary"
+            app:title="@string/tablet_mode" />
+
         <Preference
             app:icon="@drawable/ic_baseline_play_circle_outline_24"
             app:key="player_settings"

@@ -96,6 +96,8 @@
     <string name="open_playlist_drawer">Open Playlist Drawer</string>
     <string name="add_to_playlist">Add to Playlist</string>
     <string name="player_settings">Player Settings</string>
+    <string name="tablet_mode">Tablet Mode</string>
+    <string name="tablet_mode_summary">Enable tablet layout for the video page, providing a larger viewing area</string>
     <string name="current_slide_sensitivity">Current Sensitivity: %s</string>
     <string name="network">Network</string>
     <string name="proxy">Proxy</string>

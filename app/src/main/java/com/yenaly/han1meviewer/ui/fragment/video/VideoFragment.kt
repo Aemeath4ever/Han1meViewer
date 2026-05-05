@@ -7,15 +7,18 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Rect
 import android.graphics.drawable.Icon
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.Rational
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.ViewCompat
@@ -24,12 +27,16 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.preference.PreferenceManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import cn.jzvd.JZMediaInterface
 import cn.jzvd.Jzvd
 import coil.load
@@ -44,6 +51,7 @@ import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.VIDEO_CODE
 import com.yenaly.han1meviewer.VIDEO_COMMENT_PREFIX
+import com.yenaly.han1meviewer.VIDEO_LAYOUT_MATCH_PARENT
 import com.yenaly.han1meviewer.databinding.FragmentVideoBinding
 import com.yenaly.han1meviewer.getHanimeVideoLink
 import com.yenaly.han1meviewer.logic.DatabaseRepo
@@ -52,6 +60,7 @@ import com.yenaly.han1meviewer.logic.entity.WatchHistoryEntity
 import com.yenaly.han1meviewer.logic.exception.ParseException
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
 import com.yenaly.han1meviewer.ui.activity.MainActivity
+import com.yenaly.han1meviewer.ui.adapter.HanimeVideoRvAdapter
 import com.yenaly.han1meviewer.ui.view.video.ExoMediaKernel
 import com.yenaly.han1meviewer.ui.view.video.HJzvdStd
 import com.yenaly.han1meviewer.ui.view.video.HMediaKernel
@@ -61,6 +70,7 @@ import com.yenaly.han1meviewer.ui.viewmodel.CommentViewModel
 import com.yenaly.han1meviewer.ui.viewmodel.VideoViewModel
 import com.yenaly.han1meviewer.util.checkBadGuy
 import com.yenaly.han1meviewer.util.getOrCreateBadgeOnTextViewAt
+import com.yenaly.han1meviewer.util.openVideo
 import com.yenaly.han1meviewer.util.showAlertDialog
 import com.yenaly.yenaly_libs.base.YenalyFragment
 import com.yenaly.yenaly_libs.utils.OrientationManager
@@ -73,7 +83,6 @@ import com.yenaly.yenaly_libs.utils.view.attach
 import com.yenaly.yenaly_libs.utils.view.setUpFragmentStateAdapter
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
-
 
 class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager.OrientationChangeListener {
 
@@ -93,9 +102,8 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
     private val videoUri by lazy { requireArguments().getString("LOCAL_URI") }
     private var videoTitle: String? = null
     private lateinit var orientationManager: OrientationManager
- //   private var saveJob: Job? = null
     private val tabNameArray by lazy {
-        checkBadGuy(requireContext(),R.raw.akarin)
+        checkBadGuy(requireContext(), R.raw.akarin)
     }
     private val jzBackCallback = object : OnBackPressedCallback(false) {
 
@@ -107,20 +115,40 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         }
     }
 
+    private val relatedVideoAdapter by lazy {
+        HanimeVideoRvAdapter(VIDEO_LAYOUT_MATCH_PARENT) { item ->
+            openVideo(item.videoCode)
+        }
+    }
+
+    private val isTabletMode get() = Preferences.tabletMode
+
+    // 传感器原始角度，用于实时判断横竖屏，避免 Configuration 滞后
+    private var lastRawAngle: Int = 0
+    private var tabletLandscapeLayout: LinearLayout? = null
+    private var tabletRightRecyclerView: RecyclerView? = null
+
+    // 基于传感器原始角度判断当前是否为横屏
+    private val isCurrentlyLandscape: Boolean
+        get() {
+            val a = ((lastRawAngle % 360) + 360) % 360
+            return a in 0..45 || a in 135..225 || a in 315..360
+        }
+
     override fun getViewBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentVideoBinding {
         return FragmentVideoBinding.inflate(inflater, container, false)
     }
 
     override fun initData(savedInstanceState: Bundle?) {
-        if (videoCode == "-1"){
+        if (videoCode == "-1") {
             viewModel.fromDownload = true
-        }else{
+        } else {
             viewModel.fromDownload = fromDownload
         }
         viewModel.videoCode = videoCode
         commentViewModel.code = videoCode
         binding.videoPlayer.videoCode = videoCode
-        checkBadGuy(requireContext(),R.raw.akarin)
+        checkBadGuy(requireContext(), R.raw.akarin)
         ViewCompat.setOnApplyWindowInsetsListener(binding.videoPlayer) { v, insets ->
             val navBar = insets.getInsets(WindowInsetsCompat.Type.statusBars())
             v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
@@ -159,11 +187,39 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                         binding.appbar.setExpanded(true, true)
                     }
                 }
-                Jzvd.STATE_PAUSE, Jzvd.STATE_AUTO_COMPLETE ->{
+                Jzvd.STATE_PAUSE, Jzvd.STATE_AUTO_COMPLETE -> {
                     behavior.disableScroll = false
                 }
             }
         }
+        setupTabletOrientationListener()
+        if (isTabletMode) {
+            applyTabletLayout()
+        }
+    }
+
+    /**
+     * 平板模式下专用的方向监听器
+     * 使用传感器原始角度判断横竖屏，避免 resources.configuration 滞后
+     */
+    private fun setupTabletOrientationListener() {
+        val listener = object : OrientationEventListener(requireContext()) {
+            override fun onOrientationChanged(angle: Int) {
+                if (angle == -1) return
+                if (!isTabletMode) return
+                lastRawAngle = angle
+                applyTabletLayout()
+            }
+        }
+        lifecycle.addObserver(object : LifecycleEventObserver {
+            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                when (event) {
+                    Lifecycle.Event.ON_START -> listener.enable()
+                    Lifecycle.Event.ON_STOP -> listener.disable()
+                    else -> {}
+                }
+            }
+        })
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -171,7 +227,11 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         binding.videoPlayer.fullscreenListener = object : HJzvdStd.FullscreenListener {
             override fun onFullscreenChanged(isFullscreen: Boolean) {
                 jzBackCallback.isEnabled = isFullscreen
-                Log.i("JZVD screen state",isFullscreen.toString())
+                Log.i("JZVD screen state", isFullscreen.toString())
+                // 退出全屏后恢复平板布局
+                if (!isFullscreen && isTabletMode) {
+                    binding.videoPlayer.post { applyTabletLayout() }
+                }
             }
         }
     }
@@ -222,6 +282,10 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                             val history = DatabaseRepo.WatchHistory.findBy(videoCode)
                             val progress = history?.progress ?: 0L
                             binding.videoPlayer.savedProgress = progress
+                            // 平板模式：加载完成后填充右侧相关视频列表
+                            if (isTabletMode) {
+                                relatedVideoAdapter.submitList(state.info.relatedHanimes)
+                            }
                         }
 
                         is VideoLoadingState.NoContent -> {
@@ -268,25 +332,15 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         }
     }
 
-//    override fun onResume() {
-//        super.onResume()
-//        saveJob = lifecycleScope.launch {
-//            while (isActive) {
-//                delay(5000)
-//                val progress = binding.videoPlayer.currentPositionWhenPlaying
-//                val videoCode = videoCode
-//                DatabaseRepo.WatchHistory.updateProgress(videoCode, progress)
-//            }
-//        }
-//    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         Jzvd.releaseAllVideos()
     }
 
+    // 非平板模式下：处理自动旋转全屏逻辑
     override fun onOrientationChanged(orientation: OrientationManager.ScreenOrientation) {
-        if (Jzvd.CURRENT_JZVD != null
+        if (!isTabletMode
+            && Jzvd.CURRENT_JZVD != null
             && (binding.videoPlayer.state == Jzvd.STATE_PLAYING || binding.videoPlayer.state == Jzvd.STATE_PAUSE)
             && binding.videoPlayer.screen != Jzvd.SCREEN_TINY
             && Jzvd.FULLSCREEN_ORIENTATION != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -298,6 +352,88 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
             ) {
                 changeScreenNormal()
             }
+        }
+    }
+
+    /**
+     * 根据当前方向应用平板布局
+     * 横屏：左右两栏（左 62% = 播放器+简介评论，右 38% = 相关视频）
+     * 竖屏：上下单栏（播放器增高至 350dp）
+     */
+    private fun applyTabletLayout() {
+        if (isCurrentlyLandscape) {
+            setupTabletLandscape()
+        } else {
+            setupTabletPortrait()
+        }
+    }
+
+    // 竖屏 / 手机模式：CoordinatorLayout 直接填满容器
+    private fun setupTabletPortrait() {
+        val container = binding.videoRootContainer
+        val main = binding.videoMain
+        if (tabletLandscapeLayout != null && tabletLandscapeLayout!!.parent != null) {
+            tabletLandscapeLayout!!.removeView(main)
+            container.removeView(tabletLandscapeLayout)
+        }
+        if (main.parent !== container) {
+            (main.parent as? ViewGroup)?.removeView(main)
+            main.layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            container.addView(main)
+        }
+        safeSetPlayerHeight(350.dp)
+    }
+
+    // 横屏模式：创建 / 复用左右两栏布局
+    private fun setupTabletLandscape() {
+        val container = binding.videoRootContainer
+        val main = binding.videoMain
+        if (tabletLandscapeLayout != null && main.parent === tabletLandscapeLayout
+            && tabletLandscapeLayout!!.parent === container
+        ) {
+            safeSetPlayerHeight(350.dp)
+            return
+        }
+        (main.parent as? ViewGroup)?.removeView(main)
+        if (tabletLandscapeLayout == null) {
+            tabletLandscapeLayout = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+            }
+            val rightPanel = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 0.38f)
+            }
+            val titleTv = TextView(requireContext()).apply {
+                text = getString(R.string.related_video)
+                setTextAppearance(android.R.style.TextAppearance_Medium)
+                setPadding(24.dp, 20.dp, 24.dp, 8.dp)
+            }
+            rightPanel.addView(titleTv)
+            tabletRightRecyclerView = RecyclerView(requireContext()).apply {
+                layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+                setPadding(8.dp, 4.dp, 8.dp, 8.dp)
+                clipToPadding = false
+                layoutManager = LinearLayoutManager(requireContext(), RecyclerView.VERTICAL, false)
+                adapter = relatedVideoAdapter
+            }
+            rightPanel.addView(tabletRightRecyclerView)
+            tabletLandscapeLayout!!.addView(rightPanel)
+        }
+        tabletLandscapeLayout!!.removeView(main)
+        main.layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 0.62f)
+        tabletLandscapeLayout!!.addView(main, 0)
+        container.removeAllViews()
+        container.addView(tabletLandscapeLayout)
+        safeSetPlayerHeight(220.dp)
+    }
+
+    // 安全设置播放器高度（绕过 CollapsingToolbarLayout 的类型强转崩溃）
+    private fun safeSetPlayerHeight(height: Int) {
+        val lp = binding.videoPlayer.layoutParams
+        if (lp is com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams) {
+            lp.height = height
+            binding.videoPlayer.layoutParams = lp
         }
     }
 
@@ -375,7 +511,7 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         }
     }
 
-   fun showRedDotCount(count: Int) {
+    fun showRedDotCount(count: Int) {
         binding.videoTl.getOrCreateBadgeOnTextViewAt(
             tabNameArray.indexOf(R.string.comment),
             null, Gravity.END, 4.dp
@@ -384,34 +520,29 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
             number = count
         }
     }
+
     fun enterPipMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val aspectRatio = Rational(16, 9)
-            val intent = PendingIntent.getBroadcast(
-                requireContext(),
-                0,
-                Intent(MainActivity.ACTION_TOGGLE_PLAY).setPackage(requireContext().packageName),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            val icon = Icon.createWithResource(requireContext(), R.drawable.ic_baseline_pause_24_tintwhite)
-            val action = RemoteAction(
-                icon,
-                getString(R.string.play_pause),
-                getString(R.string.play_pause),
-                intent
-            )
-            val sourceRect = Rect()
-            binding.videoPlayer.getGlobalVisibleRect(sourceRect)
-            val params = PictureInPictureParams.Builder()
-                .setSourceRectHint(sourceRect)
-                .setAspectRatio(aspectRatio)
-                .setActions(listOf(action))
-                .build()
-            requireActivity().enterPictureInPictureMode(params)
-        }
+        val aspectRatio = Rational(16, 9)
+        val intent = PendingIntent.getBroadcast(
+            requireContext(),
+            0,
+            Intent(MainActivity.ACTION_TOGGLE_PLAY).setPackage(requireContext().packageName),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val icon = Icon.createWithResource(requireContext(), R.drawable.ic_baseline_pause_24_tintwhite)
+        val action = RemoteAction(icon, getString(R.string.play_pause), getString(R.string.play_pause), intent)
+        val sourceRect = Rect()
+        binding.videoPlayer.getGlobalVisibleRect(sourceRect)
+        val params = PictureInPictureParams.Builder()
+            .setSourceRectHint(sourceRect)
+            .setAspectRatio(aspectRatio)
+            .setActions(listOf(action))
+            .build()
+        requireActivity().enterPictureInPictureMode(params)
     }
+
     fun updatePipAction() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && requireActivity().isInPictureInPictureMode) {
+        if (requireActivity().isInPictureInPictureMode) {
             val isPlaying = (Jzvd.CURRENT_JZVD?.mediaInterface as? ExoMediaKernel)?.isPlaying == true
             val icon = if (isPlaying) {
                 Icon.createWithResource(requireContext(), R.drawable.ic_baseline_pause_24_tintwhite)
@@ -419,39 +550,32 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                 Icon.createWithResource(requireContext(), R.drawable.ic_baseline_play_arrow_24_tintwhite)
             }
             val title = if (isPlaying) "Pause Video" else "Play Video"
-
             val intent = PendingIntent.getBroadcast(
-                requireContext(),
-                0,
+                requireContext(), 0,
                 Intent(MainActivity.ACTION_TOGGLE_PLAY).setPackage(requireContext().packageName),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
-
-            val action = RemoteAction(
-                icon,
-                title,
-                getString(R.string.play_pause),
-                intent
-            )
+            val action = RemoteAction(icon, title, getString(R.string.play_pause), intent)
             val params = PictureInPictureParams.Builder()
                 .setAspectRatio(Rational(16, 9))
                 .setActions(listOf(action))
                 .build()
-
             requireActivity().setPictureInPictureParams(params)
         }
     }
 
 
     fun shouldEnterPip(): Boolean {
-        val isPlaying = (binding.videoPlayer.state == Jzvd.STATE_PLAYING ||
-                binding.videoPlayer.state == Jzvd.STATE_PAUSE)
-        return  isPlaying
+        return binding.videoPlayer.state == Jzvd.STATE_PLAYING || binding.videoPlayer.state == Jzvd.STATE_PAUSE
     }
     fun onPipModeChanged(isInPip: Boolean) {
-        val lp = binding.videoPlayer.layoutParams
-        lp.height = if (isInPip) MATCH_PARENT else 250.dp
-        binding.videoPlayer.layoutParams = lp
+        if (isInPip) {
+            safeSetPlayerHeight(MATCH_PARENT)
+        } else if (isTabletMode && !isCurrentlyLandscape) {
+            safeSetPlayerHeight(350.dp)
+        } else {
+            safeSetPlayerHeight(250.dp)
+        }
         binding.videoTl.isVisible = !isInPip
         binding.videoVp.isUserInputEnabled = !isInPip
         binding.videoVp.isVisible = !isInPip
@@ -462,7 +586,6 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         val player = binding.videoPlayer
         if (player.mediaInterface.isPlaying) {
             player.mediaInterface.pause()
- //           player.onStatePause()
         } else {
             player.mediaInterface.start()
         }

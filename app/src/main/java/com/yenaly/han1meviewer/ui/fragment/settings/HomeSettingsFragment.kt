@@ -104,6 +104,7 @@ class HomeSettingsFragment : YenalySettingsFragment(R.xml.settings_home) {
         const val DISABLE_MOBILE_DATA_WARNING = "disable_mobile_data_warning"
         const val COLLAPSE_DOWNLOADED_GROUP = "collapse_downloaded_group"
         const val DISABLE_PREDICTIVE_BACK = "disable_predictive_back"
+        const val TABLET_MODE = "tablet_mode"
     }
 
     private val videoLanguage
