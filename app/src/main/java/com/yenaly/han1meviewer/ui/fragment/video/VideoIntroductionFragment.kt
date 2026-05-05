@@ -3,6 +3,7 @@ package com.yenaly.han1meviewer.ui.fragment.video
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Typeface
 import android.os.Bundle
 import android.provider.Settings
@@ -11,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.GONE
+import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -229,6 +231,57 @@ class VideoIntroductionFragment : YenalyFragment<FragmentVideoIntroductionBindin
             }
         }
     }
+
+    private fun updateRelatedGridSpan() {
+        val video = viewModel.hanimeVideoFlow.value ?: return
+        val spanCount = video.relatedHanimes.eachGridCounts
+        if (!::layoutManager.isInitialized || layoutManager.spanCount == spanCount) return
+        val layoutState = binding.rvVideoIntro.layoutManager?.onSaveInstanceState()
+        layoutManager = createLayoutManager(spanCount)
+        binding.rvVideoIntro.layoutManager = layoutManager
+        layoutState?.let { state ->
+            binding.rvVideoIntro.layoutManager?.onRestoreInstanceState(state)
+        }
+    }
+
+    fun refreshRelatedSection() {
+        if (!isAdded || view == null) return
+        val video = viewModel.hanimeVideoFlow.value ?: return
+        updateRelatedGridSpan()
+        val shouldShowRelated = !viewModel.fromDownload && !viewModel.hideRelatedInIntro
+        val hasVideoIntro = multi.adapters.contains(videoIntroAdapter)
+        val hasRelatedTitle = multi.adapters.contains(relatedTitleAdapter)
+        val hasRelatedList = multi.adapters.contains(relatedAdapter)
+
+        if (shouldShowRelated) {
+            if (!hasVideoIntro) return
+            if (hasRelatedTitle) {
+                multi.removeAdapter(relatedTitleAdapter)
+            }
+            if (hasRelatedList) {
+                multi.removeAdapter(relatedAdapter)
+            }
+            multi.addAdapter(relatedTitleAdapter)
+            multi.addAdapter(relatedAdapter)
+            relatedAdapter.submitList(video.relatedHanimes)
+        } else {
+            if (hasRelatedList) {
+                multi.removeAdapter(relatedAdapter)
+            }
+            if (hasRelatedTitle) {
+                multi.removeAdapter(relatedTitleAdapter)
+            }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (!isAdded || view == null) return
+        binding.rvVideoIntro.post {
+            updateRelatedGridSpan()
+        }
+    }
+
     override fun bindDataObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
@@ -286,13 +339,7 @@ class VideoIntroductionFragment : YenalyFragment<FragmentVideoIntroductionBindin
                                 }
                             }
 
-                            if (!viewModel.fromDownload) {
-                                multi.addAdapter(relatedTitleAdapter)
-                                multi.addAdapter(relatedAdapter)
-                                if (cached?.relatedHanimes != video.relatedHanimes) {
-                                    relatedAdapter.submitList(video.relatedHanimes)
-                                }
-                            }
+                            refreshRelatedSection()
 
                             viewModel.videoIntroDataMap[code] = video
                             viewModel.videoIntroRestoredSet.add(code)
@@ -572,7 +619,7 @@ class VideoIntroductionFragment : YenalyFragment<FragmentVideoIntroductionBindin
                         }
                     }
                 }
-                btnOriginalComic.visibility = if (!item.originalComic.isNullOrBlank()) View.VISIBLE else View.GONE
+                btnOriginalComic.visibility = if (!item.originalComic.isNullOrBlank()) VISIBLE else GONE
 
                 initTitle(item)
                 initArtist(item.artist)

@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.ActivityInfo
 import android.graphics.Rect
 import android.graphics.drawable.Icon
@@ -12,7 +13,6 @@ import android.util.Log
 import android.util.Rational
 import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -23,19 +23,18 @@ import androidx.activity.OnBackPressedCallback
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.preference.PreferenceManager
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.jzvd.JZMediaInterface
 import cn.jzvd.Jzvd
@@ -123,17 +122,14 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
 
     private val isTabletMode get() = Preferences.tabletMode
 
-    // 传感器原始角度，用于实时判断横竖屏，避免 Configuration 滞后
-    private var lastRawAngle: Int = 0
     private var tabletLandscapeLayout: LinearLayout? = null
+    private var tabletRightPanel: LinearLayout? = null
     private var tabletRightRecyclerView: RecyclerView? = null
+    private var lastAppliedTabletLandscape: Boolean? = null
 
-    // 基于传感器原始角度判断当前是否为横屏
+    // 以系统当前配置为准，避免设备自然方向和传感器角度定义差异
     private val isCurrentlyLandscape: Boolean
-        get() {
-            val a = ((lastRawAngle % 360) + 360) % 360
-            return a in 0..45 || a in 135..225 || a in 315..360
-        }
+        get() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     override fun getViewBinding(inflater: LayoutInflater, container: ViewGroup?): FragmentVideoBinding {
         return FragmentVideoBinding.inflate(inflater, container, false)
@@ -192,34 +188,24 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                 }
             }
         }
-        setupTabletOrientationListener()
+        setupTabletLayoutListener()
         if (isTabletMode) {
-            applyTabletLayout()
+            syncTabletUi(force = true)
         }
     }
 
     /**
-     * 平板模式下专用的方向监听器
-     * 使用传感器原始角度判断横竖屏，避免 resources.configuration 滞后
+     * 平板模式下监听容器真实尺寸变化，等布局更新完成后再同步单/双栏
      */
-    private fun setupTabletOrientationListener() {
-        val listener = object : OrientationEventListener(requireContext()) {
-            override fun onOrientationChanged(angle: Int) {
-                if (angle == -1) return
-                if (!isTabletMode) return
-                lastRawAngle = angle
-                applyTabletLayout()
+    private fun setupTabletLayoutListener() {
+        binding.videoRootContainer.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (!isTabletMode) return@addOnLayoutChangeListener
+            val widthChanged = right - left != oldRight - oldLeft
+            val heightChanged = bottom - top != oldBottom - oldTop
+            if (widthChanged || heightChanged) {
+                syncTabletUi()
             }
         }
-        lifecycle.addObserver(object : LifecycleEventObserver {
-            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-                when (event) {
-                    Lifecycle.Event.ON_START -> listener.enable()
-                    Lifecycle.Event.ON_STOP -> listener.disable()
-                    else -> {}
-                }
-            }
-        })
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -230,7 +216,7 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                 Log.i("JZVD screen state", isFullscreen.toString())
                 // 退出全屏后恢复平板布局
                 if (!isFullscreen && isTabletMode) {
-                    binding.videoPlayer.post { applyTabletLayout() }
+                    binding.videoPlayer.post { syncTabletUi(force = true) }
                 }
             }
         }
@@ -282,9 +268,9 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                             val history = DatabaseRepo.WatchHistory.findBy(videoCode)
                             val progress = history?.progress ?: 0L
                             binding.videoPlayer.savedProgress = progress
-                            // 平板模式：加载完成后填充右侧相关视频列表
+                            // 平板模式：加载完成后同步相关视频区域状态
                             if (isTabletMode) {
-                                relatedVideoAdapter.submitList(state.info.relatedHanimes)
+                                syncTabletUi(force = true)
                             }
                         }
 
@@ -333,6 +319,11 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
     }
 
     override fun onDestroyView() {
+        detachTabletLayoutViews()
+        tabletLandscapeLayout = null
+        tabletRightPanel = null
+        tabletRightRecyclerView = null
+        lastAppliedTabletLandscape = null
         super.onDestroyView()
         Jzvd.releaseAllVideos()
     }
@@ -368,6 +359,27 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         }
     }
 
+    private fun syncTabletUi(force: Boolean = false) {
+        if (!isTabletMode) return
+        val isLandscape = isCurrentlyLandscape
+        val layoutChanged = lastAppliedTabletLandscape != isLandscape
+        if (!force && !layoutChanged) return
+
+        lastAppliedTabletLandscape = isLandscape
+        viewModel.hideRelatedInIntro = isLandscape
+        applyTabletLayout()
+
+        val relatedItems = viewModel.hanimeVideoFlow.value?.relatedHanimes.orEmpty()
+        if (isLandscape) {
+            relatedVideoAdapter.submitList(relatedItems)
+            scheduleRightPanelGridSpanUpdate(relatedItems)
+        }
+
+        childFragmentManager.fragments
+            .filterIsInstance<VideoIntroductionFragment>()
+            .forEach { it.refreshRelatedSection() }
+    }
+
     // 竖屏 / 手机模式：CoordinatorLayout 直接填满容器
     private fun setupTabletPortrait() {
         val container = binding.videoRootContainer
@@ -392,9 +404,11 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
             && tabletLandscapeLayout!!.parent === container
         ) {
             safeSetPlayerHeight(350.dp)
+            scheduleRightPanelGridSpanUpdate(viewModel.hanimeVideoFlow.value?.relatedHanimes.orEmpty())
             return
         }
         (main.parent as? ViewGroup)?.removeView(main)
+        (tabletLandscapeLayout?.parent as? ViewGroup)?.removeView(tabletLandscapeLayout)
         if (tabletLandscapeLayout == null) {
             tabletLandscapeLayout = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -404,6 +418,7 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 0.38f)
             }
+            tabletRightPanel = rightPanel
             val titleTv = TextView(requireContext()).apply {
                 text = getString(R.string.related_video)
                 setTextAppearance(android.R.style.TextAppearance_Medium)
@@ -414,8 +429,13 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
                 layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
                 setPadding(8.dp, 4.dp, 8.dp, 8.dp)
                 clipToPadding = false
-                layoutManager = LinearLayoutManager(requireContext(), RecyclerView.VERTICAL, false)
+                layoutManager = GridLayoutManager(requireContext(), 1)
                 adapter = relatedVideoAdapter
+                addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+                    if (right - left != oldRight - oldLeft) {
+                        scheduleRightPanelGridSpanUpdate(viewModel.hanimeVideoFlow.value?.relatedHanimes.orEmpty())
+                    }
+                }
             }
             rightPanel.addView(tabletRightRecyclerView)
             tabletLandscapeLayout!!.addView(rightPanel)
@@ -426,6 +446,56 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         container.removeAllViews()
         container.addView(tabletLandscapeLayout)
         safeSetPlayerHeight(220.dp)
+    }
+
+    private fun detachTabletLayoutViews() {
+        val main = binding.videoMain
+        (main.parent as? ViewGroup)?.removeView(main)
+        tabletRightRecyclerView?.adapter = null
+        (tabletRightRecyclerView?.parent as? ViewGroup)?.removeView(tabletRightRecyclerView)
+        (tabletRightPanel?.parent as? ViewGroup)?.removeView(tabletRightPanel)
+        (tabletLandscapeLayout?.parent as? ViewGroup)?.removeView(tabletLandscapeLayout)
+    }
+
+    private fun scheduleRightPanelGridSpanUpdate(items: List<com.yenaly.han1meviewer.logic.model.HanimeInfo>) {
+        val rv = tabletRightRecyclerView ?: return
+        if (items.isEmpty()) return
+        if (rv.isLaidOut) {
+            updateRightPanelGridSpan(items)
+        }
+        rv.post {
+            rv.doOnNextLayout {
+                updateRightPanelGridSpan(items)
+            }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (!isTabletMode) return
+        binding.videoRootContainer.post { syncTabletUi(force = true) }
+    }
+
+    // 根据右侧面板宽度动态计算相关视频网格列数
+    private fun updateRightPanelGridSpan(items: List<com.yenaly.han1meviewer.logic.model.HanimeInfo>) {
+        val rv = tabletRightRecyclerView ?: return
+        if (items.isEmpty()) return
+        val width = rv.width.takeIf { it > 0 } ?: rv.measuredWidth
+        if (width <= 0) return
+        val availableWidth = (width - rv.paddingStart - rv.paddingEnd).coerceAtLeast(0)
+        val itemWidth = if (items.first().itemType == com.yenaly.han1meviewer.logic.model.HanimeInfo.NORMAL) {
+            resources.getDimension(R.dimen.video_cover_width)
+        } else {
+            resources.getDimension(R.dimen.video_cover_simplified_width)
+        }
+        val spanCount = (availableWidth / itemWidth).toInt().coerceAtLeast(1)
+        val lm = rv.layoutManager as? GridLayoutManager ?: return
+        if (lm.spanCount != spanCount) {
+            lm.spanCount = spanCount
+            rv.recycledViewPool.clear()
+            rv.adapter?.notifyItemRangeChanged(0, rv.adapter?.itemCount ?: 0)
+            rv.requestLayout()
+        }
     }
 
     // 安全设置播放器高度（绕过 CollapsingToolbarLayout 的类型强转崩溃）
