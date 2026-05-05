@@ -445,7 +445,7 @@ class VideoFragment : YenalyFragment<FragmentVideoBinding>(), OrientationManager
         tabletLandscapeLayout!!.addView(main, 0)
         container.removeAllViews()
         container.addView(tabletLandscapeLayout)
-        safeSetPlayerHeight(220.dp)
+        safeSetPlayerHeight(350.dp)
     }
 
     private fun detachTabletLayoutViews() {
