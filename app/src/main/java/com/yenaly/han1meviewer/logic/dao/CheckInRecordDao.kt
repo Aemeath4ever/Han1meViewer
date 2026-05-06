@@ -23,4 +23,6 @@ interface CheckInRecordDao {
     @Query("SELECT SUM(count) FROM check_in_records WHERE date LIKE :yearMonth || '%'")
     suspend fun getMonthlyCheckInTotal(yearMonth: String): Int?
 
+    @Query("SELECT * FROM check_in_records WHERE date LIKE :year || '%'")
+    suspend fun getYearlyRecords(year: String): List<CheckInRecordEntity>
 }

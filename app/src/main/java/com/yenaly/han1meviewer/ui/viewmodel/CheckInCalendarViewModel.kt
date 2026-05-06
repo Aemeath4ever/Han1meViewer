@@ -30,6 +30,10 @@ class CheckInCalendarViewModel : ViewModel() {
     private val _monthTotal = mutableIntStateOf(0)
     val monthlyTotal: State<Int> get() = _monthTotal
 
+    // 年记录（用于报表）
+    private val _yearRecords = mutableStateMapOf<LocalDate, Int>()
+    val yearRecords: SnapshotStateMap<LocalDate, Int> = _yearRecords
+
     private val dao = CheckInRecordDatabase.getDatabase(application).checkInDao()
 
     init {
@@ -100,6 +104,18 @@ class CheckInCalendarViewModel : ViewModel() {
             allRecords.forEach {
                 val localDate = LocalDate.parse(it.date, formatter)
                 _records[localDate] = it.count
+            }
+        }
+    }
+
+    fun loadYearRecords(year: Int) {
+        viewModelScope.launch {
+            val allRecords = dao.getYearlyRecords(year.toString())
+            val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+            _yearRecords.clear()
+            allRecords.forEach {
+                val localDate = LocalDate.parse(it.date, formatter)
+                _yearRecords[localDate] = it.count
             }
         }
     }

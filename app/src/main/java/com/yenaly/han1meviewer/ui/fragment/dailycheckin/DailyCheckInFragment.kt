@@ -1,16 +1,18 @@
 package com.yenaly.han1meviewer.ui.fragment.dailycheckin
 
-import android.content.Intent
+import android.annotation.SuppressLint
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsetsController
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.animateIntAsState
@@ -18,9 +20,11 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +35,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,12 +49,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,29 +68,37 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -113,8 +125,7 @@ class DailyCheckInFragment : Fragment() {
             duration = 500L
         }
     }
-//test1
-    @RequiresApi(Build.VERSION_CODES.O)
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -124,6 +135,58 @@ class DailyCheckInFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 HanimeTheme {
+                    val activity = requireActivity()
+                    var showReport by rememberSaveable { mutableStateOf(false) }
+                    var isReportFullscreen by rememberSaveable { mutableStateOf(false) }
+
+                    LaunchedEffect(isReportFullscreen) {
+                        activity.requestedOrientation = if (isReportFullscreen)
+                            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        else
+                            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+
+                        val window = activity.window
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            if (isReportFullscreen) {
+                                window.insetsController?.apply {
+                                    hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                                    systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                                }
+                            } else {
+                                window.insetsController?.apply {
+                                    show(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                                }
+                            }
+                        } else {
+                            @Suppress("DEPRECATION")
+                            window.decorView.systemUiVisibility = if (isReportFullscreen) {
+                                (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                    or View.SYSTEM_UI_FLAG_FULLSCREEN)
+                            } else {
+                                View.SYSTEM_UI_FLAG_VISIBLE
+                            }
+                        }
+                    }
+
+                    DisposableEffect(Unit) {
+                        onDispose {
+                            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            val window = activity.window
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                window.insetsController?.apply {
+                                    show(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                                }
+                            } else {
+                                @Suppress("DEPRECATION")
+                                window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+                            }
+                        }
+                    }
+
                     val scrollBehavior =
                         TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
                     Scaffold(
@@ -155,6 +218,12 @@ class DailyCheckInFragment : Fragment() {
                                     }
                                 },
                                 actions = {
+                                    IconButton(onClick = { showReport = true }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.DateRange,
+                                            contentDescription = stringResource(R.string.checkin_report)
+                                        )
+                                    }
                                     IconButton(onClick = {
                                         val activity = requireActivity()
                                         val mgr = AppWidgetManager.getInstance(activity)
@@ -179,7 +248,13 @@ class DailyCheckInFragment : Fragment() {
                             )
                         },
                     ) { innerPadding ->
-                        CalendarCheckInScreen(innerPadding)
+                        CalendarCheckInScreen(
+                            innerPadding,
+                            showReport = showReport,
+                            onDismissReport = { showReport = false; isReportFullscreen = false },
+                            isReportFullscreen = isReportFullscreen,
+                            onToggleReportFullscreen = { isReportFullscreen = !isReportFullscreen }
+                        )
                     }
                 }
 
@@ -188,11 +263,510 @@ class DailyCheckInFragment : Fragment() {
     }
 }
 
+// ═══════════════════════════════════════════
+//  Contribution Report (GitHub-style calendar heatmap)
+// ═══════════════════════════════════════════
+
+private val contributionColors = listOf(
+    Color.Transparent,
+    Color(0xFF9BE9A8),
+    Color(0xFF40C463),
+    Color(0xFF30A14E),
+    Color(0xFF216E39),
+)
+
+private fun getContributionLevel(count: Int): Int = when {
+    count <= 0 -> 0
+    count == 1 -> 1
+    count == 2 -> 2
+    count in 3..4 -> 3
+    else -> 4
+}
+
+private fun buildYearWeeks(year: Int): List<List<LocalDate?>> {
+    val start = LocalDate.of(year, 1, 1)
+    val end = LocalDate.of(year, 12, 31)
+    val weeks = mutableListOf<MutableList<LocalDate?>>()
+    var currentWeek = MutableList<LocalDate?>(7) { null }
+    var dayIndex = start.dayOfWeek.value - 1
+    var date = start
+    while (!date.isAfter(end)) {
+        currentWeek[dayIndex] = date
+        dayIndex++
+        if (dayIndex == 7) {
+            weeks.add(currentWeek)
+            currentWeek = MutableList(7) { null }
+            dayIndex = 0
+        }
+        date = date.plusDays(1)
+    }
+    if (currentWeek.any { it != null }) {
+        weeks.add(currentWeek)
+    }
+    return weeks
+}
+
+private fun buildMonthLabels(year: Int, weeks: List<List<LocalDate?>>, monthFormat: String): List<Pair<String, Int>> {
+    val labels = mutableListOf<Pair<String, Int>>()
+    for (month in 1..12) {
+        val firstDay = LocalDate.of(year, month, 1)
+        val weekIdx = weeks.indexOfFirst { week -> firstDay in week }
+        if (weekIdx >= 0) {
+            labels.add(monthFormat.format(month) to weekIdx)
+        }
+    }
+    return labels
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ContributionReportDialog(
+    viewModel: CheckInCalendarViewModel,
+    onDismiss: () -> Unit,
+    isFullscreen: Boolean = false,
+    onToggleFullscreen: () -> Unit = {}
+) {
+    val today = LocalDate.now()
+    var selectedYear by remember { mutableIntStateOf(today.year) }
+    var viewMode by remember { mutableStateOf("year") }
+    var selectedMonth by remember { mutableIntStateOf(today.monthValue) }
+    val yearRecords = viewModel.yearRecords
+
+    LaunchedEffect(selectedYear) {
+        viewModel.loadYearRecords(selectedYear)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.checkin_report)) },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "close"
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { viewMode = "year" }) {
+                            Text(
+                                stringResource(R.string.report_year),
+                                fontWeight = if (viewMode == "year") FontWeight.Bold else FontWeight.Normal,
+                                color = if (viewMode == "year") MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        TextButton(onClick = { viewMode = "month" }) {
+                            Text(
+                                stringResource(R.string.report_month),
+                                fontWeight = if (viewMode == "month") FontWeight.Bold else FontWeight.Normal,
+                                color = if (viewMode == "month") MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        IconButton(onClick = onToggleFullscreen) {
+                            Image(
+                                painter = painterResource(R.drawable.baseline_screen_rotation_24),
+                                contentDescription = if (isFullscreen)
+                                    stringResource(R.string.report_portrait)
+                                else
+                                    stringResource(R.string.report_landscape),
+                                modifier = Modifier.size(24.dp),
+                                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
+                            )
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp)
+            ) {
+                if (viewMode == "year") {
+                    YearContributionView(
+                        year = selectedYear,
+                        records = yearRecords,
+                        today = today,
+                        onYearChange = { selectedYear = it }
+                    )
+                } else {
+                    MonthContributionView(
+                        year = selectedYear,
+                        month = selectedMonth,
+                        records = yearRecords,
+                        today = today,
+                        onYearChange = { selectedYear = it },
+                        onMonthChange = { selectedMonth = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── Stats summary ──
+                val filteredRecords = if (viewMode == "year") {
+                    yearRecords.filterKeys { it.year == selectedYear }
+                } else {
+                    yearRecords.filterKeys {
+                        it.year == selectedYear && it.monthValue == selectedMonth
+                    }
+                }
+                val totalCount = filteredRecords.values.sum()
+                val totalDays = filteredRecords.count { it.value > 0 }
+                val maxDay = filteredRecords.maxByOrNull { it.value }?.value ?: 0
+
+                if (totalDays > 0) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatItem(
+                                icon = Icons.Filled.DateRange,
+                                label = stringResource(R.string.report_total),
+                                value = totalCount.toString()
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .width(1.dp)
+                            )
+                            StatItem(
+                                icon = Icons.Filled.Star,
+                                label = stringResource(R.string.report_days),
+                                value = totalDays.toString()
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .width(1.dp)
+                            )
+                            StatItem(
+                                icon = Icons.Filled.Favorite,
+                                label = stringResource(R.string.report_max_day),
+                                value = maxDay.toString()
+                            )
+                        }
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = stringResource(R.string.report_no_data),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ContributionLegend()
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun YearContributionView(
+    year: Int,
+    records: Map<LocalDate, Int>,
+    today: LocalDate,
+    onYearChange: (Int) -> Unit
+) {
+    val weeks = remember(year) { buildYearWeeks(year) }
+    val monthFormat = stringResource(R.string.report_month_format)
+    val monthLabels = remember(year) { buildMonthLabels(year, weeks, monthFormat) }
+    val dayLabels = listOf(
+        stringResource(R.string.mon), stringResource(R.string.tue),
+        stringResource(R.string.wed), stringResource(R.string.thu),
+        stringResource(R.string.fri), stringResource(R.string.sat),
+        stringResource(R.string.sun)
+    )
+    val cellSize = 14.dp
+    val cellPadding = 1.dp
+    val columnWidth = cellSize + cellPadding * 2
+    val labelColWidth = 24.dp
+    val scrollState = rememberScrollState()
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { onYearChange(year - 1) }) {
+                Icon(painterResource(R.drawable.previous_double_arrow_24), "previous year")
+            }
+            Text(
+                text = stringResource(R.string.report_year_format, year),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = { onYearChange(year + 1) },
+                enabled = year < today.year
+            ) {
+                Icon(painterResource(R.drawable.next_double_arrow_24), "next year")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Column(modifier = Modifier.horizontalScroll(scrollState)) {
+            // Month label row
+            Row(
+                modifier = Modifier.height(20.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Spacer(modifier = Modifier.width(labelColWidth))
+                Box(modifier = Modifier.width(columnWidth * weeks.size)) {
+                    monthLabels.forEach { (label, weekIdx) ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .offset(x = columnWidth * weekIdx)
+                                .width(columnWidth * 4)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Grid rows
+            for (dayIdx in 0..6) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = dayLabels[dayIdx],
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(labelColWidth),
+                        textAlign = TextAlign.Center
+                    )
+                    weeks.forEach { week ->
+                        val date = week.getOrNull(dayIdx)
+                        val count = date?.let { records[it] } ?: 0
+                        val level = getContributionLevel(count)
+                        val isToday = date == today
+                        Box(
+                            modifier = Modifier
+                                .size(cellSize)
+                                .padding(cellPadding)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    if (count > 0) contributionColors[level]
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                )
+                                .then(
+                                    if (isToday) Modifier.border(
+                                        1.5.dp,
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(2.dp)
+                                    ) else Modifier
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthContributionView(
+    year: Int,
+    month: Int,
+    records: Map<LocalDate, Int>,
+    today: LocalDate,
+    onYearChange: (Int) -> Unit,
+    onMonthChange: (Int) -> Unit
+) {
+    val yearMonth = YearMonth.of(year, month)
+    val daysInMonth = yearMonth.lengthOfMonth()
+    val firstDayOfWeek = yearMonth.atDay(1).dayOfWeek.value
+    val dayLabels = listOf(
+        stringResource(R.string.mon), stringResource(R.string.tue),
+        stringResource(R.string.wed), stringResource(R.string.thu),
+        stringResource(R.string.fri), stringResource(R.string.sat),
+        stringResource(R.string.sun)
+    )
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = {
+                if (month == 1) {
+                    onYearChange(year - 1)
+                    onMonthChange(12)
+                } else {
+                    onMonthChange(month - 1)
+                }
+            }) {
+                Icon(painterResource(R.drawable.previous_double_arrow_24), "previous month")
+            }
+            Text(
+                text = stringResource(R.string.report_year_month_format, year, month),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(
+                onClick = {
+                    val now = YearMonth.now()
+                    val current = YearMonth.of(year, month)
+                    if (current.isBefore(now)) {
+                        if (month == 12) {
+                            onYearChange(year + 1)
+                            onMonthChange(1)
+                        } else {
+                            onMonthChange(month + 1)
+                        }
+                    }
+                },
+                enabled = YearMonth.of(year, month).isBefore(YearMonth.now())
+            ) {
+                Icon(painterResource(R.drawable.next_double_arrow_24), "next month")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Day headers
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            dayLabels.forEach { day ->
+                Text(
+                    text = day,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+
+        // Month grid
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            userScrollEnabled = false,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(((firstDayOfWeek - 1 + daysInMonth + 6) / 7 * 52).dp)
+        ) {
+            items(firstDayOfWeek - 1) {
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+            items(daysInMonth) { day ->
+                val date = yearMonth.atDay(day + 1)
+                val count = records[date] ?: 0
+                val level = getContributionLevel(count)
+                val isToday = date == today
+                val cellBg = if (count > 0) contributionColors[level]
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .padding(3.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(cellBg)
+                        .then(
+                            if (isToday) Modifier.border(
+                                2.dp,
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(8.dp)
+                            ) else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = (day + 1).toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                            color = if (count > 0)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        if (count > 0) {
+                            Text(
+                                text = "x$count",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContributionLegend() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.report_legend_less),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        contributionColors.forEach { color ->
+            Box(
+                modifier = Modifier
+                    .size(14.dp)
+                    .padding(1.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        if (color == Color.Transparent)
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                        else color
+                    )
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = stringResource(R.string.report_legend_more),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@SuppressLint("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarCheckInScreen(
     paddingValues: PaddingValues,
-    viewModel: CheckInCalendarViewModel = viewModel()
+    viewModel: CheckInCalendarViewModel = viewModel(),
+    showReport: Boolean = false,
+    onDismissReport: () -> Unit = {},
+    isReportFullscreen: Boolean = false,
+    onToggleReportFullscreen: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val currentMonth by viewModel.currentMonth
@@ -210,7 +784,7 @@ fun CalendarCheckInScreen(
     var eggVisible by remember { mutableStateOf(false) }
 
     // Compute streaks from records (recalculates on every recomposition since records is SnapshotStateMap)
-    val (currentStreak, bestStreakThisMonth) = computeStreaks(records, currentMonth)
+    val (_, bestStreakThisMonth) = computeStreaks(records, currentMonth)
 
     val animatedCheckedDays by animateIntAsState(targetValue = checkedDays, label = "days")
     val animatedMonthlyTotal by animateIntAsState(targetValue = monthlyTotal, label = "total")
@@ -319,14 +893,14 @@ fun CalendarCheckInScreen(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { viewModel.previousMonth() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "previous")
+                    Icon(painterResource(R.drawable.previous_double_arrow_24), "previous")
                 }
                 Text(
                     text = currentMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")),
                     style = MaterialTheme.typography.titleMedium
                 )
                 IconButton(onClick = { viewModel.nextMonth() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, "next")
+                    Icon(painterResource(R.drawable.next_double_arrow_24), "next")
                 }
             }
         }
@@ -503,12 +1077,21 @@ fun CalendarCheckInScreen(
             }
         )
     }
+
+    // ── Contribution Report ──
+    if (showReport) {
+        ContributionReportDialog(
+            viewModel = viewModel,
+            onDismiss = onDismissReport,
+            isFullscreen = isReportFullscreen,
+            onToggleFullscreen = onToggleReportFullscreen
+        )
+    }
 }
 
 private fun createCalendarEvent(context: android.content.Context, date: LocalDate) {
     val intent = Intent(Intent.ACTION_INSERT).apply {
-        data = CalendarContract.Events.CONTENT_URI
-        type = "vnd.android.cursor.dir/event"
+        setDataAndType(CalendarContract.Events.CONTENT_URI,"vnd.android.cursor.dir/event")
         putExtra(CalendarContract.Events.TITLE, context.getString(R.string.calendar_title, date.monthValue, date.dayOfMonth))
         putExtra(CalendarContract.Events.DESCRIPTION, context.getString(R.string.calendar_desc))
         putExtra(CalendarContract.Events.EVENT_LOCATION, context.getString(R.string.calendar_location))
