@@ -33,6 +33,9 @@ abstract class WatchHistoryDao {
     @Query("SELECT videoCode FROM WatchHistoryEntity WHERE videoCode IN (:codes)")
     abstract suspend fun getWatchedCodes(codes: List<String>): List<String>
 
+    @Query("SELECT * FROM WatchHistoryEntity ORDER BY watchDate DESC LIMIT :limit")
+    abstract suspend fun getRecentWatches(limit: Int): List<WatchHistoryEntity>
+
     @Query("UPDATE WatchHistoryEntity SET progress = :progress WHERE videoCode = :videoCode")
     abstract suspend fun updateProgress(videoCode: String, progress: Long)
 

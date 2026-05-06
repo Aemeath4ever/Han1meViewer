@@ -5,6 +5,10 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "check_in_records")
 data class CheckInRecordEntity(
-    @PrimaryKey val date: String,
-    val count: Int
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val date: String,
+    val time: String,
+    val type: String,
+    val sideDishes: String,
+    val feeling: String
 )
