@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -38,8 +39,10 @@ class CheckInWidgetProvider : AppWidgetProvider() {
                 withContext(Dispatchers.IO) {
                     val dao = CheckInRecordDatabase.getDatabase(context).checkInDao()
                     val t = LocalDate.now().toString()
-                    val r = dao.getRecord(t)
-                    dao.insertOrUpdate(CheckInRecordEntity(t, (r?.count ?: 0) + 1))
+                    val curCount = dao.getCountByDate(t)
+                    if (curCount < 20) {
+                        dao.insert(CheckInRecordEntity(date = t, time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")), type = "自慰", sideDishes = "", feeling = ""))
+                    }
                 }
                 refresh(context, AppWidgetManager.getInstance(context), id)
             }
@@ -50,15 +53,17 @@ class CheckInWidgetProvider : AppWidgetProvider() {
         val (today, days, total, best) = withContext(Dispatchers.IO) {
             val dao = CheckInRecordDatabase.getDatabase(c).checkInDao()
             val m = YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
-            val t = dao.getRecord(LocalDate.now().toString())?.count ?: 0
-            val d = dao.getMonthlyCheckedDays(m)
-            val tot = dao.getMonthlyCheckInTotal(m) ?: 0
+            val t = dao.getCountByDate(LocalDate.now().toString())
+            val dDates = dao.getMonthlyCheckedDates(m)
+            val d = dDates.size
+            val tot = dao.getMonthlyCheckInTotal(m)
             var s = 0; var cur = 0
             val recs = dao.getRecordsBetween(
                 YearMonth.now().atDay(1).toString(),
                 YearMonth.now().atEndOfMonth().toString()
             )
-            val map = recs.associate { it.date to it.count }
+            val map = mutableMapOf<String, Int>()
+            recs.forEach { map[it.date] = (map[it.date] ?: 0) + 1 }
             for (day in 1..YearMonth.now().lengthOfMonth()) {
                 val dt = YearMonth.now().atDay(day)
                 if ((map[dt.toString()] ?: 0) > 0) { cur++; s = maxOf(s, cur) } else cur = 0

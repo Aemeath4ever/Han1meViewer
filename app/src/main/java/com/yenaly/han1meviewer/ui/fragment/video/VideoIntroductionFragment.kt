@@ -40,6 +40,9 @@ import coil.transform.CircleCropTransformation
 import com.chad.library.adapter4.viewholder.DataBindingHolder
 import com.ctetin.expandabletextviewlibrary.ExpandableTextView
 import com.ctetin.expandabletextviewlibrary.app.LinkType
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.itxca.spannablex.spannable
 import com.lxj.xpopup.XPopup
 import com.yenaly.han1meviewer.ADVANCED_SEARCH_MAP
@@ -59,6 +62,8 @@ import com.yenaly.han1meviewer.databinding.ItemVideoIntroductionBinding
 import com.yenaly.han1meviewer.getHanimeShareText
 import com.yenaly.han1meviewer.getHanimeVideoDownloadLink
 import com.yenaly.han1meviewer.getHanimeVideoLink
+import com.yenaly.han1meviewer.logic.dao.CheckInRecordDatabase
+import com.yenaly.han1meviewer.logic.entity.CheckInRecordEntity
 import com.yenaly.han1meviewer.logic.model.HanimeInfo
 import com.yenaly.han1meviewer.logic.model.HanimeVideo
 import com.yenaly.han1meviewer.logic.model.SearchOption
@@ -794,6 +799,7 @@ class VideoIntroductionFragment : YenalyFragment<FragmentVideoIntroductionBindin
                 nsvButtons.isVisible = true
                 initFavButton(videoData)
                 initMyList(videoData.myList)
+                initCheckInButton(videoData)
                 btnToWebpage.clickTrigger(viewLifecycleOwner.lifecycle) {
                     browse(getHanimeVideoLink(viewModel.videoCode))
                 }
@@ -836,6 +842,48 @@ class VideoIntroductionFragment : YenalyFragment<FragmentVideoIntroductionBindin
 
         private val storagePermissionRequester: PermissionRequester?
             get() = activity as? PermissionRequester
+
+        private fun ItemVideoIntroductionBinding.initCheckInButton(videoData: HanimeVideo) {
+            btnCheckin.setOnClickListener {
+                val context = root.context
+                val inputLayout = TextInputLayout(context).apply {
+                    setHint(R.string.dialog_feeling_hint)
+                    boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+                    isCounterEnabled = true
+                    counterMaxLength = 200
+                }
+                val editText = TextInputEditText(context).apply {
+                    maxLines = 3
+                }
+                inputLayout.addView(editText)
+
+                MaterialAlertDialogBuilder(context)
+                    .setTitle(videoData.title)
+                    .setView(inputLayout)
+                    .setNegativeButton(R.string.dialog_cancel, null)
+                    .setPositiveButton(R.string.dialog_confirm) { _, _ ->
+                        val feeling = editText.text?.toString() ?: ""
+                        val now = java.time.LocalTime.now()
+                        val time = now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                        val sep = "\u001E"
+                        val sideDishes = "${videoData.title}$sep${viewModel.videoCode}"
+                        val record = CheckInRecordEntity(
+                            date = java.time.LocalDate.now().toString(),
+                            time = time,
+                            type = "自慰",
+                            sideDishes = sideDishes,
+                            feeling = feeling
+                        )
+                        viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            CheckInRecordDatabase.getDatabase(context).checkInDao().insert(record)
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                Toast.makeText(context, R.string.checkin, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    .show()
+            }
+        }
 
         private fun ItemVideoIntroductionBinding.initDownloadButton(videoData: HanimeVideo) {
 

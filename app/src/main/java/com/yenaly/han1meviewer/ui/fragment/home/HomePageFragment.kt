@@ -791,7 +791,7 @@ class HomePageFragment : YenalyFragment<FragmentHomePageBinding>(),
                 dialog.dismiss()
             }
             .setNeutralButton(getString(R.string.checkout_exit)) { dialog, _ ->
-                checkInViewModel.incrementCheckIn(java.time.LocalDate.now())
+                checkInViewModel.addRecord(java.time.LocalDate.now(), java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")), "自慰", "", "")
                 requireActivity().finish()
             }
             .setPositiveButton(getString(R.string.exit)) { _, _ ->

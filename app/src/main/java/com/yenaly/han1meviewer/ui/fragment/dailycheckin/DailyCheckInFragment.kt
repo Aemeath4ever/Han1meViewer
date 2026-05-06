@@ -23,11 +23,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -35,10 +38,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -51,6 +56,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
@@ -61,11 +67,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -77,6 +86,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -88,6 +98,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -103,14 +114,21 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.fragment.findNavController
+import coil3.compose.AsyncImage
 import com.google.android.material.transition.MaterialSharedAxis
 import com.yenaly.han1meviewer.R
+import com.yenaly.han1meviewer.logic.entity.CheckInRecordEntity
+import com.yenaly.han1meviewer.logic.entity.CheckInType
+import com.yenaly.han1meviewer.logic.entity.WatchHistoryEntity
 import com.yenaly.han1meviewer.ui.theme.HanimeTheme
 import com.yenaly.han1meviewer.ui.viewmodel.CheckInCalendarViewModel
+import com.yenaly.han1meviewer.ui.viewmodel.MonthlyStats
 import com.yenaly.han1meviewer.ui.widget.CheckInWidgetProvider
+import com.yenaly.han1meviewer.util.openVideo
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -253,7 +271,8 @@ class DailyCheckInFragment : Fragment() {
                             showReport = showReport,
                             onDismissReport = { showReport = false; isReportFullscreen = false },
                             isReportFullscreen = isReportFullscreen,
-                            onToggleReportFullscreen = { isReportFullscreen = !isReportFullscreen }
+                            onToggleReportFullscreen = { isReportFullscreen = !isReportFullscreen },
+                            onNavigateToVideo = { code -> findNavController().openVideo(code) }
                         )
                     }
                 }
@@ -468,6 +487,40 @@ private fun ContributionReportDialog(
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Type breakdown
+                val stats = (if (viewMode == "year") viewModel.yearStats.value else viewModel.monthlyStats.value)
+                if (stats.typeCounts.isNotEmpty()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            stats.typeCounts.entries
+                                .sortedByDescending { it.value }
+                                .take(5)
+                                .forEach { (type, count) ->
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(text = typeEmoji(type), fontSize = 20.sp)
+                                        Text(
+                                            text = count.toString(),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = type,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -722,6 +775,7 @@ private fun MonthContributionView(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ContributionLegend() {
     Row(
@@ -766,7 +820,8 @@ fun CalendarCheckInScreen(
     showReport: Boolean = false,
     onDismissReport: () -> Unit = {},
     isReportFullscreen: Boolean = false,
-    onToggleReportFullscreen: () -> Unit = {}
+    onToggleReportFullscreen: () -> Unit = {},
+    onNavigateToVideo: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val currentMonth by viewModel.currentMonth
@@ -780,6 +835,7 @@ fun CalendarCheckInScreen(
     var forgotDialogDate by remember { mutableStateOf<LocalDate?>(null) }
     var suckBackDialogDate by remember { mutableStateOf<LocalDate?>(null) }
     var calendarDialogDate by remember { mutableStateOf<LocalDate?>(null) }
+    var checkInDialogDate by remember { mutableStateOf<LocalDate?>(null) }
     var showEasterEgg by remember { mutableStateOf("") }
     var eggVisible by remember { mutableStateOf(false) }
 
@@ -832,14 +888,7 @@ fun CalendarCheckInScreen(
                 forgotDialogDate = date
             }
             else -> {
-                viewModel.incrementCheckIn(date)
-                // Random easter eggs
-                val count = (records[date] ?: 0) + 1
-                when {
-                    count == 6 -> showEasterEgg = context.getString(R.string.egg_six)
-                    count == 9 -> showEasterEgg = context.getString(R.string.egg_nine)
-                    count % 10 == 0 -> showEasterEgg = context.getString(R.string.egg_round, count)
-                }
+                checkInDialogDate = date
             }
         }
     }
@@ -865,7 +914,8 @@ fun CalendarCheckInScreen(
         TodayCheckInCard(
             today = today,
             count = todayCount,
-            onCheckIn = { viewModel.incrementCheckIn(today) },
+            maxCount = 20,
+            onCheckIn = { checkInDialogDate = today },
             onClear = { viewModel.clearCheckIn(today) }
         )
 
@@ -927,7 +977,7 @@ fun CalendarCheckInScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // ── Easter egg toast ──
         AnimatedVisibility(
@@ -943,7 +993,7 @@ fun CalendarCheckInScreen(
             ) {
                 Text(
                     text = showEasterEgg,
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(8.dp),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     textAlign = TextAlign.Center
@@ -951,13 +1001,15 @@ fun CalendarCheckInScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // ── Achievement / milestone ──
+        val stats by viewModel.monthlyStats
         AchievementSection(
             checkedDays = checkedDays,
             monthlyTotal = monthlyTotal,
-            bestStreak = bestStreakThisMonth
+            bestStreak = bestStreakThisMonth,
+            stats = stats
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -994,7 +1046,7 @@ fun CalendarCheckInScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.incrementCheckIn(date)
+                    checkInDialogDate = date
                     forgotDialogDate = null
                 }) {
                     Text(stringResource(R.string.forgot_confirm))
@@ -1078,6 +1130,17 @@ fun CalendarCheckInScreen(
         )
     }
 
+    // ── Check-In Detail Dialog ──
+    checkInDialogDate?.let { date ->
+        CheckInDialog(
+            date = date,
+            viewModel = viewModel,
+            onNavigateToVideo = onNavigateToVideo,
+            onEasterEgg = { msg -> showEasterEgg = msg },
+            onDismiss = { checkInDialogDate = null }
+        )
+    }
+
     // ── Contribution Report ──
     if (showReport) {
         ContributionReportDialog(
@@ -1117,9 +1180,11 @@ private fun createCalendarEvent(context: android.content.Context, date: LocalDat
 private fun TodayCheckInCard(
     today: LocalDate,
     count: Int,
+    maxCount: Int = 20,
     onCheckIn: () -> Unit,
     onClear: () -> Unit
 ) {
+    val isMaxed = count >= maxCount
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1149,7 +1214,7 @@ private fun TodayCheckInCard(
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = if (count > 0) "${stringResource(R.string.today_checked)} $count ${stringResource(R.string.times)}"
+                    text = if (count > 0) "${stringResource(R.string.today_checked)} $count/$maxCount ${stringResource(R.string.times)}"
                     else stringResource(R.string.not_checked_yet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
@@ -1158,6 +1223,7 @@ private fun TodayCheckInCard(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Button(
                     onClick = onCheckIn,
+                    enabled = !isMaxed,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1165,7 +1231,7 @@ private fun TodayCheckInCard(
                 ) {
                     Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.checkin))
+                    Text(if (count > 0) stringResource(R.string.view_checkin) else stringResource(R.string.checkin))
                 }
                 if (count > 0) {
                     TextButton(onClick = onClear) {
@@ -1260,88 +1326,181 @@ private fun RowScope.StatItem(
 private fun AchievementSection(
     checkedDays: Int,
     monthlyTotal: Int,
-    bestStreak: Int
+    bestStreak: Int,
+    stats: MonthlyStats
 ) {
     AnimatedVisibility(
         visible = checkedDays > 0,
         enter = fadeIn() + slideInVertically(),
         exit = fadeOut()
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Main headline achievement
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
             ) {
-                val (emoji, title, subtitle) = when {
-                    monthlyTotal >= 200 -> Triple(
-                        "\uD83E\uDD34", stringResource(R.string.legend_title),
-                        stringResource(R.string.egg_god, monthlyTotal)
-                    )
-                    monthlyTotal >= 100 -> Triple(
-                        "\uD83D\uDC51", stringResource(R.string.champion_title),
-                        stringResource(R.string.achievement_desc_top, monthlyTotal)
-                    )
-                    monthlyTotal >= 69 -> Triple(
-                        "\uD83D\uDE0F", stringResource(R.string.nice_title),
-                        stringResource(R.string.egg_nice, monthlyTotal)
-                    )
-                    monthlyTotal >= 50 -> Triple(
-                        "\uD83C\uDFC6", stringResource(R.string.champion_title),
-                        stringResource(R.string.achievement_desc_top, monthlyTotal)
-                    )
-                    checkedDays >= 25 -> Triple(
-                        "\uD83D\uDD25", stringResource(R.string.on_fire_title),
-                        stringResource(R.string.achievement_desc_days, checkedDays)
-                    )
-                    checkedDays >= 15 -> Triple(
-                        "\uD83D\uDE80", stringResource(R.string.great_title),
-                        stringResource(R.string.achievement_desc_days, checkedDays)
-                    )
-                    bestStreak >= 7 -> Triple(
-                        "\u2B50", stringResource(R.string.week_streak_title),
-                        stringResource(R.string.achievement_desc_streak, bestStreak)
-                    )
-                    bestStreak >= 3 -> Triple(
-                        "\uD83D\uDCAA", stringResource(R.string.streak_title),
-                        stringResource(R.string.egg_streak, bestStreak)
-                    )
-                    else -> Triple(
-                        "\uD83D\uDC4D", stringResource(R.string.keep_going_title),
-                        stringResource(R.string.achievement_desc_keep)
-                    )
-                }
-                Text(text = emoji, fontSize = 36.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
-                )
-                // Bonus egg: 11/11 Singles Day
-                val today = LocalDate.now()
-                if (today.monthValue == 11 && today.dayOfMonth == 11 && checkedDays == 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val (emoji, title, subtitle) = when {
+                        monthlyTotal >= 200 -> Triple(
+                            "\uD83E\uDD34", stringResource(R.string.legend_title),
+                            stringResource(R.string.egg_god, monthlyTotal)
+                        )
+                        monthlyTotal >= 100 -> Triple(
+                            "\uD83D\uDC51", stringResource(R.string.champion_title),
+                            stringResource(R.string.achievement_desc_top, monthlyTotal)
+                        )
+                        monthlyTotal >= 69 -> Triple(
+                            "\uD83D\uDE0F", stringResource(R.string.nice_title),
+                            stringResource(R.string.egg_nice, monthlyTotal)
+                        )
+                        monthlyTotal >= 50 -> Triple(
+                            "\uD83C\uDFC6", stringResource(R.string.champion_title),
+                            stringResource(R.string.achievement_desc_top, monthlyTotal)
+                        )
+                        checkedDays >= 25 -> Triple(
+                            "\uD83D\uDD25", stringResource(R.string.on_fire_title),
+                            stringResource(R.string.achievement_desc_days, checkedDays)
+                        )
+                        checkedDays >= 15 -> Triple(
+                            "\uD83D\uDE80", stringResource(R.string.great_title),
+                            stringResource(R.string.achievement_desc_days, checkedDays)
+                        )
+                        bestStreak >= 7 -> Triple(
+                            "\u2B50", stringResource(R.string.week_streak_title),
+                            stringResource(R.string.achievement_desc_streak, bestStreak)
+                        )
+                        bestStreak >= 3 -> Triple(
+                            "\uD83D\uDCAA", stringResource(R.string.streak_title),
+                            stringResource(R.string.egg_streak, bestStreak)
+                        )
+                        else -> Triple(
+                            "\uD83D\uDC4D", stringResource(R.string.keep_going_title),
+                            stringResource(R.string.achievement_desc_keep)
+                        )
+                    }
+                    Text(text = emoji, fontSize = 36.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = stringResource(R.string.egg_singles),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                    )
+                    val today = LocalDate.now()
+                    if (today.monthValue == 11 && today.dayOfMonth == 11 && checkedDays == 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.egg_singles),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
+            // Type breakdown mini-cards
+            if (stats.typeCounts.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    stats.typeCounts.entries
+                        .sortedByDescending { it.value }
+                        .take(4)
+                        .forEach { (type, count) ->
+                            AchievementMiniCard(
+                                emoji = typeEmoji(type),
+                                value = count.toString(),
+                                label = type,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                }
+            }
+
+            // Additional stats row
+            val extraAchievements = buildList {
+                if (stats.uniqueDishes >= 3) add(Triple("\uD83C\uDF7D\uFE0F", stringResource(R.string.ach_dish_variety), "${stats.uniqueDishes}种"))
+                if (stats.topDishCount >= 3) add(Triple("\uD83C\uDFAF", stats.topDish, "${stringResource(R.string.ach_top_dish)}·${stats.topDishCount}次"))
+                if (stats.maxDailyTypes >= 3) add(Triple("\uD83C\uDF08", stringResource(R.string.ach_multi_type), "${stats.maxDailyTypes}种"))
+                if (stats.dominantPeriod == "22~02") add(Triple("\uD83E\uDD71", stringResource(R.string.ach_night_owl), "22~02時"))
+                if (stats.dominantPeriod == "05~10") add(Triple("\uD83C\uDF05", stringResource(R.string.ach_morning), "05~10時"))
+                if (stats.totalFeelingChars >= 100) add(Triple("\uD83D\uDCDD", stringResource(R.string.ach_scholar), stats.scholarDate))
+            }
+            if (extraAchievements.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    extraAchievements.take(3).forEach { (emoji, label, value) ->
+                        AchievementMiniCard(
+                            emoji = emoji,
+                            value = value,
+                            label = label,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AchievementMiniCard(
+    emoji: String,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = emoji, fontSize = 22.sp)
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun typeEmoji(type: String): String = when (type) {
+    "自慰" -> "\uD83E\uDD1C"
+    "梦遗" -> "\uD83D\uDCA4"
+    "做爱" -> "\uD83D\uDC91"
+    "口交" -> "\uD83D\uDC45"
+    "其它" -> "\u2753"
+    else -> "\uD83D\uDCCA"
 }
 
 /**
@@ -1477,6 +1636,509 @@ fun CalendarGrid(
                     }
                 }
             }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CheckInDialog(
+    date: LocalDate,
+    viewModel: CheckInCalendarViewModel,
+    onNavigateToVideo: (String) -> Unit,
+    onEasterEgg: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var existingRecords by remember { mutableStateOf<List<CheckInRecordEntity>>(emptyList()) }
+    var watchHistory by remember { mutableStateOf<List<WatchHistoryEntity>>(emptyList()) }
+    var todayCount by remember { mutableIntStateOf(0) }
+    var loaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(date) {
+        viewModel.getRecordsByDate(date) { existingRecords = it }
+        viewModel.getRecentWatchHistory(10) { watchHistory = it }
+        viewModel.getCountByDate(date) { todayCount = it; loaded = true }
+    }
+
+    if (!loaded) return
+
+    val canAddMore = todayCount < 20
+    val coverUrlMap = remember(watchHistory) {
+        watchHistory.associate { it.videoCode to it.coverUrl }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .fillMaxSize(0.85f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = date.format(DateTimeFormatter.ofPattern("yyyy\u5E74MM\u6708dd\u65E5")),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "close")
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                if (existingRecords.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.dialog_existing_records),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
+                    )
+                    existingRecords.forEachIndexed { index, record ->
+                        ExistingRecordItem(
+                            index = index + 1,
+                            record = record,
+                            coverUrlMap = coverUrlMap,
+                            onNavigateToVideo = onNavigateToVideo,
+                            onDelete = {
+                                viewModel.deleteRecord(record)
+                                viewModel.getRecordsByDate(date) { existingRecords = it }
+                                viewModel.getCountByDate(date) { todayCount = it }
+                            }
+                        )
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                }
+
+                if (canAddMore) {
+                    AddCheckInForm(
+                        date = date,
+                        watchHistory = watchHistory,
+                        viewModel = viewModel,
+                        onNavigateToVideo = onNavigateToVideo,
+                        onEasterEgg = onEasterEgg,
+                        onDismiss = onDismiss
+                    )
+                } else if (todayCount >= 20) {
+                    Text(
+                        text = stringResource(R.string.dialog_max_reached),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun AddCheckInForm(
+    date: LocalDate,
+    watchHistory: List<WatchHistoryEntity>,
+    viewModel: CheckInCalendarViewModel,
+    onNavigateToVideo: (String) -> Unit,
+    onEasterEgg: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedType by remember { mutableStateOf(CheckInType.MASTURBATION) }
+    val sideDishes = remember { mutableStateListOf<String>() }
+    var sideDishInput by remember { mutableStateOf("") }
+    var feeling by remember { mutableStateOf("") }
+    val sep = "\u001E"
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = stringResource(R.string.dialog_type_label),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            CheckInType.entries.forEach { type ->
+                FilterChip(
+                    selected = selectedType == type,
+                    onClick = { selectedType = type },
+                    label = { Text(stringResource(type.displayNameRes)) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.dialog_sidedish_label),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+
+        if (sideDishes.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                sideDishes.forEach { dish ->
+                    val dishIdx = sideDishes.indexOf(dish)
+                    FilterChip(
+                        selected = true,
+                        onClick = { sideDishes.removeAt(dishIdx) },
+                        label = { Text(dish.substringBefore(sep)) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "remove",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
+        if (sideDishes.size < 5) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = sideDishInput,
+                    onValueChange = { sideDishInput = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text(stringResource(R.string.dialog_sidedish_hint)) },
+                    singleLine = true
+                )
+                Button(
+                    onClick = {
+                        val trimmed = sideDishInput.trim()
+                        if (trimmed.isNotEmpty() && !sideDishes.any { it.substringBefore(sep) == trimmed }) {
+                            sideDishes.add("$trimmed$sep")
+                            sideDishInput = ""
+                        }
+                    },
+                    enabled = sideDishInput.trim().isNotEmpty() && sideDishes.size < 5,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text("+")
+                }
+            }
+        }
+
+        if (watchHistory.isNotEmpty() && sideDishes.size < 5) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.dialog_recent_watched),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            watchHistory.forEach { watch ->
+                WatchHistoryItem(
+                    watch = watch,
+                    onNavigateToVideo = { onNavigateToVideo(watch.videoCode) },
+                    onClick = {
+                        val dishStr = "${watch.title}$sep${watch.videoCode}"
+                        if (!sideDishes.any { it.substringBefore(sep) == watch.title } && sideDishes.size < 5) {
+                            sideDishes.add(dishStr)
+                        }
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.dialog_feeling_label),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        OutlinedTextField(
+            value = feeling,
+            onValueChange = { feeling = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp),
+            placeholder = { Text(stringResource(R.string.dialog_feeling_hint)) },
+            maxLines = 3
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    val dishes = sideDishes.joinToString(",")
+                    val now = LocalTime.now()
+                    viewModel.addRecord(date, now.format(DateTimeFormatter.ofPattern("HH:mm")), selectedType.storeName, dishes, feeling)
+
+                    viewModel.getCountByDate(date) { newCount ->
+                        when {
+                            newCount == 6 -> onEasterEgg(context.getString(R.string.egg_six))
+                            newCount == 9 -> onEasterEgg(context.getString(R.string.egg_nine))
+                            newCount % 10 == 0 -> onEasterEgg(context.getString(R.string.egg_round, newCount))
+                            newCount == 20 -> onEasterEgg(context.getString(R.string.egg_god, 20))
+                        }
+                    }
+
+                    onDismiss()
+                }
+            ) {
+                Text(stringResource(R.string.dialog_confirm))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun ExistingRecordItem(
+    index: Int,
+    record: CheckInRecordEntity,
+    coverUrlMap: Map<String, String>,
+    onNavigateToVideo: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val sep = "\u001E"
+    val sideDishItems = remember(record.sideDishes) {
+        record.sideDishes.split(",").filter { it.isNotBlank() }.map { item ->
+            val parts = if (item.contains(sep)) {
+                item.split(sep)
+            } else {
+                val p = item.split("|")
+                if (p.size >= 2) listOf(p[0], p[1]) else listOf(item, "")
+            }
+            val title = parts.getOrElse(0) { item }
+            val videoCode = parts.getOrElse(1) { "" }
+            title to videoCode
+        }
+    }
+    val coverItems = sideDishItems.filter { (_, code) -> code.isNotBlank() }
+    val customItems = sideDishItems.filter { (_, code) -> code.isBlank() }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "$index",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Text(
+                            text = stringResource(CheckInType.fromDisplayName(record.type).displayNameRes),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                    if (record.time.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Text(
+                                text = record.time,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "delete",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            }
+
+            if (coverItems.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    coverItems.forEach { (title, code) ->
+                        val coverUrl = coverUrlMap[code]
+                        if (coverUrl != null) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.weight(1f).widthIn(max = 140.dp)
+                            ) {
+                                Card(
+                                    shape = RoundedCornerShape(8.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 90.dp)
+                                        .clickable { onNavigateToVideo(code) }
+                                ) {
+                                    AsyncImage(
+                                        model = coverUrl,
+                                        contentDescription = title,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (customItems.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = customItems.joinToString(", ") { it.first },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (record.feeling.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = record.feeling,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WatchHistoryItem(
+    watch: WatchHistoryEntity,
+    onNavigateToVideo: () -> Unit,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = watch.coverUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(onClick = onNavigateToVideo),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onClick)
+            ) {
+                Text(
+                    text = watch.title,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                text = stringResource(R.string.dialog_add_sidedish),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable(onClick = onClick)
+            )
         }
     }
 }
