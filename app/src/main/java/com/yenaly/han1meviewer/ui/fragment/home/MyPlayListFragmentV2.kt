@@ -61,6 +61,7 @@ class MyPlayListFragmentV2 : Fragment(), LoginNeededFragmentMixin {
     }
 
     private fun navigateToVideo(videoCode: String) {
+        exitTransition = null
         val bundle = bundleOf(VIDEO_CODE to videoCode)
         findNavController().navigate(R.id.videoFragment, bundle)
     }
