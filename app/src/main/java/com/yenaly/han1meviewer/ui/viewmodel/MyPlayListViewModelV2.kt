@@ -50,6 +50,12 @@ class MyPlayListViewModelV2 : ViewModel() {
     var currentPage = 1
     var isLoadingMore = false
         private set
+
+    var playlistPage = 1
+    private val _isLoadingMorePlaylists = MutableStateFlow(false)
+    val isLoadingMorePlaylists: StateFlow<Boolean> = _isLoadingMorePlaylists.asStateFlow()
+    private val _noMorePlaylists = MutableStateFlow(false)
+    val noMorePlaylists: StateFlow<Boolean> = _noMorePlaylists.asStateFlow()
     fun setShowSheet(value: Boolean) {
         _showSheet.value = value
     }
@@ -59,13 +65,43 @@ class MyPlayListViewModelV2 : ViewModel() {
 
     // 加载所有playlist
     fun loadMyPlayList(page: Int = 1, forceReload: Boolean = false) {
+        Log.i("current_page",page.toString())
+        if (page > 1 && (_isLoadingMorePlaylists.value || _noMorePlaylists.value)) return
+        if (page == 1 || forceReload) {
+            playlistPage = 1
+            _noMorePlaylists.value = false
+        }
+        if (page > 1) {
+            _isLoadingMorePlaylists.value = true
+        }
         val userId = Preferences.savedUserId
         viewModelScope.launch {
             NetworkRepo.getPlaylists(page, userId).collect { state ->
-                _myPlaylistsFlow.value = state
-                if (state is WebsiteState.Success) {
-                    _cachedMyPlayList.value = state.info.playlists
-                    _refreshCompleted.emit(Unit)
+                when (state) {
+                    is WebsiteState.Loading -> {
+                        if (page == 1 || forceReload) {
+                            _myPlaylistsFlow.value = state
+                        }
+                    }
+                    is WebsiteState.Error -> {
+                        _myPlaylistsFlow.value = state
+                        _isLoadingMorePlaylists.value = false
+                    }
+                    is WebsiteState.Success -> {
+                        val newList = state.info.playlists
+                        if (page == 1 || forceReload) {
+                            _cachedMyPlayList.value = newList
+                        } else {
+                            _cachedMyPlayList.value = _cachedMyPlayList.value + newList
+                            playlistPage = page
+                        }
+                        if (newList.isEmpty()) {
+                            _noMorePlaylists.value = true
+                        }
+                        _myPlaylistsFlow.value = state
+                        _isLoadingMorePlaylists.value = false
+                        _refreshCompleted.emit(Unit)
+                    }
                 }
             }
         }
