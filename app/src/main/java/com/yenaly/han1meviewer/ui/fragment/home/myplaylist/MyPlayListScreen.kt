@@ -15,21 +15,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -80,6 +84,8 @@ fun MyPlayListScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val refreshState = rememberPullToRefreshState()
     val showSheet by viewModel.showSheet.collectAsState()
+    val isLoadingMorePlaylists by viewModel.isLoadingMorePlaylists.collectAsState()
+    val noMorePlaylists by viewModel.noMorePlaylists.collectAsState()
     val selectedListCode = remember { mutableStateOf("") }
     val listTitle = remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -184,12 +190,18 @@ fun MyPlayListScreen(
             when (val result = state) {
                 is WebsiteState.Loading -> {
                     if (playlists.isEmpty()) {
-                        CircularProgressIndicator(Modifier.align(Alignment.Center))
+                        LoadingIndicator(Modifier.align(Alignment.Center))
                     } else {
                         // 显示旧数据，刷新中不替换内容
                         AnimatedPageContent(
                             state,
-                            playlists = playlists
+                            playlists = playlists,
+                            playlistPage = viewModel.playlistPage,
+                            isLoadingMore = isLoadingMorePlaylists,
+                            noMorePlaylists = noMorePlaylists,
+                            onLoadNextPage = {
+                                viewModel.loadMyPlayList(viewModel.playlistPage + 1)
+                            }
                         ){ listCode, playListTitle ->
                             selectedListCode.value = listCode
                             viewModel.setShowSheet(true)
@@ -208,7 +220,13 @@ fun MyPlayListScreen(
                         // 显示旧缓存内容（保持体验）
                         AnimatedPageContent(
                             state,
-                            playlists = playlists
+                            playlists = playlists,
+                            playlistPage = viewModel.playlistPage,
+                            isLoadingMore = isLoadingMorePlaylists,
+                            noMorePlaylists = noMorePlaylists,
+                            onLoadNextPage = {
+                                viewModel.loadMyPlayList(viewModel.playlistPage + 1)
+                            }
                         ){ listCode, playListTitle ->
                             selectedListCode.value = listCode
                             viewModel.setShowSheet(true)
@@ -221,7 +239,13 @@ fun MyPlayListScreen(
                     // 统一渲染缓存（成功后缓存已更新）
                     AnimatedPageContent(
                         state,
-                        playlists = playlists
+                        playlists = playlists,
+                        playlistPage = viewModel.playlistPage,
+                        isLoadingMore = isLoadingMorePlaylists,
+                        noMorePlaylists = noMorePlaylists,
+                        onLoadNextPage = {
+                            viewModel.loadMyPlayList(viewModel.playlistPage + 1)
+                        }
                     ) { listCode, playListTitle ->
                         selectedListCode.value = listCode
                         viewModel.setShowSheet(true)
@@ -257,9 +281,9 @@ fun MyPlayListScreen(
                     playListTitle = listTitle.value,
                     onClickItem = { item ->
                         onClickItem(item)
-                        viewModel.setShowSheet(false)
-                        viewModel.currentPage = 1
-                        viewModel.clearCurrentList()
+//                        viewModel.setShowSheet(false)
+//                        viewModel.currentPage = 1
+//                        viewModel.clearCurrentList()
                                   } ,
                     onLongClickItem = onLongClickItem,
                     vm = viewModel,
@@ -270,13 +294,37 @@ fun MyPlayListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AnimatedPageContent(
     state: WebsiteState<Playlists>,
     playlists: List<Playlists.Playlist>,
+    isLoadingMore: Boolean = false,
+    noMorePlaylists: Boolean = false,
+    playlistPage: Int = 1,
+    onLoadNextPage: () -> Unit = {},
     onRetry: () -> Unit = {},
     onPlaylistClick: (listCode: String, playListTitle: String) -> Unit
 ) {
+    val gridState = rememberLazyGridState()
+
+    LaunchedEffect(gridState) {
+        snapshotFlow {
+            val layoutInfo = gridState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            Triple(
+                lastVisibleItem >= totalItems - 3 && playlists.isNotEmpty(),
+                isLoadingMore,
+                noMorePlaylists
+            )
+        }
+        .collect { (shouldLoad, loading, noMore) ->
+            if (shouldLoad && !loading && !noMore) {
+                onLoadNextPage()
+            }
+        }
+    }
 
     AnimatedContent(
         targetState = state,
@@ -288,7 +336,7 @@ fun AnimatedPageContent(
         when (target) {
             is WebsiteState.Loading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             }
 
@@ -305,11 +353,12 @@ fun AnimatedPageContent(
             }
 
             is WebsiteState.Success -> {
-                if (target.info.playlists.isEmpty()){
+                if (target.info.playlists.isEmpty() && playlists.isEmpty()){
                     EmptyView(stringResource(R.string.empty_content))
                     return@AnimatedContent
                 }
                 LazyVerticalGrid(
+                    state = gridState,
                     columns = GridCells.Fixed(getColumnCount(180)),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -322,6 +371,35 @@ fun AnimatedPageContent(
                             modifier = Modifier.height(140.dp)
                         ) {
                             onPlaylistClick(playlist.listCode, playlist.title)
+                        }
+                    }
+                    if (isLoadingMore) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                LoadingIndicator()
+                            }
+                        }
+                    }
+                    if (noMorePlaylists && playlists.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.load_complete_with_pages, playlistPage - 1),
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
                         }
                     }
                 }

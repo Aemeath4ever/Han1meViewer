@@ -1,6 +1,7 @@
 package com.yenaly.han1meviewer.ui.fragment
 
 import android.os.Bundle
+import android.os.Parcelable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,6 +26,9 @@ class PlaylistBottomSheetFragment : BottomSheetDialogFragment() {
     private val viewModel: VideoViewModel by viewModels({ requireParentFragment() })
     private var videoCount = 0
     private lateinit var adapter: HanimeVideoRvAdapter
+    private lateinit var recyclerView: RecyclerView
+    private var savedSheetState: Int = BottomSheetBehavior.STATE_COLLAPSED
+    private var savedLayoutManagerState: Parcelable? = null
 
     override fun onStart() {
         super.onStart()
@@ -33,9 +37,17 @@ class PlaylistBottomSheetFragment : BottomSheetDialogFragment() {
             val behavior = BottomSheetBehavior.from(it)
             behavior.peekHeight = resources.getDimensionPixelSize(R.dimen.bottom_sheet_min_height)
             behavior.isFitToContents = true
-            behavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            behavior.state = savedSheetState
             it.minimumHeight = resources.getDimensionPixelSize(R.dimen.bottom_sheet_min_height)
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        dialog?.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)?.let {
+            savedSheetState = BottomSheetBehavior.from(it).state
+        }
+        savedLayoutManagerState = recyclerView.layoutManager?.onSaveInstanceState()
     }
 
     override fun onCreateView(
@@ -49,9 +61,8 @@ class PlaylistBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         adapter = HanimeVideoRvAdapter(onItemClick = { item ->
             openVideo(item.videoCode)
-            dismiss()
         })
-        val recyclerView = view.findViewById<RecyclerView>(R.id.rv_vertical_list)
+        recyclerView = view.findViewById(R.id.rv_vertical_list)
         val countText = view.findViewById<TextView>(R.id.video_count)
         recyclerView.adapter = adapter
         recyclerView.viewTreeObserver.addOnGlobalLayoutListener(
@@ -68,16 +79,22 @@ class PlaylistBottomSheetFragment : BottomSheetDialogFragment() {
             videoCount = list.size
             countText.text = getString(R.string.blank_brackets,videoCount)
             adapter.submitList(list)
+            if (savedLayoutManagerState != null) {
+                recyclerView.post {
+                    recyclerView.layoutManager?.onRestoreInstanceState(savedLayoutManagerState)
+                    savedLayoutManagerState = null
+                }
+            }
         }
 
         recyclerView.addOnLayoutChangeListener {  _, left, _, right, _, _, _, _, _ ->
             val newWidth = right - left
             if (newWidth > 0) {
-                val spanCount = calculateSpanCount(
-                    recyclerView,
-                    180
-                )
-                (recyclerView.layoutManager as? GridLayoutManager)?.spanCount = spanCount
+                val newSpanCount = calculateSpanCount(recyclerView, 180)
+                val existingManager = recyclerView.layoutManager as? GridLayoutManager
+                if (existingManager == null || existingManager.spanCount != newSpanCount) {
+                    recyclerView.layoutManager = GridLayoutManager(requireContext(), newSpanCount)
+                }
             }
         }
     }
