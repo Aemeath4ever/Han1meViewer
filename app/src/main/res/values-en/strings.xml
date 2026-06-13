@@ -770,6 +770,21 @@ Recommendations are as follows:\n
         <item>Unlock your hidden desires</item>
         <item>What\'s the keyword that makes you blush?</item>
         <item>Midnight curiosity starts here…</item>
+        <item>Shh, this is a secret between just the two of us…</item>
+        <item>Tsundere as you are, you really want to search for *that*, right?</item>
+        <item>Hold on tight! Things are getting pretty intense here~</item>
+        <item>Bro, mind stepping over here for a quick chat?</item>
+        <item>D-Don\'t go typing anything weird, okay?!</item>
+        <item>No cameras here, feel free to search secretly~</item>
+        <item>It\'s late… time to satisfy your curiosity~</item>
+        <item>Got something good? Care to share it with me?</item>
+        <item>The gateway to a new world. Enter the password to open!</item>
+        <item>Be good now, let me see what you\'re looking for~</item>
+        <item>The search bar is all cleaned up, please enjoy~</item>
+        <item>The search bar knows exactly what\'s on your mind…</item>
+        <item>Beep! Student card / culture card, please swipe to search!</item>
+        <item>What are you longing for? Whisper it to me…</item>
+        <item>Search now, and open the gate to an ecchi new world!</item>
     </string-array>
     <string name="theme_color">Theme Color</string>
     <string name="theme_color_system">Follow System</string>
@@ -819,4 +834,21 @@ Recommendations are as follows:\n
     <string name="home_category_layout_summary">Showing %1$d / %2$d sections</string>
     <string name="home_category_layout_dialog_summary">Long press and drag a section to reorder it. Turn off the switch to hide a section.</string>
     <string name="debug">Debug</string>
+    <string-array name="loading_hints">
+        <item>Hmph! I-it\'s not like I kept you waiting or anything! The data is just running a tiny bit slow!</item>
+        <item>Idiot! Staring at it won\'t make it go any faster! …Fine, just give me three more seconds!</item>
+        <item>(*Nom nom*)… Ah! You caught me! Let me just swallow this cookie and I\'ll be right there!</item>
+        <item>Whoa! It looks like the data cables ahead got tangled up!</item>
+        <item>Hard at work carrying happiness to you…</item>
+        <item>The loading bar is sneaking a bite of a delicious cupcake. Current progress: 2/3 eaten!</item>
+        <item>O loading bar, which hides the powers of darkness… Reveal your true speed before me!</item>
+        <item>Synchronizing alternative world signals… Beep beep—waves alignment rate at 99%!</item>
+        <item>I know you\'re eager, but don\'t rush~ Take a moment to blink and relax your neck!</item>
+        <item>Currently disciplining some disobedient code, just a tiny moment!</item>
+        <item>Onii-chan, the loading bar ahead is still quite long…</item>
+        <item>Activate Magic Card: Pot of Greed! Draw more loading time from the deck!</item>
+        <item>Your loading request has been prioritized by the Hero\'s Party! Current rank: No. 1!</item>
+        <item>Excitedly rubbing hands together in anticipation…</item>
+        <item>◝(⑅•ᴗ•⑅)◜..°♡ Teleporting…</item>
+    </string-array>
 </resources>

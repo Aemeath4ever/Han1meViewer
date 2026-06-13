@@ -823,6 +823,21 @@
         <item>解鎖你的隱藏欲望</item>
         <item>臉紅的關鍵詞是什麼？</item>
         <item>深夜好奇點什麼…</item>
+        <item>噓，這是屬於我們兩個人的秘密…</item>
+        <item>傲嬌的你，其實很想搜那個吧？</item>
+        <item>把持住！這裡的濃度有點高哦？</item>
+        <item>四海皆兄弟，老哥借一步說話？</item>
+        <item>你、你可別輸入什麼奇怪的詞啊！</item>
+        <item>這裡沒有監控，偷偷搜吧~</item>
+        <item>夜深了，該滿足一下好奇心了~</item>
+        <item>好東西，不打算和本蘿莉/看板娘分享嗎？</item>
+        <item>通往新世界的大門，輸入密碼開啟！</item>
+        <item>聽話，讓我看看！</item>
+        <item>搜索框已經洗乾淨了，請享用！</item>
+        <item>你腦子裡在想什麼，搜索框都知道哦？</item>
+        <item>嗶！學生卡/老司機卡，請刷卡搜索！</item>
+        <item>渴望著什麼呢？悄悄告訴我嘛~</item>
+        <item>搜索一下，打開不可以色色的新世界！</item>
     </string-array>
 
     <string name="theme_color">主題色</string>
@@ -873,4 +888,21 @@
     <string name="home_category_layout_summary">目前顯示 %1$d / %2$d 個欄目</string>
     <string name="home_category_layout_dialog_summary">長按並拖動欄目可調整順序，關閉開關即可隱藏欄目。</string>
     <string name="debug">除錯</string>
+    <string-array name="loading_hints">
+        <item>哼，才、才沒有讓你久等呢！只是數據跑得慢了一點點而已！</item>
+        <item>笨蛋！盯著看它也不會變快啦！……好啦，再等我三秒鐘！</item>
+        <item>（吧唧吧唧）……啊！被發現了！等我咽下這塊餅乾就來！</item>
+        <item>嗚哇！前面的數據線好像纏在一起了！</item>
+        <item>正在努力搬運快樂中……</item>
+        <item>進度條正在偷吃美味小蛋糕，目前進度：2/3個！</item>
+        <item>隱藏著黑暗力量的進度條啊，在我面前顯示你真正的速度吧！</item>
+        <item>正在同步異世界信號……嗶嗶——電波對接成功率 99%！</item>
+        <item>知道你急，但先別急嘛~ 趁現在眨眨眼，休息一下脖子哦！</item>
+        <item>正在調教不聽話的小代碼，稍等一下下啦！</item>
+        <item>大哥哥，前面的加載條還很長呢……</item>
+        <item>發動魔法卡：強欲之壺！從卡組抽取更多加載時間！</item>
+        <item>您的加載請求已被勇者小隊優先處理，當前排名：第1位！</item>
+        <item>搓手手期待ing……</item>
+        <item>◝(⑅•ᴗ•⑅)◜..°♡ 傳送中……</item>
+    </string-array>
 </resources>

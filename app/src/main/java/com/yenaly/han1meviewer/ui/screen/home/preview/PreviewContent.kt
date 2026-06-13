@@ -36,12 +36,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -173,7 +175,12 @@ fun PreviewContent(
 
             when (uiState.displayState) {
                 is WebsiteState.Loading -> item {
-                    LoadingContent(modifier = Modifier.padding(horizontal = 16.dp))
+                    val placeholders = stringArrayResource(R.array.loading_hints)
+                    val loadingHint = remember(placeholders) { placeholders.random() }
+                    LoadingContent(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        message = loadingHint
+                    )
                 }
 
                 is WebsiteState.Error -> item {

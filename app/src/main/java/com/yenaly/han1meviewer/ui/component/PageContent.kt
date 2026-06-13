@@ -15,11 +15,12 @@ fun PageContent(
     isError: Boolean,
     isEmpty: Boolean,
     modifier: Modifier = Modifier,
+    loadingMessage: String = "",
     errorMessage: String = "",
     onRetry: () -> Unit = {},
     loading: @Composable () -> Unit = {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingContent()
+            LoadingContent(message = loadingMessage)
         }
     },
     error: @Composable () -> Unit = {

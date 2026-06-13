@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -54,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -134,31 +136,14 @@ fun AccountScreen(
         title = stringResource(R.string.my_account),
         onBack = onBack,
     ) { paddingValues ->
+        val placeholders = stringArrayResource(R.array.loading_hints)
+        val loadingHint = remember(placeholders) { placeholders.random() }
         PageContent(
             isLoading = state is WebsiteState.Loading,
             isError = state is WebsiteState.Error,
             isEmpty = state !is WebsiteState.Success,
             onRetry = { viewModel.loadAccount(forceReload = true) },
-            loading = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        LoadingIndicator()
-                        Text(
-                            text = stringResource(R.string.loading),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            },
+            loadingMessage = loadingHint,
             error = {
                 Box(
                     modifier = Modifier

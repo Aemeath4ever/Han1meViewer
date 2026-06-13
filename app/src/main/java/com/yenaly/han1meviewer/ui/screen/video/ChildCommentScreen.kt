@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
@@ -199,7 +200,8 @@ fun ChildCommentScreen(
 
             val initialLoading = state is WebsiteState.Loading && sortedComments.isEmpty()
             val initialError = state is WebsiteState.Error && sortedComments.isEmpty()
-
+            val placeholders = stringArrayResource(R.array.loading_hints)
+            val loadingHint = remember(placeholders) { placeholders.random() }
             PageContent(
                 isLoading = initialLoading,
                 isError = initialError,
@@ -211,7 +213,7 @@ fun ChildCommentScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 24.dp),
-                        message = stringResource(R.string.loading),
+                        message = loadingHint,
                     )
                 },
                 error = {

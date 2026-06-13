@@ -72,8 +72,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -660,7 +662,23 @@ fun SearchStateIndicator(
         is PageLoadingState.Loading -> if (resultCount == 0) Box(
             modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
-        ) { LoadingIndicator() }
+        ) {
+            val placeholders = stringArrayResource(R.array.loading_hints)
+            val loadingHint = remember(placeholders) { placeholders.random() }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(horizontal = 32.dp)
+            ) {
+                LoadingIndicator()
+                Text(
+                    text = loadingHint,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
         is PageLoadingState.NoMoreData -> if (resultCount == 0) EmptyContent(
             hint = stringResource(R.string.search_no_results),

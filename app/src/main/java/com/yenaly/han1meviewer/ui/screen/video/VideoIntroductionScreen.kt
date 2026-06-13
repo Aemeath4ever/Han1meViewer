@@ -69,6 +69,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -152,6 +153,8 @@ fun VideoIntroductionScreen(
             .widthIn(max = maxScreenWidth)
     ) {
         val currentVideo = video ?: (state as? VideoLoadingState.Success)?.info
+        val placeholders = stringArrayResource(R.array.loading_hints)
+        val loadingHint = remember(placeholders) { placeholders.random() }
         when {
             currentVideo != null -> VideoIntroductionContent(
                 video = currentVideo,
@@ -199,7 +202,7 @@ fun VideoIntroductionScreen(
 
             else -> LoadingContent(
                 modifier = Modifier.align(Alignment.Center),
-                message = stringResource(R.string.loading),
+                message = loadingHint,
             )
         }
     }
