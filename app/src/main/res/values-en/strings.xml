@@ -41,7 +41,17 @@
     <string name="hanime_list">New Anime List</string>
     <string name="latest_hanime_list_monthly">%s New Anime List</string>
     <string name="preview_page_updating">The preview page is being updated by the site. Please try checking other months.</string>
+    <string name="preview_page_updating_getchu_hint">The preview page is being updated by the site. You can check the Getchu preview first. Getchu may require a VPN to access normally.</string>
     <string name="latest_hanime_comment">%s Anime Comments</string>
+    <string name="view_getchu_preview">View Getchu Preview</string>
+    <string name="getchu_preview">Getchu Preview</string>
+    <string name="getchu_preview_title">Getchu %s Preview</string>
+    <string name="getchu_preview_detail">Getchu Preview Detail</string>
+    <string name="getchu_sample_images">Sample Images</string>
+    <string name="getchu_series">Series Items</string>
+    <string name="getchu_product_intro">Product Introduction</string>
+    <string name="getchu_story">Story</string>
+    <string name="getchu_staff">Staff</string>
     <string name="my_list">My List</string>
     <string name="watch_later">Watch Later</string>
     <string name="fav_video">Favorite Videos</string>

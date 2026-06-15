@@ -41,7 +41,17 @@
     <string name="hanime_list">新番列表</string>
     <string name="latest_hanime_list_monthly">%s 里番新番列表</string>
     <string name="preview_page_updating">站方正在更新新番预告页面，请尝试查看其他月份</string>
+    <string name="preview_page_updating_getchu_hint">站方正在更新新番预告页面，可先查看 Getchu 新番预告。Getchu 可能需要 VPN 才能正常访问。</string>
     <string name="latest_hanime_comment">%s 新番评论区</string>
+    <string name="view_getchu_preview">查看 Getchu 预告</string>
+    <string name="getchu_preview">Getchu 新番预告</string>
+    <string name="getchu_preview_title">Getchu %s 新番预告</string>
+    <string name="getchu_preview_detail">Getchu 新番详情</string>
+    <string name="getchu_sample_images">样品图</string>
+    <string name="getchu_series">系列商品</string>
+    <string name="getchu_product_intro">商品介绍</string>
+    <string name="getchu_story">故事</string>
+    <string name="getchu_staff">制作人员</string>
     <string name="my_list">我的清单</string>
     <string name="watch_later">稍后观看</string>
     <string name="fav_video">喜欢的影片</string>
