@@ -1,3 +1,4 @@
+@file:Suppress("UNUSED")
 package com.yenaly.han1meviewer.ui.preview
 
 import com.yenaly.han1meviewer.R
@@ -137,11 +138,25 @@ val fakePlaylists = listOf(
     ),
 )
 
-val fakeBanner = HomePage.Banner(
-    title = "【新作】小悪魔の補習計画 - 第1話",
-    description = "クラスで一番真面目な委員長が、放課後に秘密の補習を…",
-    picUrl = "https://vdownload.hembed.com/image/thumbnail/101573l.jpg",
-    videoCode = "101573",
+val fakeBanner = listOf(
+    HomePage.Banner(
+        title = "【新作】小悪魔の補習計画 - 第1話",
+        description = "クラスで一番真面目な委員長が、放課後に秘密の補習を…",
+        picUrl = "https://vdownload.hembed.com/image/thumbnail/101573l.jpg",
+        videoCode = "101573",
+    ),
+    HomePage.Banner(
+        title = "【新作】小悪魔の補習計画 - 第2話",
+        description = "クラスで一番真面目な委員長が、放課後に秘密の補習を…",
+        picUrl = "https://vdownload.hembed.com/image/thumbnail/101573l.jpg",
+        videoCode = "101573",
+    ),
+    HomePage.Banner(
+        title = "【新作】小悪魔の補習計画 - 第3話",
+        description = "クラスで一番真面目な委員長が、放課後に秘密の補習を…",
+        picUrl = "https://vdownload.hembed.com/image/thumbnail/101573l.jpg",
+        videoCode = "101573",
+    )
 )
 
 val fakeAnnouncements = listOf(
@@ -253,6 +268,27 @@ val fakeCategories = listOf(
         sort = "他們在看",
         videos = fakeHomePageVideos.shuffled().take(5),
     ),
+)
+
+val fakeHomePage = HomePage(
+    csrfToken = "preview-csrf-token",
+    avatarUrl = "https://picsum.photos/128/128?random=avatar",
+    username = "Preview User",
+    banner = fakeBanner.firstOrNull(),
+    latestHanime = fakeHomePageVideos.toMutableList(),
+    latestRelease = fakeHomePageVideos.shuffled().toMutableList(),
+    ecchiAnime = fakeHomePageVideos.shuffled().toMutableList(),
+    shortEpisodeAnime = fakeHomePageVideos.shuffled().toMutableList(),
+    twoPointFiveDAnime = fakeHomePageVideos.shuffled().toMutableList(),
+    threeDCG = fakeHomePageVideos.shuffled().toMutableList(),
+    motionAnime = fakeHomePageVideos.shuffled().toMutableList(),
+    twoDAnime = fakeHomePageVideos.shuffled().toMutableList(),
+    aiGenerated = fakeHomePageVideos.shuffled().toMutableList(),
+    mmd = fakeHomePageVideos.shuffled().toMutableList(),
+    cosplay = fakeHomePageVideos.shuffled().toMutableList(),
+    watchingNow = fakeHomePageVideos.shuffled().toMutableList(),
+    newAnimeTrailer = fakeHomePageVideos.shuffled().toMutableList(),
+    userId = "preview-user-id",
 )
 
 val fakeTagList1 = listOf("新番", "预告", "校园", "妹妹", "姐系", "正太", "萝莉")
