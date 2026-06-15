@@ -95,6 +95,7 @@ import com.yenaly.han1meviewer.ui.component.lazy.LazyRow
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
 import com.yenaly.han1meviewer.ui.preview.fakeVideoIntroduction
 import com.yenaly.han1meviewer.ui.screen.rememberCardResponsiveWidth
+import com.yenaly.han1meviewer.ui.screen.rememberRandomLoadingHint
 import com.yenaly.han1meviewer.ui.theme.SpacingNormal
 import com.yenaly.han1meviewer.ui.theme.VideoNormalCardMinWidth
 import com.yenaly.han1meviewer.ui.theme.VideoSimplifiedCardMinWidth
@@ -153,8 +154,7 @@ fun VideoIntroductionScreen(
             .widthIn(max = maxScreenWidth)
     ) {
         val currentVideo = video ?: (state as? VideoLoadingState.Success)?.info
-        val placeholders = stringArrayResource(R.array.loading_hints)
-        val loadingHint = remember(placeholders) { placeholders.random() }
+        val loadingHint = rememberRandomLoadingHint()
         when {
             currentVideo != null -> VideoIntroductionContent(
                 video = currentVideo,

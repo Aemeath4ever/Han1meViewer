@@ -16,14 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.net.ConnectException
-import java.net.SocketException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import javax.net.ssl.SSLHandshakeException
 
 /**
  * 将首页分类转换为高级搜索请求参数。
@@ -37,64 +32,6 @@ internal fun HomeCategory.toAdvancedSearchParams(): Map<String, String> = buildM
     genre?.let { put("genre", it) }
     sort?.let { put("sort", it) }
     tags?.let { put("tags", it) }
-}
-
-/**
- * 将首页加载异常映射为对应的错误提示字符串资源。
- *
- * 优先根据异常类型判断常见网络问题，必要时回退到异常信息中的关键字匹配。
- *
- * @receiver 首页加载过程中抛出的异常
- * @return 错误提示的字符串资源 ID
- */
-internal fun Throwable.toHomePageErrorMessageRes(): Int {
-    val rawMessage = message.orEmpty().lowercase()
-    return when {
-        this is UnknownHostException ||
-                rawMessage.contains("unable to resolve host") ||
-                rawMessage.contains("no address associated with hostname") -> {
-            R.string.home_error_dns
-        }
-
-        this is SocketTimeoutException || rawMessage.contains("timeout") -> {
-            R.string.home_error_timeout
-        }
-
-        this is SSLHandshakeException ||
-                rawMessage.contains("ssl") ||
-                rawMessage.contains("certificate") -> {
-            R.string.home_error_ssl
-        }
-
-        this is ConnectException || rawMessage.contains("failed to connect") -> {
-            R.string.home_error_connect
-        }
-
-        this is SocketException && rawMessage.contains("connection reset") -> {
-            R.string.home_error_connection_interrupted
-        }
-
-        rawMessage.contains("connection reset") -> {
-            R.string.home_error_connection_reset
-        }
-
-        rawMessage.contains("403") -> {
-            R.string.home_error_forbidden
-        }
-
-        rawMessage.contains("404") -> {
-            R.string.home_error_not_found
-        }
-
-        rawMessage.contains("500") || rawMessage.contains("502") ||
-                rawMessage.contains("503") || rawMessage.contains("504") -> {
-            R.string.home_error_server_unavailable
-        }
-
-        else -> {
-            R.string.home_error_generic
-        }
-    }
 }
 
 /**

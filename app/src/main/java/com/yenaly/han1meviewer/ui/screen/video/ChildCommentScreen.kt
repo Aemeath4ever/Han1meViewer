@@ -52,6 +52,7 @@ import com.yenaly.han1meviewer.ui.component.content.LoadingContent
 import com.yenaly.han1meviewer.ui.component.lazy.LazyColumn
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
 import com.yenaly.han1meviewer.ui.preview.fakeCommentList
+import com.yenaly.han1meviewer.ui.screen.rememberRandomLoadingHint
 import com.yenaly.han1meviewer.util.parseTimeStrToMinutes
 import com.yenaly.han1meviewer.util.safeSortedBy
 import kotlinx.coroutines.flow.Flow
@@ -200,8 +201,7 @@ fun ChildCommentScreen(
 
             val initialLoading = state is WebsiteState.Loading && sortedComments.isEmpty()
             val initialError = state is WebsiteState.Error && sortedComments.isEmpty()
-            val placeholders = stringArrayResource(R.array.loading_hints)
-            val loadingHint = remember(placeholders) { placeholders.random() }
+            val loadingHint = rememberRandomLoadingHint()
             PageContent(
                 isLoading = initialLoading,
                 isError = initialError,

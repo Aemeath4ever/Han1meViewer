@@ -73,6 +73,7 @@ import com.yenaly.han1meviewer.ui.component.PageContent
 import com.yenaly.han1meviewer.ui.component.appbar.HanimeScaffold
 import com.yenaly.han1meviewer.ui.component.content.ErrorContent
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
+import com.yenaly.han1meviewer.ui.screen.rememberRandomLoadingHint
 import com.yenaly.han1meviewer.ui.viewmodel.UserAccountViewModel
 import com.yenaly.han1meviewer.util.pickVisualMedia
 import com.yenaly.yenaly_libs.utils.browse
@@ -136,8 +137,7 @@ fun AccountScreen(
         title = stringResource(R.string.my_account),
         onBack = onBack,
     ) { paddingValues ->
-        val placeholders = stringArrayResource(R.array.loading_hints)
-        val loadingHint = remember(placeholders) { placeholders.random() }
+        val loadingHint = rememberRandomLoadingHint()
         PageContent(
             isLoading = state is WebsiteState.Loading,
             isError = state is WebsiteState.Error,

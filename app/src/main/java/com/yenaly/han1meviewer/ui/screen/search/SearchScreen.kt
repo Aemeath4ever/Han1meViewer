@@ -91,6 +91,7 @@ import com.yenaly.han1meviewer.ui.component.VideoCardItem
 import com.yenaly.han1meviewer.ui.component.content.EmptyContent
 import com.yenaly.han1meviewer.ui.component.lazy.LazyVerticalGrid
 import com.yenaly.han1meviewer.ui.preview.fakeHomePageVideos
+import com.yenaly.han1meviewer.ui.screen.rememberRandomLoadingHint
 import com.yenaly.han1meviewer.ui.theme.SpacingNormal
 import com.yenaly.han1meviewer.ui.theme.VideoNormalCardMinWidth
 import com.yenaly.han1meviewer.ui.theme.VideoSimplifiedCardMinWidth
@@ -658,13 +659,12 @@ fun SearchStateIndicator(
     resultCount: Int,
     modifier: Modifier = Modifier
 ) {
+    val loadingHint = rememberRandomLoadingHint()
     when (state) {
         is PageLoadingState.Loading -> if (resultCount == 0) Box(
             modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            val placeholders = stringArrayResource(R.array.loading_hints)
-            val loadingHint = remember(placeholders) { placeholders.random() }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),

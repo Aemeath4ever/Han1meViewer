@@ -36,6 +36,8 @@ import com.yenaly.han1meviewer.ui.component.isFirstPageEmpty
 import com.yenaly.han1meviewer.ui.component.isFirstPageError
 import com.yenaly.han1meviewer.ui.component.isFirstPageLoading
 import com.yenaly.han1meviewer.ui.screen.home.homepage.component.HomePageTopBar
+import com.yenaly.han1meviewer.ui.screen.rememberRandomLoadingHint
+import com.yenaly.han1meviewer.util.toNetworkErrorMessageRes
 
 /**
  * 首页容器屏幕，负责连接 ViewModel 状态与导航回调。
@@ -56,7 +58,7 @@ fun HomePageScreen(
     val pageState by viewModel.homePageFlow.collectAsStateWithLifecycle()
     val refreshState = rememberPullToRefreshState()
     var wasRefreshing by remember { mutableStateOf(false) }
-
+    val loadingHint = rememberRandomLoadingHint()
     LaunchedEffect(Unit) {
         if (pageState !is PageState.Success) {
             viewModel.getHomePage(isRefresh = false)
@@ -74,7 +76,7 @@ fun HomePageScreen(
         if (wasRefreshing && errorState?.cachedInfo != null) {
             Toast.makeText(
                 context,
-                errorState.throwable.toHomePageErrorMessageRes(),
+                errorState.throwable.toNetworkErrorMessageRes(),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -103,13 +105,11 @@ fun HomePageScreen(
                         }
                     )
             ) {
-                val placeholders = stringArrayResource(R.array.loading_hints)
-                val loadingHint = remember(placeholders) { placeholders.random() }
                 PageContent(
                     isLoading = pageState.isFirstPageLoading,
                     isError = pageState.isFirstPageError,
                     isEmpty = pageState.isFirstPageError || pageState.isFirstPageEmpty,
-                    errorMessage = (pageState as? PageState.Error)?.throwable?.toHomePageErrorMessageRes()?.let {
+                    errorMessage = (pageState as? PageState.Error)?.throwable?.toNetworkErrorMessageRes()?.let {
                         stringResource(it)
                     } ?: "",
                     onRetry = { viewModel.getHomePage(isRefresh = false) },
