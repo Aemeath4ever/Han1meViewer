@@ -1,10 +1,12 @@
 package com.yenaly.han1meviewer.ui.screen.home.preview.getchupreview
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -49,7 +51,11 @@ fun GetchuPreviewDetailScreen(
     }
     LaunchedEffect(id) { viewModel.getDetail(id) }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         TopAppBar(
             title = { Text(stringResource(R.string.getchu_preview_detail)) },
             navigationIcon = {

@@ -36,6 +36,10 @@ internal fun getchuDateLabel(code: String): String {
     return "${code.substring(0, 4)}/${code.substring(4, 6).toInt()}"
 }
 
+internal fun getchuMonthOptions(centerCode: String): List<String> {
+    return (-12..12).map { delta -> shiftGetchuMonthCode(centerCode, delta) }
+}
+
 @Composable
 internal fun getchuImageRequest(url: String?): ImageRequest {
     val context = LocalContext.current
