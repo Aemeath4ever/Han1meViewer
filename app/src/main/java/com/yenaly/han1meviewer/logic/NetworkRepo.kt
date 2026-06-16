@@ -10,7 +10,6 @@ import com.yenaly.han1meviewer.logic.exception.IPBlockedException
 import com.yenaly.han1meviewer.logic.exception.ParseException
 import com.yenaly.han1meviewer.logic.model.CommentPlace
 import com.yenaly.han1meviewer.logic.model.CreatorSort
-import com.yenaly.han1meviewer.logic.model.CreatorUploadingItem
 import com.yenaly.han1meviewer.logic.model.ModifiedPlaylistArgs
 import com.yenaly.han1meviewer.logic.model.MyListType
 import com.yenaly.han1meviewer.logic.model.OnlineWatchHistorySort
@@ -616,7 +615,7 @@ object NetworkRepo {
         emit(VideoLoadingState.Error(handleException(e)))
     }.flowOn(Dispatchers.IO)
 
-    private fun Response<ResponseBody>.throwRequestException(): Nothing {
+    internal fun Response<ResponseBody>.throwRequestException(): Nothing {
         val body = errorBody()?.string()
         when (val code = code()) {
             403 -> if (!body.isNullOrBlank()) {
@@ -644,7 +643,7 @@ object NetworkRepo {
         }
     }
 
-    private fun handleException(e: Throwable): Throwable {
+    internal fun handleException(e: Throwable): Throwable {
         return when (e) {
             is CancellationException -> throw e
             is ParseException -> {

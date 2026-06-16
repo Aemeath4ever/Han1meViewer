@@ -69,6 +69,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -94,6 +95,7 @@ import com.yenaly.han1meviewer.ui.component.lazy.LazyRow
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
 import com.yenaly.han1meviewer.ui.preview.fakeVideoIntroduction
 import com.yenaly.han1meviewer.ui.screen.rememberCardResponsiveWidth
+import com.yenaly.han1meviewer.ui.screen.rememberRandomLoadingHint
 import com.yenaly.han1meviewer.ui.theme.SpacingNormal
 import com.yenaly.han1meviewer.ui.theme.VideoNormalCardMinWidth
 import com.yenaly.han1meviewer.ui.theme.VideoSimplifiedCardMinWidth
@@ -152,6 +154,7 @@ fun VideoIntroductionScreen(
             .widthIn(max = maxScreenWidth)
     ) {
         val currentVideo = video ?: (state as? VideoLoadingState.Success)?.info
+        val loadingHint = rememberRandomLoadingHint()
         when {
             currentVideo != null -> VideoIntroductionContent(
                 video = currentVideo,
@@ -199,7 +202,7 @@ fun VideoIntroductionScreen(
 
             else -> LoadingContent(
                 modifier = Modifier.align(Alignment.Center),
-                message = stringResource(R.string.loading),
+                message = loadingHint,
             )
         }
     }
