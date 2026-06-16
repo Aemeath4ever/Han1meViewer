@@ -36,6 +36,10 @@ class HDns : Dns {
             "2606:4700:3035::ac43:bb8d", "2606:4700:3030::6815:746", "2606:4700:3030::6815:714"
         )
 
+        private val getchuIps = listOf("210.155.150.166", "210.155.150.145")
+
+        private const val GETCHU_HOSTNAME = "www.getchu.com"
+
         /**
          * 添加DNS
          */
@@ -86,6 +90,12 @@ class HDns : Dns {
     }
 
     override fun lookup(hostname: String): List<InetAddress> {
+        if (hostname == GETCHU_HOSTNAME) {
+            return getchuIps.map {
+                InetAddress.getByAddress(hostname, InetAddress.getByName(it).address)
+            }
+        }
+
         if (Preferences.useBuiltInHosts && HANIME_HOSTNAME.contains(hostname)) {
             val customIps = resolveCustomIps()
             if (!customIps.isNullOrEmpty()) {
@@ -161,6 +171,10 @@ class HDns : Dns {
     }
 
     fun getCDNList(host: String): List<String> {
+        if (host == GETCHU_HOSTNAME) {
+            return getchuIps.distinct()
+        }
+
         if (Preferences.useBuiltInHosts && HANIME_HOSTNAME.contains(host)) {
             val customIps = resolveCustomIps()
             if (!customIps.isNullOrEmpty()) {

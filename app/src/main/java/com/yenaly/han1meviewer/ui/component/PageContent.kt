@@ -36,11 +36,13 @@ fun PageContent(
     },
     content: @Composable () -> Unit,
 ) {
-    when {
-        isError && isEmpty -> error()
-        isLoading -> loading()
-        isEmpty -> empty()
-        else -> content()
+    Box(modifier = modifier) {
+        when {
+            isError -> error()
+            isLoading -> loading()
+            isEmpty -> empty()
+            else -> content()
+        }
     }
 }
 

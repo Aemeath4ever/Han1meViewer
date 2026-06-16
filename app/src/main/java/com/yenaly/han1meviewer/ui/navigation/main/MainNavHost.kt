@@ -291,10 +291,27 @@ fun MainNavHost(
             PreviewRouteScreen(
                 activity = activity,
                 onBack = onBack,
+                onNavigateToGetchuPreview = {
+                    navController.navigateSafely(GetchuPreviewRoute)
+                },
                 onNavigateToPreviewComment = { date, dateCode ->
                     navController.navigateSafely(PreviewCommentRoute(date, dateCode))
                 },
                 onNavigateToVideo = onNavigateToVideo,
+            )
+        }
+        composable<GetchuPreviewRoute> {
+            GetchuPreviewRouteScreen(
+                onBack = onBack,
+                onNavigateToDetail = { id -> navController.navigateSafely(GetchuPreviewDetailRoute(id)) },
+            )
+        }
+        composable<GetchuPreviewDetailRoute> {
+            GetchuPreviewDetailRouteScreen(
+                route = it.toRoute(),
+                onBack = onBack,
+                onNavigateToDetail = { id -> navController.navigateSafely(GetchuPreviewDetailRoute(id)) },
+                onNavigateToVideoUrl = { url -> navController.navigateSafely(VideoRoute("-1", url)) },
             )
         }
         composable<PreviewCommentRoute> {
