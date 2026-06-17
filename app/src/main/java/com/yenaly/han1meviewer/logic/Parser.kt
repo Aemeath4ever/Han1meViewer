@@ -65,7 +65,7 @@ object Parser {
         val userInfo = parseBody.selectFirst("div[id=user-modal-dp-wrapper]")
         val avatarUrl: String? = userInfo?.selectFirst("img")?.absUrl("src")
         val username: String? = userInfo?.getElementById("user-modal-name")?.text()
-        val userHomePageLink = parseBody.getElementById("user-modal-trigger")!!.attr("href")
+        val userHomePageLink = parseBody.getElementById("user-modal-trigger")?.attr("href")?:""
 
         if (isAlreadyLogin && isLoginStateExpired(userHomePageLink, username)) {
             return WebsiteState.Error(LoginStateExpiredException(getString(R.string.login_state_expired)))

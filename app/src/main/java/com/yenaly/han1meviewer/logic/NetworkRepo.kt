@@ -2,6 +2,7 @@ package com.yenaly.han1meviewer.logic
 
 import android.util.Log
 import com.yenaly.han1meviewer.EMPTY_STRING
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.Preferences.isAlreadyLogin
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.logic.exception.CloudFlareBlockedException
@@ -46,7 +47,7 @@ object NetworkRepo {
     //<editor-fold desc="Hanime">
 
     fun getHomePage() = websiteIOFlow(
-        request = { HanimeNetwork.hanimeService.getHomePage() },
+        request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeUrl) },
         action = Parser::homePageVer2
     )
 

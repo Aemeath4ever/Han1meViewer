@@ -2,6 +2,7 @@ package com.yenaly.han1meviewer
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.preference.PreferenceManager
 import com.yenaly.han1meviewer.HanimeConstants.HANIME_URL
 import com.yenaly.han1meviewer.logic.network.HProxySelector
@@ -186,8 +187,36 @@ object Preferences {
             "com.yenaly.han1meviewer.LauncherAliasDefault") ?: "com.yenaly.han1meviewer.LauncherAliasDefault"
 
     val baseUrl: String
-        get() = preferenceSp.getString(SettingsPreferenceKeys.DOMAIN_NAME, HANIME_URL[0])
-            ?: HANIME_URL[0]
+        get() {
+            if (useCustomMirrorSite && customMirrorSite.isNotBlank()) {
+                val url = if (appendCustomMirrorPath) customMirrorSite else customMirrorSite.toRootUrl()
+                return url.toRetrofitBaseUrl()
+            }
+            return preferenceSp.getString(SettingsPreferenceKeys.DOMAIN_NAME, HANIME_URL[0])
+                ?: HANIME_URL[0]
+        }
+
+    val homeUrl: String
+        get() {
+            if (useCustomMirrorSite && customMirrorSite.isNotBlank()) return customMirrorSite
+            return baseUrl
+        }
+
+    val useCustomMirrorSite: Boolean
+        get() = preferenceSp.getBoolean(SettingsPreferenceKeys.USE_CUSTOM_MIRROR_SITE, false)
+
+    val customMirrorSite: String
+        get() = preferenceSp.getString(SettingsPreferenceKeys.CUSTOM_MIRROR_SITE, EMPTY_STRING).orEmpty()
+
+    val appendCustomMirrorPath: Boolean
+        get() = preferenceSp.getBoolean(SettingsPreferenceKeys.APPEND_CUSTOM_MIRROR_PATH, true)
+
+    private fun String.toRetrofitBaseUrl(): String = if (endsWith('/')) this else "$this/"
+
+    private fun String.toRootUrl(): String {
+        val uri = toUri()
+        return "${uri.scheme}://${uri.encodedAuthority}"
+    }
 
     val selectedBaseUrl: String
         get() = preferenceSp.getString(SettingsPreferenceKeys.SELECTED_BASE_URL, HANIME_URL[0])

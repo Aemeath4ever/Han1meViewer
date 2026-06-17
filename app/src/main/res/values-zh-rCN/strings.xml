@@ -170,6 +170,27 @@
     <string name="start_all">全部开始</string>
     <string name="pause_all">全部暂停</string>
     <string name="domain_name">域名</string>
+    <string name="custom_mirror_site">自定义镜像站</string>
+    <string name="enable_custom_mirror_site">启用自定义镜像站</string>
+    <string name="custom_mirror_site_hint">请输入一个与主站结构相同、直达主页的自定义镜像站，格式为https://www.example.com、https://www.example.com/enter 或 https://www.example.com/enter/；主页会按输入原样请求</string>
+    <string name="custom_mirror_site_invalid">请输入有效且直达主页的 HTTPS 网址，格式为 https://www.example.com、https://www.example.com/enter 或 https://www.example.com/enter/</string>
+    <string name="custom_mirror_site_warning">自定义镜像站不一定可用，也可能与主站存在差异。
+
+部分镜像站可能无法登录、Cookie 无法共用、验证或评论等功能不可用，甚至可能存在安全风险。请确认你信任该站点后再继续。</string>
+    <string name="custom_mirror_api_path_mode">其他接口路径</string>
+    <string name="custom_mirror_api_path_follow_home">跟随主页目录</string>
+    <string name="custom_mirror_api_path_follow_home_summary">例如：https://www.example.com/enter/search</string>
+    <string name="custom_mirror_api_path_root">使用根域名</string>
+    <string name="custom_mirror_api_path_root_summary">例如：https://www.example.com/search。主页始终按上方输入原样请求</string>
+    <string name="test_connection">测试连接</string>
+    <string name="custom_mirror_site_testing">正在测试连接...</string>
+    <string name="custom_mirror_site_test_success">测试成功\n主页：%1$s\n其他接口测试：%2$ssearch</string>
+    <string name="custom_mirror_site_test_partial_success">主页测试成功，但其他接口测试失败\n主页：%1$s\n其他接口基址：%2$s\n原因：%3$s</string>
+    <string name="custom_mirror_site_test_failed">测试失败：%1$s</string>
+    <string name="custom_mirror_site_test_failed_http">测试失败：HTTP %1$d\n主页：%2$s</string>
+    <string name="custom_mirror_site_test_parse_failed">已连接，但主页结构解析失败\n主页：%1$s\n原因：%2$s</string>
+    <string name="custom_mirror_site_watch_test_failed">search 测试失败：%1$s</string>
+    <string name="custom_mirror_site_watch_test_failed_http">search 测试失败：HTTP %1$d\nURL：%2$s</string>
     <string name="use_built_in_hosts">应用内置 Hosts</string>
     <string name="network_settings">网络设置</string>
     <string name="use_built_in_hosts_summary">应用提供的主机到 IP 的映射\n若已设定自定义 Hosts，则优先使用\nVPN？那是什么？</string>
