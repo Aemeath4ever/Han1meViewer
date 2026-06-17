@@ -170,6 +170,27 @@
     <string name="start_all">すべて開始</string>
     <string name="pause_all">すべて一時停止</string>
     <string name="domain_name">ドメイン</string>
+    <string name="custom_mirror_site">カスタムミラーサイト</string>
+    <string name="enable_custom_mirror_site">カスタムミラーサイトを有効にする</string>
+    <string name="custom_mirror_site_hint">メインサイトと同じ構造で、ホームページへ直接アクセスできるカスタムミラーサイトを入力してください。形式: https://www.example.com、https://www.example.com/enter または https://www.example.com/enter/。ホームページは入力どおりにリクエストされます</string>
+    <string name="custom_mirror_site_invalid">ホームページへ直接アクセスできる有効な HTTPS URL を入力してください。形式: https://www.example.com、https://www.example.com/enter または https://www.example.com/enter/</string>
+    <string name="custom_mirror_site_warning">カスタムミラーサイトは利用できない場合があり、メインサイトと動作が異なる可能性があります。
+
+一部のミラーではログイン、Cookie の共有、認証、コメントなどの機能が使えない場合があります。また、セキュリティ上のリスクがある可能性もあります。信頼できるサイトであることを確認してから続行してください。</string>
+    <string name="custom_mirror_api_path_mode">他のAPIパス</string>
+    <string name="custom_mirror_api_path_follow_home">ホームページのパスに従う</string>
+    <string name="custom_mirror_api_path_follow_home_summary">例: https://www.example.com/enter/search</string>
+    <string name="custom_mirror_api_path_root">ルートドメインを使用</string>
+    <string name="custom_mirror_api_path_root_summary">例: https://www.example.com/search。ホームページは常に上の入力どおりにリクエストされます</string>
+    <string name="test_connection">接続テスト</string>
+    <string name="custom_mirror_site_testing">接続をテストしています...</string>
+    <string name="custom_mirror_site_test_success">テスト成功\nホームページ: %1$s\n他のAPIテスト: %2$ssearch</string>
+    <string name="custom_mirror_site_test_partial_success">ホームページのテストは成功しましたが、他のAPIテストに失敗しました\nホームページ: %1$s\n他のAPIベース: %2$s\n理由: %3$s</string>
+    <string name="custom_mirror_site_test_failed">テスト失敗: %1$s</string>
+    <string name="custom_mirror_site_test_failed_http">テスト失敗: HTTP %1$d\nホームページ: %2$s</string>
+    <string name="custom_mirror_site_test_parse_failed">接続できましたが、ホームページ構造の解析に失敗しました\nホームページ: %1$s\n理由: %2$s</string>
+    <string name="custom_mirror_site_watch_test_failed">search のテストに失敗しました: %1$s</string>
+    <string name="custom_mirror_site_watch_test_failed_http">search のテストに失敗しました: HTTP %1$d\nURL: %2$s</string>
     <string name="use_built_in_hosts">組み込みHostsを使用</string>
     <string name="network_settings">ネットワーク設定</string>
     <string name="use_built_in_hosts_summary">アプリ提供のホストto IPマッピング\nカスタムHostsが設定されている場合は優先\nVPN？何それ？</string>

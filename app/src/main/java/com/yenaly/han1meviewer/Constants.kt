@@ -53,8 +53,7 @@ const val PREVIEW_COMMENT_PREFIX = "preview"
 val HANIME_BASE_URL = Preferences.baseUrl
 
 /**
- * 如果添加备选网址别忘了改[String.toVideoCode]的videoUrlRegex
- * 没想弄动态匹配，觉得古法修改挺好的。
+ * 如果添加备选网址别忘了确认[String.toVideoCode]的videoUrlRegex
  */
 object HanimeConstants {
     val HANIME_HOSTNAME = arrayOf("hanime1.me","hanime1.com","hanimeone.me","javchu.com")
