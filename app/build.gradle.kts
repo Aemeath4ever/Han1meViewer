@@ -50,6 +50,9 @@ android {
         buildConfigField("String", "VERSION_SOURCE", "\"${source}\"")
 
         buildConfigField("int", "SEARCH_YEAR_RANGE_END", "${Config.thisYear}")
+
+        // 清单中的相对组件名按 namespace 解析，与 applicationId 后缀无关
+        buildConfigField("String", "NAMESPACE", "\"com.yenaly.han1meviewer\"")
     }
     signingConfigs {
         create("release") {

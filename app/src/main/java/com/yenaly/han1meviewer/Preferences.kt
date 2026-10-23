@@ -193,8 +193,8 @@ object Preferences {
     val fakeLauncherIcon: String
         get() = preferenceSp.getString(
             SettingsPreferenceKeys.FAKE_LAUNCHER_ICON,
-            "${BuildConfig.APPLICATION_ID}.LauncherAliasDefault")
-            ?: "${BuildConfig.APPLICATION_ID}.LauncherAliasDefault"
+            "${BuildConfig.NAMESPACE}.LauncherAliasDefault")
+            ?: "${BuildConfig.NAMESPACE}.LauncherAliasDefault"
 
     val baseUrl: String
         get() {
