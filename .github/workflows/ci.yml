@@ -1,12 +1,9 @@
 permissions:
-  contents: read
+  contents: write
 name: CI
 
 on:
-  push:
-    branches: [ "main" ]
-    paths-ignore:
-      - "**.md"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -55,3 +52,15 @@ jobs:
         with:
           name: app-release-${{ github.sha }}
           path: app/build/outputs/apk/release/Han1meViewer-v*.apk
+
+      - name: Push APK to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK_FILE=$(ls app/build/outputs/apk/release/Han1meViewer-v*.apk | head -1)
+          TAG=$(basename "$APK_FILE" .apk)
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$APK_FILE" --clobber
+          else
+            gh release create "$TAG" "$APK_FILE" --title "$TAG" --generate-notes
+          fi
