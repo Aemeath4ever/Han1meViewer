@@ -46,6 +46,7 @@ object Parser {
      * 所需 Regex
      */
     object Regex {
+        val videoSource = Regex("""const source = '(.+)'""")
         val viewAndUploadTime = Regex("""(觀看次數|观看次数)：(.+次) *(\d{4}-\d{2}-\d{2})""")
 
         // missav 影片頁的 seek 縮略圖，可用於兜底提取 surrit.com 的影片 UUID（HTML 中斜槓可能被轉義為 \/）
@@ -786,7 +787,9 @@ object Parser {
         var unpacked = payload
         for (i in count - 1 downTo 0) {
             val keyword = keywords.getOrNull(i) ?: continue
-            unpacked = unpacked.replace(Regex("""\b${encodeIndex(i)}\b"""), Regex.escapeReplacement(keyword))
+            // 用 lambda 替換以避免轉義問題；注意此處不能寫 Regex.escapeReplacement——
+            // 會被 Parser.Regex 嵌套對象遮蔽而解析失敗
+            unpacked = unpacked.replace(Regex("""\b${encodeIndex(i)}\b""")) { keyword }
         }
         return unpacked
     }
