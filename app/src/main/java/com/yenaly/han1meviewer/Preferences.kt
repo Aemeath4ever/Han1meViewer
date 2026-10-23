@@ -193,7 +193,8 @@ object Preferences {
     val fakeLauncherIcon: String
         get() = preferenceSp.getString(
             SettingsPreferenceKeys.FAKE_LAUNCHER_ICON,
-            "com.yenaly.han1meviewer.LauncherAliasDefault") ?: "com.yenaly.han1meviewer.LauncherAliasDefault"
+            "${BuildConfig.APPLICATION_ID}.LauncherAliasDefault")
+            ?: "${BuildConfig.APPLICATION_ID}.LauncherAliasDefault"
 
     val baseUrl: String
         get() {

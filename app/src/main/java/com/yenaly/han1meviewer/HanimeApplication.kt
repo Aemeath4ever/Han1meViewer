@@ -147,10 +147,10 @@ class HanimeApplication : YenalyApplication() {
         val pm = packageManager
 
         val allAliases = listOf(
-            "com.yenaly.han1meviewer.LauncherAliasDefault",
-            "com.yenaly.han1meviewer.LauncherFakeCalc",
-            "com.yenaly.han1meviewer.LauncherFakeCornhub",
-            "com.yenaly.han1meviewer.LauncherFakeXxt"
+            "${BuildConfig.APPLICATION_ID}.LauncherAliasDefault",
+            "${BuildConfig.APPLICATION_ID}.LauncherFakeCalc",
+            "${BuildConfig.APPLICATION_ID}.LauncherFakeCornhub",
+            "${BuildConfig.APPLICATION_ID}.LauncherFakeXxt"
         )
 
         allAliases.forEach { a ->

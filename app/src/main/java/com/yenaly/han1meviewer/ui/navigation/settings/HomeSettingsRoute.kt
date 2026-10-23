@@ -175,22 +175,22 @@ fun HomeSettingsRouteScreen(
             LauncherItem(
                 name = hanimeAppName,
                 iconRes = R.drawable.ic_launcher_new,
-                alias = "com.yenaly.han1meviewer.LauncherAliasDefault",
+                alias = "${BuildConfig.APPLICATION_ID}.LauncherAliasDefault",
             ),
             LauncherItem(
                 name = fakeNameCalc,
                 iconRes = R.drawable.ic_launcher_calc,
-                alias = "com.yenaly.han1meviewer.LauncherFakeCalc",
+                alias = "${BuildConfig.APPLICATION_ID}.LauncherFakeCalc",
             ),
             LauncherItem(
                 name = fakeNameCornhub,
                 iconRes = R.drawable.ic_launcher_cornhub,
-                alias = "com.yenaly.han1meviewer.LauncherFakeCornhub",
+                alias = "${BuildConfig.APPLICATION_ID}.LauncherFakeCornhub",
             ),
             LauncherItem(
                 name = fakeNameXXT,
                 iconRes = R.drawable.ic_launcher_xxt,
-                alias = "com.yenaly.han1meviewer.LauncherFakeXxt",
+                alias = "${BuildConfig.APPLICATION_ID}.LauncherFakeXxt",
             ),
         )
     }
