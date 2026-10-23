@@ -46,8 +46,10 @@ object Parser {
      * 所需 Regex
      */
     object Regex {
-        val videoSource = Regex("""const source = '(.+)'""")
         val viewAndUploadTime = Regex("""(觀看次數|观看次数)：(.+次) *(\d{4}-\d{2}-\d{2})""")
+
+        // missav 影片頁的 seek 縮略圖，可用於兜底提取 surrit.com 的影片 UUID（HTML 中斜槓可能被轉義為 \/）
+        val missavSurritId = Regex("""surrit\.com\\?/([a-f0-9-]+)\\?/""")
 
         // AV 站的 CDN 節點（t26 / t27 / t30 等）可能已失效，需要統一切換成可用的 t33
         val avCdnHost = Regex("""^(\s*(?:https?:)?//)t\d+\.cdn2020\.com(?=[/:]|\z)""", RegexOption.IGNORE_CASE)
@@ -235,6 +237,54 @@ object Parser {
             return hanimeSearchSimplified(allSimplifiedContentsClass, maxPage)
         }
         return PageLoadingState.Success(HanimeSearchResult(emptyList(), maxPage))
+    }
+
+    /**
+     * missav 搜索頁（SSR HTML）解析，路徑形如 /en/search/{query}?page=N。
+     *
+     * [page] 為當前頁碼，用於判斷是否存在下一頁。
+     */
+    fun missavSearch(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
+        val parseBody = Jsoup.parse(body).body()
+        val results = parseMissavCards(parseBody)
+        val hasNext = parseBody.select("a[rel=next]").isNotEmpty() ||
+                parseBody.select("a[href*=page]").any {
+                    it.attr("href").contains("page=${page + 1}")
+                }
+        val maxPage = if (results.isEmpty()) page else if (hasNext) page + 1 else page
+        return PageLoadingState.Success(HanimeSearchResult(results, maxPage))
+    }
+
+    /**
+     * missav 通用卡片解析。
+     *
+     * 卡片形如 `<a alt="{slug}" href=".../dmXX/en/{slug}"><img/></a>`，slug 即影片碼；
+     * 封面取自 img 的 data-src / src，時長取自同一容器內的時間 span，
+     * 標題優先取相鄰標題連結的文本，兜底取 img 的 alt。
+     */
+    private fun parseMissavCards(root: Element): MutableList<HanimeInfo> {
+        val results = mutableListOf<HanimeInfo>()
+        val seen = mutableSetOf<String>()
+        for (card in root.select("a[alt]")) {
+            val slug = card.attr("alt").trim()
+            if (slug.isBlank() || slug == "Search" || !seen.add(slug)) continue
+            val img = card.selectFirst("img") ?: continue
+            val cover = img.attr("data-src").ifBlank { img.attr("src") }
+            if (cover.isBlank()) continue
+            val wrapper = card.parent()
+            val duration = wrapper?.select("span")?.eachText()
+                ?.lastOrNull { it.matches(Regex("""\d+:\d{2}(:\d{2})?""")) }
+            val title = wrapper?.nextElementSibling()?.selectFirst("a")?.text()?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: img.attr("alt").trim().ifBlank { slug }
+            results.add(
+                HanimeInfo(
+                    title = title, coverUrl = cover, videoCode = slug,
+                    duration = duration, itemType = HanimeInfo.SIMPLIFIED
+                )
+            )
+        }
+        return results
     }
 
     private fun hanimeNormalItemVer2(hanimeSearchItem: Element): HanimeInfo? {
@@ -638,6 +688,136 @@ object Parser {
                 csrfToken = csrfToken,
                 currentUserId = currentUserId,
                 originalComic = originalComic
+            )
+        )
+    }
+
+    /**
+     * missav 影片頁解析。
+     *
+     * 元數據取自 og: meta 標籤；影片源在 eval-packed 的播放器腳本內，解包後得到
+     * surrit.com 各分辨率 m3u8；相關影片複用通用卡片解析。
+     */
+    fun missavVideo(body: String): VideoLoadingState<HanimeVideo> {
+        val doc = Jsoup.parse(body)
+        fun ogMeta(property: String) =
+            doc.selectFirst("meta[property=\"$property\"]")?.attr("content")?.trim()
+                ?.takeIf { it.isNotEmpty() }
+
+        val title = ogMeta("og:title")
+            ?: throw ParseException("missavVideo: og:title not found")
+        val coverUrl = ogMeta("og:image").orEmpty()
+        val introduction = ogMeta("og:description")
+        val uploadTime = ogMeta("og:video:release_date")?.let { time ->
+            runCatching { LocalDate.parse(time, LOCAL_DATE_FORMAT) }.getOrNull()
+        }
+        val artistName = ogMeta("og:video:actor")
+        val directorName = ogMeta("og:video:director")
+
+        val hanimeResolution = HanimeResolution()
+        var masterUrl: String? = null
+        val packedScript = doc.select("script")
+            .map { it.data() }
+            .firstOrNull { it.contains("eval(function(p,a,c,k,e,d)") }
+        val unpacked = packedScript?.let(::unpackDeanEdwardsScript)
+        if (unpacked != null) {
+            Regex("""(\w*)='(https?://surrit\.[^']+)'\s*;""").findAll(unpacked).forEach { m ->
+                val name = m.groupValues[1]
+                val url = m.groupValues[2]
+                val height = Regex("""x(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
+                when (height) {
+                    1080 -> hanimeResolution.parseResolution(HanimeResolution.RES_1080P, url)
+                    720 -> hanimeResolution.parseResolution(HanimeResolution.RES_720P, url)
+                    480 -> hanimeResolution.parseResolution(HanimeResolution.RES_480P, url)
+                    240 -> hanimeResolution.parseResolution(HanimeResolution.RES_240P, url)
+                    else -> if (name == "source") masterUrl = url
+                }
+            }
+        }
+        // 兜底：從 seek 縮略圖中提取 UUID，拼接主播放列表
+        if (unpacked == null) {
+            Regex.missavSurritId.find(body)?.let {
+                masterUrl = "https://surrit.com/${it.groupValues[1]}/playlist.m3u8"
+            }
+        }
+        masterUrl?.let { hanimeResolution.parseResolution(null, it) }
+
+        val relatedAnimeList = parseMissavCards(doc.body())
+
+        return VideoLoadingState.Success(
+            HanimeVideo(
+                title = title, coverUrl = coverUrl,
+                chineseTitle = title,
+                uploadTime = uploadTime,
+                introduction = introduction,
+                videoUrls = hanimeResolution.toResolutionLinkMap(),
+                tags = emptyList(),
+                relatedHanimes = relatedAnimeList,
+                artist = artistName?.let {
+                    HanimeVideo.Artist(name = it, avatarUrl = "", genre = directorName.orEmpty())
+                },
+            )
+        )
+    }
+
+    /**
+     * 解包 Dean Edwards packer（`eval(function(p,a,c,k,e,d){...})`），
+     * missav 播放器用其混淆 m3u8 地址。
+     */
+    private fun unpackDeanEdwardsScript(script: String): String? {
+        val match = Regex(
+            """\}\('(.*)',\s*(\d+),\s*(\d+),\s*'([^']*)'\.split\('\|'\)""",
+            RegexOption.DOT_MATCHES_ALL
+        ).find(script) ?: return null
+        val radix = match.groupValues[2].toIntOrNull() ?: return null
+        val count = match.groupValues[3].toIntOrNull() ?: return null
+        val keywords = match.groupValues[4].split('|')
+        val payload = match.groupValues[1]
+            .replace("\\'", "'")
+            .replace("\\\"", "\"")
+        fun encodeIndex(index: Int): String {
+            var current = index
+            val prefix = if (current < radix) "" else encodeIndex(current / radix)
+            current %= radix
+            val char = if (current > 35) (current + 29).toChar()
+            else "0123456789abcdefghijklmnopqrstuvwxyz"[current]
+            return prefix + char
+        }
+        var unpacked = payload
+        for (i in count - 1 downTo 0) {
+            val keyword = keywords.getOrNull(i) ?: continue
+            unpacked = unpacked.replace(Regex("""\b${encodeIndex(i)}\b"""), Regex.escapeReplacement(keyword))
+        }
+        return unpacked
+    }
+
+    /**
+     * missav 首頁解析：按 h2 區塊提取卡片。
+     * New Releases → latestHanime，Recent update → latestRelease，其餘區塊忽略。
+     */
+    fun missavHomePage(body: String): WebsiteState<HomePage> {
+        val parseBody = Jsoup.parse(body).body()
+        var latestHanime: MutableList<HanimeInfo> = mutableListOf()
+        var latestRelease: MutableList<HanimeInfo> = mutableListOf()
+        for (heading in parseBody.select("h2")) {
+            val container = heading.parent() ?: continue
+            val cards = parseMissavCards(container)
+            when (heading.text().trim().lowercase()) {
+                "new releases" -> latestHanime = cards
+                "recent update" -> latestRelease = cards
+            }
+        }
+        return WebsiteState.Success(
+            HomePage(
+                csrfToken = null, avatarUrl = null, username = null, banner = null,
+                latestHanime = latestHanime,
+                latestRelease = latestRelease,
+                ecchiAnime = mutableListOf(), shortEpisodeAnime = mutableListOf(),
+                twoPointFiveDAnime = mutableListOf(), threeDCG = mutableListOf(),
+                motionAnime = mutableListOf(), twoDAnime = mutableListOf(),
+                aiGenerated = mutableListOf(), mmd = mutableListOf(),
+                cosplay = mutableListOf(), watchingNow = mutableListOf(),
+                newAnimeTrailer = mutableListOf(), userId = ""
             )
         )
     }

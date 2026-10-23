@@ -1,6 +1,7 @@
 package com.yenaly.han1meviewer.ui.view.video
 
 import cn.jzvd.JZDataSource
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.ResolutionLinkMap
 
 class HanimeDataSource : JZDataSource {
@@ -18,6 +19,10 @@ class HanimeDataSource : JZDataSource {
         }
         this.title = title
         this.headerMap = hashMapOf()
+        // missav 的影片源 (surrit.com) 要求帶站點 Referer，否則會被 Cloudflare 攔截
+        if (resolutionLinkMap.values.any { it.link.contains("surrit.") }) {
+            this.headerMap["Referer"] = Preferences.baseUrl
+        }
         this.looping = false
         this.objects = null
     }

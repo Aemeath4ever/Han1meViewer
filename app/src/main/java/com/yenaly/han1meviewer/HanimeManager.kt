@@ -60,11 +60,16 @@ fun getHanimeSearchShareText(artist: String): String = buildString {
 fun getHanimeVideoDownloadLink(videoCode: String) =
     HANIME_BASE_URL + "download?v=" + videoCode
 
-val videoUrlRegex = Regex(
-    """(?:(?:https?:)?//[^\s"'<>/]+|(?:hanime(?:1|one)|javchu)\.(?:com|me))?(?:/[^/?#\s"'<>]+)*/watch\?(?:[^#\s"'<>]*&)?v=(\d+)"""
-)
+    val videoUrlRegex = Regex(
+        """(?:(?:https?:)?//[^\s"'<>/]+|(?:hanime(?:1|one))\.(?:com|me))?(?:/[^/?#\s"'<>]+)*/watch\?(?:[^#\s"'<>]*&)?v=(\d+)"""
+    )
 
-fun String.toVideoCode() = videoUrlRegex.find(this)?.groupValues?.get(1)
+    // missav 的影片連結形如 https://missav.ai/dm72/en/{slug}，dm 前綴與語言目錄先於 slug
+    val missavVideoUrlRegex =
+        Regex("""(?:https?://missav\.(?:ai|ws))?/(?:dm\d+/)?(?:[a-z]{2}/)?([A-Za-z0-9-]+)""")
+
+    fun String.toVideoCode() = videoUrlRegex.find(this)?.groupValues?.get(1)
+        ?: missavVideoUrlRegex.find(this)?.groupValues?.get(1)
 
 // log in and log out
 

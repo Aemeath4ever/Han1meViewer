@@ -211,6 +211,19 @@ object Preferences {
             return baseUrl
         }
 
+    /**
+     * 當前站點是否為 missav（AV 站）
+     */
+    val isMissavSite: Boolean
+        get() = baseUrl == HANIME_URL[3]
+
+    /**
+     * 首頁請求地址。missav 的內容位於 /en/ 目錄下，
+     * 直接請求根路徑會被中轉頁（JS 跳轉）攔截，故顯式帶上目錄。
+     */
+    val homeRequestUrl: String
+        get() = if (isMissavSite) baseUrl + "en/" else homeUrl
+
     val useCustomMirrorSite: Boolean
         get() = preferenceSp.getBoolean(SettingsPreferenceKeys.USE_CUSTOM_MIRROR_SITE, false)
 

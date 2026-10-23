@@ -707,6 +707,12 @@ class MpvMediaKernel(jzvd: Jzvd) : JZMediaInterface(jzvd) {
             return
         }
 
+        // surrit.com (missav) 要求帶站點 Referer 才能通過 Cloudflare，其餘站點清空
+        MPVLib.setOptionString(
+            "http-header-fields",
+            if (url.contains("surrit.")) "Referer: ${Preferences.baseUrl}" else ""
+        )
+
         Log.e(TAG, "URL Link = $url")
         MPVLib.setOptionString("force-window", "yes")
 

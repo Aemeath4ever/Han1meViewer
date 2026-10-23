@@ -30,6 +30,15 @@ interface HanimeBaseService {
         @Query("brands[]") brands: Set<String> = emptySet(),
     ): Response<ResponseBody>
 
+    @GET("en/search/{query}")
+    suspend fun getMissavSearchResult(
+        @Path("query") query: String,
+        @Query("page") @IntRange(from = 1) page: Int = 1,
+    ): Response<ResponseBody>
+
+    @GET("en/{videoCode}")
+    suspend fun getMissavVideo(@Path("videoCode") videoCode: String): Response<ResponseBody>
+
     @GET("watch")
     suspend fun getHanimeVideo(
         @Query("v") videoCode: String,

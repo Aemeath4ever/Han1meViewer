@@ -25,6 +25,7 @@ import com.yenaly.han1meviewer.replaceBackupMediaCdnHost
 import com.yenaly.yenaly_libs.utils.applicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -48,29 +49,51 @@ object NetworkRepo {
     //<editor-fold desc="Hanime">
 
     fun getHomePage() = websiteIOFlow(
-        request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeUrl) },
-        action = Parser::homePageVer2
+        request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
+        action = { body ->
+            if (Preferences.isMissavSite) Parser.missavHomePage(body) else Parser.homePageVer2(body)
+        },
     )
 
     fun getHanimeSearchResult(
         page: Int, query: String?, genre: String?,
         sort: String?, broad: Boolean, date: String?,
         duration: String?, tags: Set<String>, brands: Set<String>,
-    ) = pageIOFlow(
-        request = {
-            HanimeNetwork.hanimeService.getHanimeSearchResult(
-                page, query, genre, sort,
-                if (broad) "on" else null,
-                date, duration, tags, brands
+    ): Flow<PageLoadingState<HanimeSearchResult>> {
+        return if (Preferences.isMissavSite) {
+            // missav 僅支持關鍵詞 + 頁碼，高級篩選不生效
+            pageIOFlow(
+                request = {
+                    HanimeNetwork.hanimeService.getMissavSearchResult(query.orEmpty(), page)
+                },
+                action = { Parser.missavSearch(it, page) },
             )
-        },
-        action = Parser::hanimeSearch
-    )
+        } else {
+            pageIOFlow(
+                request = {
+                    HanimeNetwork.hanimeService.getHanimeSearchResult(
+                        page, query, genre, sort,
+                        if (broad) "on" else null,
+                        date, duration, tags, brands
+                    )
+                },
+                action = Parser::hanimeSearch
+            )
+        }
+    }
 
-    fun getHanimeVideo(videoCode: String) = videoIOFlow(
-        request = { HanimeNetwork.hanimeService.getHanimeVideo(videoCode) },
-        action = Parser::hanimeVideoVer2
-    )
+    fun getHanimeVideo(videoCode: String) =
+        if (Preferences.isMissavSite) {
+            videoIOFlow(
+                request = { HanimeNetwork.hanimeService.getMissavVideo(videoCode) },
+                action = Parser::missavVideo
+            )
+        } else {
+            videoIOFlow(
+                request = { HanimeNetwork.hanimeService.getHanimeVideo(videoCode) },
+                action = Parser::hanimeVideoVer2
+            )
+        }
 
     fun getHanimePreview(date: String) = websiteIOFlow(
         request = { HanimeNetwork.hanimeService.getHanimePreview(date) },

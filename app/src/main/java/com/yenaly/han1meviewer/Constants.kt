@@ -54,10 +54,13 @@ val HANIME_BASE_URL = Preferences.baseUrl
 
 /**
  * 如果添加备选网址别忘了确认[String.toVideoCode]的videoUrlRegex
+ *
+ * [HANIME_HOSTNAME] 僅用於內置 DNS 解析，missav.ai 不在其中：
+ * 其 Cloudflare IP 與 hanime 不同，須走常規 DNS / DoH。
  */
 object HanimeConstants {
-    val HANIME_HOSTNAME = arrayOf("hanime1.me","hanime1.com","hanimeone.me","javchu.com")
-    val HANIME_URL = arrayOf("https://hanime1.me/","https://hanime1.com/","https://hanimeone.me/","https://javchu.com/")
+    val HANIME_HOSTNAME = arrayOf("hanime1.me","hanime1.com","hanimeone.me")
+    val HANIME_URL = arrayOf("https://hanime1.me/","https://hanime1.com/","https://hanimeone.me/","https://missav.ai/")
     val ANIME_URL = arrayOf("https://hanime1.me/","https://hanime1.com/","https://hanimeone.me/")
 }
 
