@@ -56,7 +56,15 @@ detect_sdk() {
     return 1
 }
 
-SDK=$(detect_sdk) || fail "未找到 Android SDK，请用 ANDROID_HOME= 指定（需要 platforms;android-$(grep -oP 'compile\.sdk=\K\d+' gradle.properties 2>/dev/null || echo 35) 和 build-tools）"
+SDK=$(detect_sdk) || true
+if [ -z "$SDK" ]; then
+    echo "[build-release] 未找到 Android SDK，自动安装（探测网络选择官方/腾讯镜像）..."
+    "$REPO_DIR/scripts/setup-android-sdk.sh"
+    SDK="$HOME/android-sdk"
+elif [ ! -d "$SDK/build-tools/36.0.0" ] || [ ! -d "$SDK/platforms/android-37" ]; then
+    echo "[build-release] SDK 缺少 build-tools 36.0.0 / android-37，自动补装..."
+    ANDROID_HOME="$SDK" "$REPO_DIR/scripts/setup-android-sdk.sh"
+fi
 export ANDROID_HOME="$SDK"
 echo "[build-release] ANDROID_HOME=$ANDROID_HOME"
 
