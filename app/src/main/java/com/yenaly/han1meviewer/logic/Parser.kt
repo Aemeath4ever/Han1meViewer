@@ -263,7 +263,10 @@ object Parser {
      * 封面取自 img 的 data-src / src，時長取自同一容器內的時間 span，
      * 標題優先取相鄰標題連結的文本，兜底取 img 的 alt。
      */
-    private fun parseMissavCards(root: Element): MutableList<HanimeInfo> {
+    private fun parseMissavCards(
+        root: Element,
+        uncensored: Boolean = false,
+    ): MutableList<HanimeInfo> {
         val results = mutableListOf<HanimeInfo>()
         val seen = mutableSetOf<String>()
         for (card in root.select("a[alt]")) {
@@ -281,7 +284,8 @@ object Parser {
             results.add(
                 HanimeInfo(
                     title = title, coverUrl = cover, videoCode = slug,
-                    duration = duration, itemType = HanimeInfo.SIMPLIFIED
+                    duration = duration, itemType = HanimeInfo.SIMPLIFIED,
+                    isUncensored = uncensored
                 )
             )
         }
@@ -796,20 +800,33 @@ object Parser {
 
     /**
      * missav 首頁解析：按 h2 區塊提取卡片。
-     * New Releases → latestHanime，Recent update → latestRelease，其餘區塊忽略。
+     *
+     * New Releases（最新）→ latestHanime，Recent update（最近更新）→ latestRelease，
+     * 其餘區塊（推薦給你、中出等）按頁面順序存入 [HomePage.missavSections]。
+     * 區塊標題含「無碼/uncensored」時，區塊內卡片標記 [HanimeInfo.isUncensored]。
      */
     fun missavHomePage(body: String): WebsiteState<HomePage> {
         val parseBody = Jsoup.parse(body).body()
         var latestHanime: MutableList<HanimeInfo> = mutableListOf()
         var latestRelease: MutableList<HanimeInfo> = mutableListOf()
+        val extraSections = mutableListOf<HomePage.MissavSection>()
         for (heading in parseBody.select("h2")) {
             val container = heading.parent() ?: continue
-            val cards = parseMissavCards(container)
-            val title = heading.text().trim().lowercase()
+            val sectionTitle = heading.text().trim()
+            if (sectionTitle.isEmpty()) continue
+            val uncensored = sectionTitle.lowercase().let {
+                it.contains("uncensored") || it.contains("無碼") || it.contains("无码")
+            }
+            val cards = parseMissavCards(container, uncensored)
+            val title = sectionTitle.lowercase()
             when {
                 // /dm12/cn 返回中文頁面，標題為「最新影片」等
                 title == "new releases" || title.contains("最新") -> latestHanime = cards
-                title == "recent update" || title.contains("更新") -> latestRelease = cards
+                title == "recent update" || title.contains("更新") ->
+                    latestRelease = cards
+                else -> if (cards.isNotEmpty()) {
+                    extraSections.add(HomePage.MissavSection(title = sectionTitle, videos = cards))
+                }
             }
         }
         return WebsiteState.Success(
@@ -817,6 +834,7 @@ object Parser {
                 csrfToken = null, avatarUrl = null, username = null, banner = null,
                 latestHanime = latestHanime,
                 latestRelease = latestRelease,
+                missavSections = extraSections,
                 ecchiAnime = mutableListOf(), shortEpisodeAnime = mutableListOf(),
                 twoPointFiveDAnime = mutableListOf(), threeDCG = mutableListOf(),
                 motionAnime = mutableListOf(), twoDAnime = mutableListOf(),

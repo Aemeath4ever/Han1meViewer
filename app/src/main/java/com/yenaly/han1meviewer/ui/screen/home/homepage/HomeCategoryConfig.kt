@@ -10,6 +10,9 @@ const val HOME_CATEGORY_LATEST_HANIME = "latest_hanime"
 const val HOME_CATEGORY_LATEST_RELEASE = "latest_release"
 const val HOME_CATEGORY_LATEST_UPLOAD = "latest_upload"
 const val HOME_CATEGORY_WATCHING_NOW = "watching_now"
+
+/** missav 首頁動態區塊（推薦給你、中出等）的分類 key 前綴，後跟區塊序號。 */
+const val HOME_CATEGORY_MISSAV_SECTION_PREFIX = "missav_section_"
 const val HOME_CATEGORY_SHORT_EPISODE = "short_episode"
 const val HOME_CATEGORY_MOTION_ANIME = "motion_anime"
 const val HOME_CATEGORY_3D_CG = "3d_cg"

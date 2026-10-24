@@ -139,9 +139,9 @@ fun HomePageContent(
             }
         }
         categories.forEach { category ->
-            item(key = "category_${category.titleRes}") {
+            item(key = "category_${category.key}") {
                 CategoryRow(
-                    title = stringResource(category.titleRes),
+                    title = category.titleText ?: stringResource(category.titleRes),
                     videos = category.videos,
                     onMoreClick = {
                         val params = category.toAdvancedSearchParams()

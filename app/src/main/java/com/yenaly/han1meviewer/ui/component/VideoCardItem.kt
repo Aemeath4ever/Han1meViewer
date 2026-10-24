@@ -96,6 +96,27 @@ fun VideoCardItem(
                     contentScale = ContentScale.FillWidth,
                 )
 
+                if (videoItem.isUncensored) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 6.dp, start = 6.dp)
+                            .background(
+                                color = Color(0xFF81C7F5),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.uncensored_badge),
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+
                 if (isWatched) {
                     Box(
                         modifier = Modifier

@@ -147,7 +147,21 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
             sort = if (isAVSite) "本月排行" else "最新上傳",
             videos = homePage.cosplay
         )
-    ).filter { it.videos.isNotEmpty() }
+    ).let { base ->
+        if (!isAVSite) base
+        else {
+            // missav 首頁的其餘區塊（推薦給你、中出等）插入到固定分類之後
+            val missavExtra = homePage.missavSections.mapIndexed { index, section ->
+                HomeCategory(
+                    key = "${HOME_CATEGORY_MISSAV_SECTION_PREFIX}$index",
+                    titleRes = R.string.latest_av,
+                    titleText = section.title,
+                    videos = section.videos
+                )
+            }
+            base + missavExtra
+        }
+    }.filter { it.videos.isNotEmpty() }
         .let { categories ->
             val hiddenKeys = hiddenHomeCategoryKeys
             val orderIndex = homeCategoryOrder.withIndex().associate { it.value to it.index }

@@ -885,6 +885,7 @@
     <string name="pure_black_dark_mode">纯黑模式 (OLED)</string>
     <string name="pure_black_dark_mode_summary">深色主题下使用纯黑背景，OLED 屏幕更省电</string>
     <string name="played">已观看</string>
+    <string name="uncensored_badge">无码</string>
     <string name="local">本地</string>
     <string name="current_bucket">当前命中档位</string>
     <string name="sex_times">强撸灰飞烟灭。</string>

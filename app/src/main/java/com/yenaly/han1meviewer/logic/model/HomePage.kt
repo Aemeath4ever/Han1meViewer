@@ -12,6 +12,11 @@ data class HomePage(
     val banner: Banner?,
     val latestHanime: MutableList<HanimeInfo>,
     val latestRelease: MutableList<HanimeInfo>,
+    /**
+     * missav 首頁其餘 h2 區塊（「推薦給你」「中出」等），
+     * 按頁面順序保存，標題保留站點原文。
+     */
+    val missavSections: MutableList<MissavSection> = mutableListOf(),
     val ecchiAnime: MutableList<HanimeInfo>,
     val shortEpisodeAnime: MutableList<HanimeInfo>,
     val twoPointFiveDAnime: MutableList<HanimeInfo>,
@@ -33,5 +38,16 @@ data class HomePage(
         // 目前网站的策略是，先你吗加载广告，然后再让你跳转
         // 我不敢保证他会把 videoCode 放在哪里，所以暂时可以为空
         val videoCode: String?,
+    )
+
+    /**
+     * missav 首頁的一個內容區塊。
+     *
+     * @param title 區塊標題（站點原文，如「推薦給你」）。
+     * @param videos 區塊內的視頻卡片。
+     */
+    data class MissavSection(
+        val title: String,
+        val videos: List<HanimeInfo>,
     )
 }

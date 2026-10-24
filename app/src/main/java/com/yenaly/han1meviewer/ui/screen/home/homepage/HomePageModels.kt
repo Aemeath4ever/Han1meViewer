@@ -43,7 +43,9 @@ data class HomeHeroItem(
 /**
  * 首页视频分类行数据。
  *
+ * @param key 分类唯一标识。
  * @param titleRes 分类标题的字符串资源。
+ * @param titleText 直接展示的分类标题（missav 站点区块为站點原文），非空时优先于 [titleRes]。
  * @param genre 高级搜索使用的可选类型参数。
  * @param sort 高级搜索使用的可选排序参数。
  * @param tags 高级搜索使用的可选标签参数。
@@ -52,6 +54,7 @@ data class HomeHeroItem(
 data class HomeCategory(
     val key: String,
     @param:StringRes val titleRes: Int,
+    val titleText: String? = null,
     val genre: String? = null,
     val sort: String? = null,
     val tags: String? = null,
