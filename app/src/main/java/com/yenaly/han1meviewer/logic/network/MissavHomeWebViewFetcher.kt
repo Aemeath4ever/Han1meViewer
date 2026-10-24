@@ -54,13 +54,13 @@ object MissavHomeWebViewFetcher {
         suspendCancellableCoroutine { continuation ->
             val finished = AtomicBoolean(false)
             val mainHandler = android.os.Handler(context.mainLooper)
+            var webView: WebView? = null
             fun complete(html: String?) {
                 if (finished.compareAndSet(false, true)) {
                     if (continuation.isActive) continuation.resume(html)
                 }
             }
             mainHandler.post {
-                var webView: WebView? = null
                 try {
                     webView = WebView(context).apply {
                         settings.apply {
