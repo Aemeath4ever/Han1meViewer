@@ -36,6 +36,10 @@ interface HanimeBaseService {
         @Query("page") @IntRange(from = 1) page: Int = 1,
     ): Response<ResponseBody>
 
+    /** missav 首頁：dm12/cn 301 到 dm247/cn，retrofit 跟隨重定向後拿到服務端渲染的靜態分節 */
+    @GET("dm12/cn")
+    suspend fun getMissavHomePage(): Response<ResponseBody>
+
     @GET("en/{videoCode}")
     suspend fun getMissavVideo(@Path("videoCode") videoCode: String): Response<ResponseBody>
 

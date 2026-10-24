@@ -20,7 +20,6 @@ import com.yenaly.han1meviewer.logic.model.VideoCommentArgs
 import com.yenaly.han1meviewer.logic.model.VideoComments
 import com.yenaly.han1meviewer.logic.network.HUpdater
 import com.yenaly.han1meviewer.logic.network.HanimeNetwork
-import com.yenaly.han1meviewer.logic.network.MissavHomeWebViewFetcher
 import com.yenaly.han1meviewer.logic.state.PageLoadingState
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
 import com.yenaly.han1meviewer.logic.state.WebsiteState
@@ -52,13 +51,12 @@ object NetworkRepo {
     //<editor-fold desc="Hanime">
 
     fun getHomePage(): Flow<WebsiteState<HomePage>> = if (Preferences.isMissavSite) {
-        // missav 新版首页的区块内容由 Alpine.js + Recombee 在浏览器端渲染，
-        // okhttp 拿到的 HTML 只有「载入中」骨架，必须用 WebView 渲染后再解析
-        flow {
-            val result = MissavHomeWebViewFetcher.fetch(applicationContext)
-            MissavHomeWebViewFetcher.syncCookiesToOkhttp()
-            emit(result)
-        }.flowOn(Dispatchers.Main)
+        // missav 新版首页的服务端静态分节（新作上市/最近更新/无码影片/随机）okhttp 可直接获取；
+        // 「推荐给你」等 Recombee 分节为客户端渲染，静态 HTML 中无数据，不展示。
+        websiteIOFlow(
+            request = { HanimeNetwork.hanimeService.getMissavHomePage() },
+            action = Parser::missavHomePage,
+        )
     } else {
         websiteIOFlow(
             request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },

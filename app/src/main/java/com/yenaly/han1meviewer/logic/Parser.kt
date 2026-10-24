@@ -799,10 +799,11 @@ object Parser {
     }
 
     /**
-     * missav 首頁解析：按 h2 區塊提取卡片。
+     * missav 首頁解析：按分節容器（`div.sm:container`，內含 h2 標題 + 卡片 grid）提取卡片。
      *
-     * New Releases（最新）→ latestHanime，Recent update（最近更新）→ latestRelease，
-     * 其餘區塊（推薦給你、中出等）按頁面順序存入 [HomePage.missavSections]。
+     * 靜態 HTML 只含服務端渲染的分節：新作上市→latestHanime、最近更新→latestRelease、
+     * 無碼影片等其餘分節按頁面順序存入 [HomePage.missavSections]。
+     * 「推薦給你」等 Recombee 分節為客戶端渲染，靜態 HTML 中只有骨架，解析結果為空會被跳過。
      * 區塊標題含「無碼/uncensored」時，區塊內卡片標記 [HanimeInfo.isUncensored]。
      */
     fun missavHomePage(body: String): WebsiteState<HomePage> {
@@ -811,19 +812,22 @@ object Parser {
         var latestRelease: MutableList<HanimeInfo> = mutableListOf()
         val extraSections = mutableListOf<HomePage.MissavSection>()
         for (heading in parseBody.select("h2")) {
-            val container = heading.parent() ?: continue
             val sectionTitle = heading.text().trim()
             if (sectionTitle.isEmpty()) continue
+            // 分節容器：h2 所在標題欄的祖先，卡片的 grid div 是它的直接子節點
+            val container = generateSequence(heading.parent()) { it.parent() }
+                .take(4)
+                .firstOrNull { it.select("a[alt] img").isNotEmpty() && it.children().size > 1 }
+                ?: continue
             val uncensored = sectionTitle.lowercase().let {
                 it.contains("uncensored") || it.contains("無碼") || it.contains("无码")
             }
             val cards = parseMissavCards(container, uncensored)
             val title = sectionTitle.lowercase()
             when {
-                // /dm12/cn 返回中文頁面，標題為「最新影片」等
-                title == "new releases" || title.contains("最新") -> latestHanime = cards
-                title == "recent update" || title.contains("更新") ->
-                    latestRelease = cards
+                title.contains("新作") || title.contains("新片") ||
+                    title == "new releases" || title.contains("最新") -> latestHanime = cards
+                title.contains("更新") || title == "recent update" -> latestRelease = cards
                 else -> if (cards.isNotEmpty()) {
                     extraSections.add(HomePage.MissavSection(title = sectionTitle, videos = cards))
                 }
