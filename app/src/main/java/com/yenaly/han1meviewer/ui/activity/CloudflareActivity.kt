@@ -115,27 +115,42 @@ class CloudflareActivity : AppCompatActivity() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     progressState.intValue = newProgress
                     if (newProgress >= 90) {
+                        // challenge 判定轮询：Turnstile 验证可能在进度到顶后仍需数秒，
+                        // 只检查一次会漏掉验证成功的时机，需持续轮询直到拿到 cookie
                         view?.postDelayed({
-                            view.evaluateJavascript("document.head.innerHTML") { html ->
-                                if (!html.contains("#challenge-form") &&
-                                    !html.contains("#challenge-success-text") &&
-                                    !html.contains("#challenge-error-text")
-                                ) {
-                                    val cookies = cookieMgr.getCookie(url) ?: ""
-                                    if (cookies.contains("cf_clearance")) {
-                                        cloudFlareCookie = CookieString(cookies)
-                                        cookieMgr.flush()
-                                        onFinished?.invoke()
-                                        onFinished = null
-                                        finish()
-                                    }
-                                }
-                            }
+                            checkChallengeResult(view, cookieMgr, url)
                         }, 1000)
                     }
                 }
             }
             loadUrl(url)
+        }
+    }
+
+    /**
+     * 检查 challenge 是否已通过：页面 head 不再含 challenge 元素且 cookie 里有
+     * cf_clearance 时保存 cookie 并结束；否则延时继续轮询。
+     */
+    private fun checkChallengeResult(view: WebView, cookieMgr: CookieManager, url: String) {
+        if (isDestroyed || isFinishing) return
+        view.evaluateJavascript("document.head.innerHTML") { html ->
+            if (html.contains("#challenge-form") ||
+                html.contains("#challenge-success-text") ||
+                html.contains("#challenge-error-text")
+            ) {
+                view.postDelayed({ checkChallengeResult(view, cookieMgr, url) }, 1500)
+                return@evaluateJavascript
+            }
+            val cookies = cookieMgr.getCookie(url) ?: ""
+            if (cookies.contains("cf_clearance")) {
+                cloudFlareCookie = CookieString(cookies)
+                cookieMgr.flush()
+                onFinished?.invoke()
+                onFinished = null
+                finish()
+            } else {
+                view.postDelayed({ checkChallengeResult(view, cookieMgr, url) }, 1500)
+            }
         }
     }
 
