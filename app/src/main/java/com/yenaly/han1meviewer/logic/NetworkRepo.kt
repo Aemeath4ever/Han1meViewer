@@ -15,6 +15,7 @@ import com.yenaly.han1meviewer.logic.model.ModifiedPlaylistArgs
 import com.yenaly.han1meviewer.logic.model.MyListType
 import com.yenaly.han1meviewer.logic.model.OnlineWatchHistorySort
 import com.yenaly.han1meviewer.logic.model.HanimeSearchResult
+import com.yenaly.han1meviewer.logic.model.HomePage
 import com.yenaly.han1meviewer.logic.model.VideoCommentArgs
 import com.yenaly.han1meviewer.logic.model.VideoComments
 import com.yenaly.han1meviewer.logic.network.HUpdater
@@ -49,12 +50,34 @@ object NetworkRepo {
 
     //<editor-fold desc="Hanime">
 
-    fun getHomePage() = websiteIOFlow(
-        request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
-        action = { body ->
-            if (Preferences.isMissavSite) Parser.missavHomePage(body) else Parser.homePageVer2(body)
-        },
-    )
+    fun getHomePage(): Flow<WebsiteState<HomePage>> = if (Preferences.isMissavSite) {
+        // missav 各路径的 CF 规则不一：/dm12/cn 可能在部分网络下被静默黑洞或解析为空，
+        // 主路径失败时退回 /en/ 重试一次
+        fun fetch(url: String) = websiteIOFlow(
+            request = { HanimeNetwork.hanimeService.getHomePage(url) },
+            action = Parser::missavHomePage,
+        )
+        flow {
+            val fallbackUrl = Preferences.baseUrl + "en/"
+            val primaryUrl = Preferences.homeRequestUrl
+            fetch(primaryUrl).collect { state ->
+                val hasContent = (state as? WebsiteState.Success)?.info?.let { home ->
+                    home.latestHanime.isNotEmpty() || home.latestRelease.isNotEmpty() ||
+                        home.missavSections.isNotEmpty()
+                } == true
+                if (hasContent || primaryUrl == fallbackUrl) {
+                    emit(state)
+                } else {
+                    fetch(fallbackUrl).collect { fallbackState -> emit(fallbackState) }
+                }
+            }
+        }.flowOn(Dispatchers.IO)
+    } else {
+        websiteIOFlow(
+            request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
+            action = Parser::homePageVer2,
+        )
+    }
 
     fun getHanimeSearchResult(
         page: Int, query: String?, genre: String?,

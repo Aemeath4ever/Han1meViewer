@@ -109,6 +109,10 @@ object ServiceCreator {
     private fun buildHClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
+            // 部分 CDN 节点会接受连接后不回响应（黑洞），读超时必须有，
+            // 否则首页等请求会永远挂在 recvfrom 上表现为无限 Loading
+            .readTimeout(20, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
             .addInterceptor(UserAgentInterceptor)
             .addInterceptor(UrlLoggingInterceptor())
             .addInterceptor(CloudflareInterceptor(applicationContext))
