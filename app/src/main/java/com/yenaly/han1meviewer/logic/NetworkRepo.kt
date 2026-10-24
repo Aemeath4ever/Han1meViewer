@@ -51,27 +51,13 @@ object NetworkRepo {
     //<editor-fold desc="Hanime">
 
     fun getHomePage(): Flow<WebsiteState<HomePage>> = if (Preferences.isMissavSite) {
-        // missav 各路径的 CF 规则不一：/dm12/cn 可能在部分网络下被静默黑洞或解析为空，
-        // 主路径失败时退回 /en/ 重试一次
-        fun fetch(url: String) = websiteIOFlow(
-            request = { HanimeNetwork.hanimeService.getHomePage(url) },
-            action = Parser::missavHomePage,
-        )
+        // missav 新版首页的区块内容由 Alpine.js + Recombee 在浏览器端渲染，
+        // okhttp 拿到的 HTML 只有「载入中」骨架，必须用 WebView 渲染后再解析
         flow {
-            val fallbackUrl = Preferences.baseUrl + "en/"
-            val primaryUrl = Preferences.homeRequestUrl
-            fetch(primaryUrl).collect { state ->
-                val hasContent = (state as? WebsiteState.Success)?.info?.let { home ->
-                    home.latestHanime.isNotEmpty() || home.latestRelease.isNotEmpty() ||
-                        home.missavSections.isNotEmpty()
-                } == true
-                if (hasContent || primaryUrl == fallbackUrl) {
-                    emit(state)
-                } else {
-                    fetch(fallbackUrl).collect { fallbackState -> emit(fallbackState) }
-                }
-            }
-        }.flowOn(Dispatchers.IO)
+            val result = MissavHomeWebViewFetcher.fetch(applicationContext)
+            MissavHomeWebViewFetcher.syncCookiesToOkhttp()
+            emit(result)
+        }.flowOn(Dispatchers.Main)
     } else {
         websiteIOFlow(
             request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
