@@ -113,4 +113,13 @@
         <item name="postSplashScreenTheme">@style/Theme.Hanime1.Main</item>
     </style>
 
+    <!-- missav 首页离屏渲染用的透明壳 -->
+    <style name="Theme.Hanime1.Transparent" parent="Theme.Hanime1">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
 </resources>
