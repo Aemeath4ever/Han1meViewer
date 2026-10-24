@@ -805,9 +805,11 @@ object Parser {
         for (heading in parseBody.select("h2")) {
             val container = heading.parent() ?: continue
             val cards = parseMissavCards(container)
-            when (heading.text().trim().lowercase()) {
-                "new releases" -> latestHanime = cards
-                "recent update" -> latestRelease = cards
+            val title = heading.text().trim().lowercase()
+            when {
+                // /dm12/cn 返回中文頁面，標題為「最新影片」等
+                title == "new releases" || title.contains("最新") -> latestHanime = cards
+                title == "recent update" || title.contains("更新") -> latestRelease = cards
             }
         }
         return WebsiteState.Success(

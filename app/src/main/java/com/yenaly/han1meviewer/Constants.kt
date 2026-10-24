@@ -64,8 +64,9 @@ object HanimeConstants {
     val ANIME_URL = arrayOf("https://hanime1.me/","https://hanime1.com/","https://hanimeone.me/")
 }
 
-@JvmField
-val HANIME_LOGIN_URL = HANIME_BASE_URL + "login"
+val HANIME_LOGIN_URL: String
+    get() = if (Preferences.isMissavSite) Preferences.baseUrl + "dm12/login"
+    else HANIME_BASE_URL + "login"
 
 // 媒體 CDN
 
