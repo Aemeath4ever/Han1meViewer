@@ -2,6 +2,7 @@ package com.yenaly.han1meviewer.logic.network
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -29,6 +30,8 @@ import kotlin.coroutines.resume
  */
 object MissavHomeWebViewFetcher {
 
+    private const val TAG = "MissavHomeFetcher"
+
     /** 渲染總超時：包含可能的 CF challenge 等待。 */
     private const val RENDER_TIMEOUT_MILLIS = 30_000L
 
@@ -37,12 +40,23 @@ object MissavHomeWebViewFetcher {
 
     suspend fun fetch(context: Context): WebsiteState<HomePage> {
         val url = Preferences.baseUrl + "dm247/cn"
+        Log.i(TAG, "fetch start: $url")
         val body = withTimeoutOrNull(RENDER_TIMEOUT_MILLIS) {
             renderHomeHtml(context, url)
         }
+        Log.i(TAG, "render finished, htmlSize=${body?.length ?: -1}")
         syncCookiesToOkhttp()
         return if (body != null) {
             runCatching { Parser.missavHomePage(body) }
+                .onSuccess { home ->
+                    Log.i(
+                        TAG,
+                        "parsed: latestHanime=${home.latestHanime.size} " +
+                            "latestRelease=${home.latestRelease.size} " +
+                            "sections=${home.missavSections.map { "${it.title}:${it.videos.size}" }}"
+                    )
+                }
+                .onFailure { Log.e(TAG, "parse failed", it) }
                 .getOrElse { WebsiteState.Error(it) }
         } else {
             WebsiteState.Error(IllegalStateException("missav 首頁渲染超時"))
@@ -76,6 +90,7 @@ object MissavHomeWebViewFetcher {
                             ): Boolean = false
 
                             override fun onPageFinished(view: WebView, finishedUrl: String) {
+                                Log.i(TAG, "onPageFinished: $finishedUrl")
                                 // 等 Alpine.js + Recombee 拉完推薦數據再取 DOM
                                 view.postDelayed({
                                     view.evaluateJavascript(
@@ -88,15 +103,18 @@ object MissavHomeWebViewFetcher {
                                             ?.replace("\\\\", "\\")
                                             ?.replace("\\n", "\n")
                                             ?.replace("\\u003C", "<")
+                                        Log.i(TAG, "evaluated htmlSize=${decoded?.length ?: -1}")
                                         complete(decoded)
                                         view.post { view.destroy() }
                                     }
                                 }, JS_SETTLE_MILLIS)
                             }
                         }
+                        Log.i(TAG, "loadUrl: $url")
                         loadUrl(url)
                     }
                 } catch (e: Exception) {
+                    Log.e(TAG, "webview create failed", e)
                     complete(null)
                     webView?.destroy()
                 }
