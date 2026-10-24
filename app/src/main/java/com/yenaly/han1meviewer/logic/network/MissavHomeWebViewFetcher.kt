@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -21,9 +22,12 @@ import kotlin.coroutines.resume
 /**
  * missav 首頁抓取器。
  *
- * missav 新版首頁（/dm247/cn 等）的內容區塊由 Alpine.js + Recombee 在瀏覽器端動態渲染，
+ * missav 新版首頁（/dm12/cn 等）的內容區塊由 Alpine.js + Recombee 在瀏覽器端動態渲染，
  * okhttp 拿到的 HTML 只有「載入中」骨架，無法離線解析。因此首頁改用離屏 WebView 渲染，
  * 待 JS 執行完成後取回 DOM 字串交給 [Parser.missavHomePage]。
+ *
+ * DOM 通過 [JavascriptInterface] 橋回傳——evaluateJavascript 的 ValueCallback 在部分
+ * WebView 上不會執行（實測回調丟失導致渲染永久超時），橋接口可靠。
  *
  * WebView 同時具備通過 Cloudflare challenge 的能力，通過後 cookie 留在
  * [CookieManager] 中，並同步給 okhttp 側的 [HCookieJar] 供後續請求使用。
@@ -31,15 +35,16 @@ import kotlin.coroutines.resume
 object MissavHomeWebViewFetcher {
 
     private const val TAG = "MissavHomeFetcher"
+    private const val BRIDGE_NAME = "ANDROID_BRIDGE"
 
     /** 渲染總超時：包含可能的 CF challenge 等待。 */
-    private const val RENDER_TIMEOUT_MILLIS = 30_000L
+    private const val RENDER_TIMEOUT_MILLIS = 45_000L
 
     /** 頁面加載完成後額外等待 JS 拉取推薦數據的時間。 */
-    private const val JS_SETTLE_MILLIS = 4_000L
+    private const val JS_SETTLE_MILLIS = 6_000L
 
     suspend fun fetch(context: Context): WebsiteState<HomePage> {
-        val url = Preferences.baseUrl + "dm247/cn"
+        val url = Preferences.baseUrl + "dm12/cn"
         Log.i(TAG, "fetch start: $url")
         val body = withTimeoutOrNull(RENDER_TIMEOUT_MILLIS) {
             renderHomeHtml(context, url)
@@ -65,7 +70,7 @@ object MissavHomeWebViewFetcher {
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     private suspend fun renderHomeHtml(context: Context, url: String): String? =
         suspendCancellableCoroutine { continuation ->
             val finished = AtomicBoolean(false)
@@ -73,7 +78,17 @@ object MissavHomeWebViewFetcher {
             var webView: WebView? = null
             fun complete(html: String?) {
                 if (finished.compareAndSet(false, true)) {
+                    mainHandler.post {
+                        webView?.destroy()
+                    }
                     if (continuation.isActive) continuation.resume(html)
+                }
+            }
+            val bridge = object {
+                @JavascriptInterface
+                fun onHtml(html: String?) {
+                    Log.i(TAG, "bridge onHtml: size=${html?.length ?: -1}")
+                    complete(html)
                 }
             }
             mainHandler.post {
@@ -85,6 +100,7 @@ object MissavHomeWebViewFetcher {
                             userAgentString = USER_AGENT
                             cacheMode = WebSettings.LOAD_DEFAULT
                         }
+                        addJavascriptInterface(bridge, BRIDGE_NAME)
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(
                                 view: WebView?,
@@ -93,22 +109,12 @@ object MissavHomeWebViewFetcher {
 
                             override fun onPageFinished(view: WebView, finishedUrl: String) {
                                 Log.i(TAG, "onPageFinished: $finishedUrl")
-                                // 等 Alpine.js + Recombee 拉完推薦數據再取 DOM
+                                // 等 Alpine.js + Recombee 拉完推薦數據後，通過 JS 橋回傳 DOM
                                 view.postDelayed({
                                     view.evaluateJavascript(
-                                        "document.documentElement.outerHTML"
-                                    ) { html ->
-                                        val decoded = html
-                                            ?.takeIf { it.length > 2 }
-                                            ?.removeSurrounding("\"")
-                                            ?.replace("\\\"", "\"")
-                                            ?.replace("\\\\", "\\")
-                                            ?.replace("\\n", "\n")
-                                            ?.replace("\\u003C", "<")
-                                        Log.i(TAG, "evaluated htmlSize=${decoded?.length ?: -1}")
-                                        complete(decoded)
-                                        view.post { view.destroy() }
-                                    }
+                                        "$BRIDGE_NAME.onHtml(document.documentElement.outerHTML)",
+                                        null
+                                    )
                                 }, JS_SETTLE_MILLIS)
                             }
                         }
@@ -118,11 +124,12 @@ object MissavHomeWebViewFetcher {
                 } catch (e: Exception) {
                     Log.e(TAG, "webview create failed", e)
                     complete(null)
-                    webView?.destroy()
                 }
             }
             continuation.invokeOnCancellation {
-                mainHandler.post { webView?.destroy() }
+                mainHandler.post {
+                    runCatching { webView?.destroy() }
+                }
             }
         }
 
