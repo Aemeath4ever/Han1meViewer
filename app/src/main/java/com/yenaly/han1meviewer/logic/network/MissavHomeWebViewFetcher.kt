@@ -48,13 +48,15 @@ object MissavHomeWebViewFetcher {
         syncCookiesToOkhttp()
         return if (body != null) {
             runCatching { Parser.missavHomePage(body) }
-                .onSuccess { home ->
-                    Log.i(
-                        TAG,
-                        "parsed: latestHanime=${home.latestHanime.size} " +
-                            "latestRelease=${home.latestRelease.size} " +
-                            "sections=${home.missavSections.map { "${it.title}:${it.videos.size}" }}"
-                    )
+                .onSuccess { state ->
+                    (state as? WebsiteState.Success)?.info?.let { home ->
+                        Log.i(
+                            TAG,
+                            "parsed: latestHanime=${home.latestHanime.size} " +
+                                "latestRelease=${home.latestRelease.size} " +
+                                "sections=${home.missavSections.joinToString { "${it.title}:${it.videos.size}" }}"
+                        )
+                    }
                 }
                 .onFailure { Log.e(TAG, "parse failed", it) }
                 .getOrElse { WebsiteState.Error(it) }
