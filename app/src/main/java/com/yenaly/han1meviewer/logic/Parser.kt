@@ -797,6 +797,59 @@ object Parser {
      * 復用 [HanimeVideo.MyList]（code 即片單 key，isSelected 即 is_added），
      * 這樣影片頁的「加入清單」彈窗無需為 missav 另寫一套 UI。
      */
+    /**
+     * missav 使用者頁（`/cn/saved`、`/cn/history`、`/cn/playlists/{key}`）的影片列表。
+     * 這些頁面是 Laravel 直出的 SSR，卡片結構與搜尋頁相同，直接複用 [parseMissavCards]。
+     */
+    fun missavUserVideoList(body: String, page: Int): PageLoadingState<MyListItems<HanimeInfo>> {
+        val parseBody = Jsoup.parse(body).body()
+        val results = parseMissavCards(parseBody)
+        val hasNext = parseBody.select("a[rel=next]").isNotEmpty() ||
+                parseBody.select("a[href]").any { it.attr("href").contains("page=${page + 1}") }
+        val maxPage = when {
+            results.isEmpty() -> page
+            hasNext -> page + 1
+            else -> page
+        }
+        Log.d("missav_user", "video list page=$page cards=${results.size} hasNext=$hasNext")
+        return PageLoadingState.Success(MyListItems(results, maxPage = maxPage))
+    }
+
+    /**
+     * missav 我的片單資料夾列表（`/cn/playlists`）。
+     *
+     * 站點用 `/cn/playlists/{key}` 進入單個片單，這裡只抓「資料夾」層。
+     * 選擇器刻意只用 `a[href]` + Kotlin 端過濾：複雜的 `[href*=/xxx/]` 選擇器
+     * 曾讓 Jsoup 直接拋異常整頁崩掉。
+     */
+    fun missavPlaylistFolders(body: String): WebsiteState<Playlists> {
+        val parseBody = Jsoup.parse(body).body()
+        val lists = mutableListOf<Playlists.Playlist>()
+        val seen = mutableSetOf<String>()
+        for (a in parseBody.select("a[href]")) {
+            val href = a.attr("href")
+            val idx = href.indexOf("/playlists/")
+            if (idx < 0) continue
+            val key = href.substring(idx + "/playlists/".length)
+                .substringBefore('?').trim('/')
+            if (key.isBlank() || !seen.add(key)) continue
+            val img = a.selectFirst("img")
+            val cover = img?.let { it.attr("data-src").ifBlank { it.attr("src") } }
+            val title = a.text().trim().ifBlank { img?.attr("alt").orEmpty() }.ifBlank { key }
+            lists += Playlists.Playlist(
+                listCode = key,
+                title = title,
+                total = -1,
+                coverUrl = cover?.takeIf { it.isNotBlank() },
+            )
+        }
+        val hasNext = parseBody.select("a[href]").any { it.attr("href").contains("page=2") }
+        Log.d("missav_user", "playlist folders=${lists.size} hasNext=$hasNext")
+        return WebsiteState.Success(
+            Playlists(playlists = lists, csrfToken = null, maxPage = if (hasNext) 2 else 1)
+        )
+    }
+
     fun missavPlaylists(body: String): HanimeVideo.MyList? {
         val data = runCatching { org.json.JSONObject(body).optJSONArray("data") }
             .getOrNull() ?: return null
@@ -859,6 +912,12 @@ object Parser {
      */
     fun missavHomePage(body: String): WebsiteState<HomePage> {
         val parseBody = Jsoup.parse(body).body()
+        // 已登入時，頁面內聯的 Alpine 根狀態長這樣：`user: { name: "..." }`（未登入是 `user: null`）。
+        // 站點本身可能在 user.name 為 null 時顯示別的名字，所以兩邊都兜。
+        val missavUser = Regex("""user:\s*\{[^{}]*}""").find(body)?.value
+        val missavUserName = missavUser
+            ?.let { Regex("""["']?name["']?\s*:\s*["']([^"']+)["']""").find(it)?.groupValues?.get(1) }
+            ?.trim()?.takeIf { it.isNotEmpty() }
         var latestHanime: MutableList<HanimeInfo> = mutableListOf()
         var latestRelease: MutableList<HanimeInfo> = mutableListOf()
         val extraSections = mutableListOf<HomePage.MissavSection>()
@@ -890,7 +949,9 @@ object Parser {
         }
         return WebsiteState.Success(
             HomePage(
-                csrfToken = null, avatarUrl = null, username = null, banner = null,
+                csrfToken = null, avatarUrl = null,
+                username = missavUserName ?: Preferences.missavLoginEmail.takeIf { it.isNotBlank() },
+                banner = null,
                 latestHanime = latestHanime,
                 latestRelease = latestRelease,
                 missavSections = extraSections,

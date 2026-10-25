@@ -229,6 +229,7 @@ Some mirrors may not support login, may not share cookies, may fail verification
     <string name="doh_disabled_summary">Disabled</string>
     <string name="password">Password</string>
     <string name="try_login_here">Try logging in here</string>
+    <string name="missav_login_hint">Use the dialog above to sign in with your missav account.\nThis page only establishes the login session.</string>
     <string name="email">Email</string>
     <string name="login_failed">Login Failed</string>
     <string name="login_success">Login Successful</string>

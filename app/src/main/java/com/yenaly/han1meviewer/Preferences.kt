@@ -64,6 +64,11 @@ object Preferences {
 
     val loginCookieStateFlow = MutableStateFlow(loginCookie)
 
+    /** missav 登入帳號（email），僅用於介面顯示。 */
+    var missavLoginEmail: String
+        get() = getSpValue(MISSAV_LOGIN_EMAIL, EMPTY_STRING)
+        set(value) = putSpValue(MISSAV_LOGIN_EMAIL, value)
+
     var cloudFlareCookie
         get() = CookieString(getSpValue(CLOUDFLARE_COOKIE   , EMPTY_STRING))
         set(value) {

@@ -229,6 +229,7 @@
     <string name="doh_disabled_summary">已关闭</string>
     <string name="password">密码</string>
     <string name="try_login_here">试试在这里登录</string>
+    <string name="missav_login_hint">请使用上方的登录框输入 missav 账号与密码\n此页仅用于建立登录会话</string>
     <string name="email">电邮</string>
     <string name="login_failed">登录失败</string>
     <string name="login_success">登录成功</string>

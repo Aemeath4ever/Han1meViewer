@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.ui.navigation.main.MainDrawerDestination
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
@@ -86,13 +87,17 @@ fun MainActivityScaffold(
                     MainDrawerPrimaryItems(selectedDestination, onDrawerItemSelected)
                     MainDrawerSection(
                         titleRes = R.string.my_list,
-                        items = listOf(
-                            MainDrawerDestination.WatchLater,
-                            MainDrawerDestination.FavVideo,
-                            MainDrawerDestination.Playlist,
-                            MainDrawerDestination.Subscription,
-                            MainDrawerDestination.CreatorCenter,
-                        ),
+                        // missav 沒有「稍後觀看 / 訂閱 / 創作者中心」這些頁面，
+                        // 留着只會點進去 404。
+                        items = buildList {
+                            if (!Preferences.isMissavSite) add(MainDrawerDestination.WatchLater)
+                            add(MainDrawerDestination.FavVideo)
+                            add(MainDrawerDestination.Playlist)
+                            if (!Preferences.isMissavSite) {
+                                add(MainDrawerDestination.Subscription)
+                                add(MainDrawerDestination.CreatorCenter)
+                            }
+                        },
                         selectedDestination = selectedDestination,
                         onItemClick = { destination ->
                             if (onDrawerItemSelected(destination)) {

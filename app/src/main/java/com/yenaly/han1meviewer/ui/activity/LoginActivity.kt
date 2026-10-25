@@ -43,6 +43,7 @@ class LoginActivity : FrameActivity() {
     private var isRefreshing by mutableStateOf(true)
     private var showLoginDialog by mutableStateOf(false)
     private var isLoggingIn by mutableStateOf(false)
+    private var loginError by mutableStateOf<String?>(null)
 
     override fun setUiStyle() {
         enableEdgeToEdge()
@@ -86,6 +87,7 @@ class LoginActivity : FrameActivity() {
                         isLoggingIn = isLoggingIn,
                         onDismiss = { showLoginDialog = false },
                         onLogin = { username, password -> handleLogin(username, password) },
+                        errorMessage = loginError,
                     )
                 }
                 LoginScreen(
@@ -95,6 +97,7 @@ class LoginActivity : FrameActivity() {
                     onShowLoginDialog = { showLoginDialog = true },
                     onOpenQrScanner = { openQrScanner() },
                     webViewFactory = { createWebView() },
+                    missavMode = Preferences.isMissavSite,
                 )
             }
         }
@@ -206,6 +209,7 @@ class LoginActivity : FrameActivity() {
 
     private fun handleLogin(username: String, password: String) {
         isLoggingIn = true
+        loginError = null
         // 登入頁的 WebView 是唯一「真瀏覽器」會話：cf_clearance / XSRF-TOKEN / missav_session
         // 都只存在 CookieManager 裏。okhttp 自己抓 /dm12/cn 只會拿到 Cloudflare 快取的 301，
         // 沒有 Set-Cookie，於是 POST /cn/api/login 必然 419。把這些 cookie 轉交給 okhttp。
@@ -227,14 +231,18 @@ class LoginActivity : FrameActivity() {
                     is WebsiteState.Error -> {
                         isLoggingIn = false
                         state.throwable.printStackTrace()
-                        if (state.throwable is IllegalStateException) {
-                            GlobalToasts.show(getString(R.string.account_or_password_wrong), level = GlobalToasts.ToastLevel.ERROR)
-                        } else {
-                            GlobalToasts.show(getString(R.string.login_failed), level = GlobalToasts.ToastLevel.ERROR)
-                        }
+                        // 直接顯示具體原因（服務端訊息 / HTTP 狀態碼）並留在彈窗裡，
+                        // 不能用一個轉瞬即逝的通用 toast 把原因吞掉。
+                        val reason = state.throwable.message
+                            ?.takeIf { it.isNotBlank() }
+                            ?: getString(R.string.login_failed)
+                        loginError = reason
+                        GlobalToasts.show(reason, level = GlobalToasts.ToastLevel.ERROR)
                     }
 
                     is WebsiteState.Success -> {
+                        loginError = null
+                        if (Preferences.isMissavSite) Preferences.missavLoginEmail = username
                         login(state.info)
                         setResult(RESULT_OK)
                         showLoginDialog = false

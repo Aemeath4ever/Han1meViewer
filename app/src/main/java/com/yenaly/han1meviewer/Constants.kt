@@ -110,6 +110,9 @@ const val SAVED_USER_ID = "saved_user_id"
 
 const val CLOUDFLARE_COOKIE = "cf_cookie"
 
+/** missav 登入時使用的帳號。站點未必有顯示名（user.name 可能是 null），抽屜就拿這個兜底。 */
+const val MISSAV_LOGIN_EMAIL = "missav_login_email"
+
 const val ALREADY_LOGIN = "already_login"
 
 // Notification

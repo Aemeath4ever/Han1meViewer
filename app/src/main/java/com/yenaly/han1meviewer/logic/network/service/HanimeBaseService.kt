@@ -76,6 +76,29 @@ interface HanimeBaseService {
         @Header("X-XSRF-TOKEN") xsrfToken: String?,
     ): Response<ResponseBody>
 
+    //<editor-fold desc="missav 使用者頁面（SSR，需登入會話 cookie）">
+
+    /** 我的收藏（喜歡的影片） */
+    @GET("cn/saved")
+    suspend fun getMissavSaved(@Query("page") page: Int = 1): Response<ResponseBody>
+
+    /** 觀看記錄 */
+    @GET("cn/history")
+    suspend fun getMissavHistory(@Query("page") page: Int = 1): Response<ResponseBody>
+
+    /** 我的片單（資料夾列表） */
+    @GET("cn/playlists")
+    suspend fun getMissavPlaylistFolders(@Query("page") page: Int = 1): Response<ResponseBody>
+
+    /** 單個片單的內容 */
+    @GET("cn/playlists/{key}")
+    suspend fun getMissavPlaylistItems(
+        @Path("key") key: String,
+        @Query("page") page: Int = 1,
+    ): Response<ResponseBody>
+
+    //</editor-fold>
+
     //<editor-fold desc="missav 喜歡 / 片單（取自影片頁內聯 Alpine 組件的 axios 調用）">
 
     /**

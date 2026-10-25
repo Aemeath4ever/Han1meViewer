@@ -1,6 +1,7 @@
 package com.yenaly.han1meviewer.ui.screen.login
 
 import android.webkit.WebView
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -44,6 +47,8 @@ fun LoginScreen(
     onShowLoginDialog: () -> Unit,
     onOpenQrScanner: () -> Unit,
     webViewFactory: () -> WebView,
+    /** missav：不展示原站頁面，只用隱藏的 WebView 建立登入工作階段。 */
+    missavMode: Boolean = false,
 ) {
     val refreshingState = rememberPullToRefreshState()
     HanimeScaffold(
@@ -84,10 +89,34 @@ fun LoginScreen(
                 )
             }
         ) {
-            AndroidView(
-                factory = { webViewFactory() },
-                modifier = Modifier.fillMaxSize(),
-            )
+            if (missavMode) {
+                // 站內登入走原生彈窗，這裡不該把 missav 原站頁面擺出來當背景。
+                // 但仍然需要一個「活著」的 WebView：登入用的 cf_clearance / XSRF-TOKEN
+                // 要從它的 CookieManager 取。放在 1dp 處渲染即可，JS 照常執行。
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.missav_login_hint),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(32.dp),
+                    )
+                    AndroidView(
+                        factory = { webViewFactory() },
+                        modifier = Modifier.size(1.dp),
+                    )
+                }
+            } else {
+                AndroidView(
+                    factory = { webViewFactory() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }
@@ -97,6 +126,7 @@ fun LoginDialog(
     isLoggingIn: Boolean,
     onDismiss: () -> Unit,
     onLogin: (username: String, password: String) -> Unit,
+    errorMessage: String? = null,
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -121,6 +151,15 @@ fun LoginDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoggingIn,
                 )
+                // 登入失敗的具體原因（HTTP 狀態碼 / 服務端原文），不能只丟一個通用提示
+                if (!errorMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         confirmButton = {

@@ -13,6 +13,8 @@ import com.yenaly.han1meviewer.logic.exception.ParseException
 import com.yenaly.han1meviewer.logic.model.CommentPlace
 import com.yenaly.han1meviewer.logic.model.CreatorSort
 import com.yenaly.han1meviewer.logic.model.ModifiedPlaylistArgs
+import com.yenaly.han1meviewer.logic.model.HanimeInfo
+import com.yenaly.han1meviewer.logic.model.MyListItems
 import com.yenaly.han1meviewer.logic.model.MyListType
 import com.yenaly.han1meviewer.logic.model.OnlineWatchHistorySort
 import com.yenaly.han1meviewer.logic.model.HanimeSearchResult
@@ -124,16 +126,45 @@ object NetworkRepo {
         ?.value
         ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
 
+    /** 讀一次響應體（成功/失敗都可能有），之後只能靠返回值，不能再讀第二次。 */
+    private fun readResponseBody(resp: retrofit2.Response<*>): String? = runCatching {
+        val body = (resp as? retrofit2.Response<okhttp3.ResponseBody>)?.errorBody()
+            ?: resp.body() as? okhttp3.ResponseBody
+        body?.string()
+    }.getOrNull()
+
     /** 登入失敗時把「狀態碼 + CF 標記 + 響應體前 300 字」寫進 log，這是唯一能定位 419/403 的線索。 */
-    private fun describeResponse(resp: retrofit2.Response<*>) = buildString {
+    private fun describeResponse(resp: retrofit2.Response<*>, body: String?) = buildString {
         append("code=").append(resp.code())
         resp.headers()["cf-mitigated"]?.let { append(", cf-mitigated=").append(it) }
         append(", set-cookie=").append(resp.headers().values("Set-Cookie").map { it.substringBefore('=') })
-        runCatching {
-            val body = (resp as? retrofit2.Response<okhttp3.ResponseBody>)?.errorBody()
-                ?: resp.body() as? okhttp3.ResponseBody
-            body?.string()?.take(300)?.let { append(", body=").append(it) }
+        body?.take(300)?.let { append(", body=").append(it) }
+    }
+
+    /**
+     * missav 登入失敗的原因。
+     *
+     * 422 的響應形如 `{"message":"登入失敗","errors":{"email":["登入失敗"]}}`，
+     * 直接把服務端原文交给使用者，比自己猜「帳號或密碼錯誤」準確。
+     */
+    private fun missavLoginError(code: Int, body: String?): Throwable {
+        if (code == 422) {
+            val detail = runCatching {
+                val json = JSONObject(body.orEmpty())
+                val errors = json.optJSONObject("errors")
+                val firstError = errors?.keys()?.asSequence()
+                    ?.mapNotNull { key -> errors.optJSONArray(key)?.optString(0) }
+                    ?.firstOrNull { it.isNotBlank() }
+                firstError ?: json.optString("message").takeIf { it.isNotBlank() }
+            }.getOrNull()
+            return IllegalStateException(detail ?: getString(R.string.account_or_password_wrong))
         }
+        val hint = when (code) {
+            403 -> "（Cloudflare 人機驗證攔截）"
+            419 -> "（CSRF token 不匹配）"
+            else -> ""
+        }
+        return java.io.IOException("missav 登入失敗：HTTP $code$hint")
     }
 
     /** 當前 missav 主機名（可能被鏡像站覆蓋，不能寫死 `missav.ai`）。 */
@@ -253,34 +284,59 @@ object NetworkRepo {
 
     //<editor-fold desc="My List">
 
-    fun getMyListItems(userId: String, listType: Any, page: Int) = pageIOFlow(
-        request = {
-            when (listType) {
-                is String ->
-                    HanimeNetwork.myListService.getMyListItems(userId, listType, page)
-
-                is MyListType ->
-                    HanimeNetwork.myListService.getMyListItems(userId, listType.value, page)
-
-                else ->
-                    throw IllegalArgumentException("typeOrId must be String or MyListType")
+    fun getMyListItems(userId: String, listType: Any, page: Int): Flow<PageLoadingState<MyListItems<HanimeInfo>>> {
+        if (Preferences.isMissavSite) {
+            // missav 的「喜歡」= /cn/saved（站內用 api/items/{id}/save 切換）。
+            // 「稍後觀看」在這個站沒有對應頁面，UI 已隱藏，這裡返回空。
+            val type = when (listType) {
+                is MyListType -> listType
+                is String -> MyListType.values().firstOrNull { it.value == listType }
+                else -> null
             }
-        },
-        action = Parser::myListItems
-    )
+            if (type != MyListType.FAV_VIDEO) {
+                return kotlinx.coroutines.flow.flowOf(PageLoadingState.NoMoreData)
+            }
+            return pageIOFlow(
+                request = { HanimeNetwork.hanimeService.getMissavSaved(page) },
+                action = { Parser.missavUserVideoList(it, page) },
+            )
+        }
+        return pageIOFlow(
+            request = {
+                when (listType) {
+                    is String ->
+                        HanimeNetwork.myListService.getMyListItems(userId, listType, page)
 
-    fun getMyPlayListItems(page: Int = 1, listCode: String = "0") = pageIOFlow(
-        request = {
-            HanimeNetwork.myListService.getMyPlayListItems(listCode, page)
-        },
-        action = Parser::myPlayListItems
-    )
+                    is MyListType ->
+                        HanimeNetwork.myListService.getMyListItems(userId, listType.value, page)
+
+                    else ->
+                        throw IllegalArgumentException("typeOrId must be String or MyListType")
+                }
+            },
+            action = Parser::myListItems
+        )
+    }
+
+    fun getMyPlayListItems(page: Int = 1, listCode: String = "0") =
+        if (Preferences.isMissavSite) pageIOFlow(
+            request = { HanimeNetwork.hanimeService.getMissavPlaylistItems(listCode, page) },
+            action = { Parser.missavUserVideoList(it, page) },
+        ) else pageIOFlow(
+            request = {
+                HanimeNetwork.myListService.getMyPlayListItems(listCode, page)
+            },
+            action = Parser::myPlayListItems
+        )
 
     fun getOnlineWatchHistories(
         userId: String,
         sort: OnlineWatchHistorySort,
         page: Int,
-    ) = pageIOFlow(
+    ) = if (Preferences.isMissavSite) pageIOFlow(
+        request = { HanimeNetwork.hanimeService.getMissavHistory(page) },
+        action = { Parser.missavUserVideoList(it, page) },
+    ) else pageIOFlow(
         request = {
             HanimeNetwork.myListService.getOnlineWatchHistories(userId, sort.value, page)
         },
@@ -442,10 +498,14 @@ object NetworkRepo {
         }
     }
 
-    fun getPlaylists(page: Int, userId: String ) = websiteIOFlow(
-        request = { HanimeNetwork.myListService.getPlaylists(userId, page) },
-        action = Parser::playlists
-    )
+    fun getPlaylists(page: Int, userId: String ) =
+        if (Preferences.isMissavSite) websiteIOFlow(
+            request = { HanimeNetwork.hanimeService.getMissavPlaylistFolders(page) },
+            action = Parser::missavPlaylistFolders,
+        ) else websiteIOFlow(
+            request = { HanimeNetwork.myListService.getPlaylists(userId, page) },
+            action = Parser::playlists
+        )
 
     fun addToMyFavVideo(
         videoCode: String,
@@ -718,7 +778,8 @@ object NetworkRepo {
                 ),
                 missavXsrfToken(),
             )
-            Log.d("missav_login", "login resp ${describeResponse(req)}")
+            var respBody = readResponseBody(req)
+            Log.d("missav_login", "login resp ${describeResponse(req, respBody)}")
             // 419 = CSRF token 過期，重新抓頁面再試一次
             if (req.code() == 419) {
                 // `/dm12/cn` 是 CF 快取的 301，重抓它換不到新 token；要抓動態頁。
@@ -732,7 +793,8 @@ object NetworkRepo {
                     ),
                     missavXsrfToken(),
                 )
-                Log.d("missav_login", "login retry(419) ${describeResponse(req)}")
+                respBody = readResponseBody(req)
+                Log.d("missav_login", "login retry(419) ${describeResponse(req, respBody)}")
             }
             if (req.isSuccessful) {
                 // 會話 cookie 可能來自預熱請求（POST 響應不一定重複下發），
@@ -755,18 +817,9 @@ object NetworkRepo {
                     emit(WebsiteState.Success(cookies))
                 }
             } else {
-                // 只有 422（Laravel 表單驗證失敗）才真的是帳號密碼錯；
-                // 419 = CSRF token 不匹配（拿不到 / 過期的 XSRF-TOKEN），
-                // 403 = Cloudflare 人機驗證，其他非 2xx 一律當登入失敗並保留狀態碼。
-                emit(
-                    WebsiteState.Error(
-                        if (req.code() == 422) {
-                            IllegalStateException(getString(R.string.account_or_password_wrong))
-                        } else {
-                            java.io.IOException("missav login HTTP ${req.code()}")
-                        }
-                    )
-                )
+                // 把真正的原因帶給使用者：422 取服務端原文（Laravel 的 message / errors），
+                // 403 是 Cloudflare 攔截，其餘保留 HTTP 狀態碼。
+                emit(WebsiteState.Error(missavLoginError(req.code(), respBody)))
             }
         } else {
             // 首先获取token

@@ -234,6 +234,7 @@
     <string name="doh_test_result">DoHテスト結果</string>
     <string name="password">パスワード</string>
     <string name="try_login_here">ここでログインしてみる</string>
+    <string name="missav_login_hint">上のダイアログから missav アカウントでログインしてください。\nこのページはログインセッションの確立にのみ使われます。</string>
     <string name="email">メール</string>
     <string name="login_failed">ログイン失敗</string>
     <string name="login_success">ログイン成功</string>

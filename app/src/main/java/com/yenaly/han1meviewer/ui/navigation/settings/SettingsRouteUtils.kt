@@ -12,7 +12,6 @@ import androidx.annotation.IntRange
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.text.parseAsHtml
-import com.yenaly.han1meviewer.HanimeConstants.HANIME_HOSTNAME
 import com.yenaly.han1meviewer.HanimeConstants.HANIME_URL
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
@@ -38,12 +37,18 @@ internal fun saveInt(key: String, value: Int) {
     Preferences.preferenceSp.edit { putInt(key, value) }
 }
 
-internal fun buildDomainOptions(context: Context): List<Pair<String, String>> = listOf(
-    "${HANIME_HOSTNAME[0]} (${context.getString(R.string.default_)})" to HANIME_URL[0],
-    "${HANIME_HOSTNAME[1]} (${context.getString(R.string.alternative)})" to HANIME_URL[1],
-    "${HANIME_HOSTNAME[2]} (${context.getString(R.string.alternative)})" to HANIME_URL[2],
-    "${HANIME_HOSTNAME[3]} (av)" to HANIME_URL[3],
-)
+internal fun buildDomainOptions(context: Context): List<Pair<String, String>> =
+    HANIME_URL.mapIndexed { index, url ->
+        // 不能按下標去查 HANIME_HOSTNAME：它只有 3 項（missav.ai 故意不在裡面），
+        // 以前寫死 HANIME_HOSTNAME[3] 會直接 ArrayIndexOutOfBoundsException 崩在網路設定頁。
+        val host = runCatching { java.net.URI(url).host }.getOrNull() ?: url
+        val suffix = when (index) {
+            0 -> " (${context.getString(R.string.default_)})"
+            1, 2 -> " (${context.getString(R.string.alternative)})"
+            else -> " (av)"
+        }
+        "$host$suffix" to url
+    }
 
 internal fun generateClearCacheSummary(context: Context, size: Long): CharSequence {
     return context.getString(R.string.cache_usage_summary, size.formatFileSizeV2()).parseAsHtml()
