@@ -53,6 +53,7 @@ import com.yenaly.han1meviewer.util.DisplayTextLocalizer
 fun VideoCommentCard(
     modifier: Modifier = Modifier,
     comment: VideoComments.VideoComment,
+    showActions: Boolean = true,
     onReply: () -> Unit,
     onThumbUp: () -> Unit,
     onThumbDown: () -> Unit,
@@ -100,12 +101,14 @@ fun VideoCommentCard(
                     )
                 }
 
-                IconButton(onClick = onReport, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_baseline_report_24),
-                        contentDescription = stringResource(R.string.report_reason_hint),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                if (showActions) {
+                    IconButton(onClick = onReport, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_baseline_report_24),
+                            contentDescription = stringResource(R.string.report_reason_hint),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
             SelectionContainer {
@@ -114,43 +117,45 @@ fun VideoCommentCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onThumbUp, colors = ButtonDefaults.textButtonColors()) {
-                    Icon(
-                        painter = painterResource(
-                            if (comment.post.likeCommentStatus) {
-                                R.drawable.ic_baseline_thumb_up_alt_24
-                            } else {
-                                R.drawable.ic_baseline_thumb_up_off_alt_24
-                            }
-                        ),
-                        contentDescription = null,
-                    )
-                    Text(comment.realLikesCount?.toString().orEmpty())
-                }
+            if (showActions) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onThumbUp, colors = ButtonDefaults.textButtonColors()) {
+                        Icon(
+                            painter = painterResource(
+                                if (comment.post.likeCommentStatus) {
+                                    R.drawable.ic_baseline_thumb_up_alt_24
+                                } else {
+                                    R.drawable.ic_baseline_thumb_up_off_alt_24
+                                }
+                            ),
+                            contentDescription = null,
+                        )
+                        Text(comment.realLikesCount?.toString().orEmpty())
+                    }
 
-                TextButton(onClick = onThumbDown, colors = ButtonDefaults.textButtonColors()) {
-                    Icon(
-                        painter = painterResource(
-                            if (comment.post.unlikeCommentStatus) {
-                                R.drawable.ic_baseline_thumb_down_alt_24
-                            } else {
-                                R.drawable.ic_baseline_thumb_down_off_alt_24
-                            }
-                        ),
-                        contentDescription = null,
-                    )
-                }
+                    TextButton(onClick = onThumbDown, colors = ButtonDefaults.textButtonColors()) {
+                        Icon(
+                            painter = painterResource(
+                                if (comment.post.unlikeCommentStatus) {
+                                    R.drawable.ic_baseline_thumb_down_alt_24
+                                } else {
+                                    R.drawable.ic_baseline_thumb_down_off_alt_24
+                                }
+                            ),
+                            contentDescription = null,
+                        )
+                    }
 
-                TextButton(onClick = onReply) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_baseline_reply_24),
-                        contentDescription = null,
-                    )
-                    Text(stringResource(R.string.reply))
+                    TextButton(onClick = onReply) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_baseline_reply_24),
+                            contentDescription = null,
+                        )
+                        Text(stringResource(R.string.reply))
+                    }
                 }
             }
 

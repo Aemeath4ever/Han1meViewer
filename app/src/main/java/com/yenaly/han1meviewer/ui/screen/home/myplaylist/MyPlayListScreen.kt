@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.logic.state.WebsiteState
 import com.yenaly.han1meviewer.ui.component.PullRefreshOverlay
@@ -133,11 +134,14 @@ fun PlaylistScreen(
         onBack = navigateBack,
         scrollBehavior = scrollBehavior,
         actions = {
-            FilledIconButton(onClick = { showCreatePlaylistDialog = true }) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(R.string.create_new_playlist)
-                )
+            // jable 只接入片單讀取；建立片單走 KVS 的寫接口，先不提供入口。
+            if (!Preferences.isJableSite) {
+                FilledIconButton(onClick = { showCreatePlaylistDialog = true }) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.create_new_playlist)
+                    )
+                }
             }
         },
     ) { innerPadding ->

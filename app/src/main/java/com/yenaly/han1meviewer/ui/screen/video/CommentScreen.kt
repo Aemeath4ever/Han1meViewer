@@ -87,6 +87,8 @@ fun CommentScreen(
     reportReasons: List<ReportReason>,
     isPreviewCommentPrefetched: Boolean,
     isAlreadyLogin: Boolean,
+    /** 站點是否支援回覆/讚踩/檢舉；jable 的原站留言只有唯讀內容。 */
+    canInteract: Boolean = true,
     onRefresh: () -> Unit,
     onReply: (VideoComments.VideoComment, String) -> Unit,
     onReport: (VideoComments.VideoComment, ReportReason) -> Unit,
@@ -104,6 +106,7 @@ fun CommentScreen(
     val sortType by currentSortType.collectAsStateWithLifecycle()
     val containerSize = LocalWindowInfo.current.containerSize
     val maxScreenWidth = containerSize.width.dp
+    val interactionsEnabled = isAlreadyLogin && canInteract
 
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     var replyingComment by remember { mutableStateOf<VideoComments.VideoComment?>(null) }
@@ -207,7 +210,7 @@ fun CommentScreen(
         modifier = modifier.widthIn(max = maxScreenWidth),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            if (isAlreadyLogin) {
+            if (interactionsEnabled) {
                 AnimatedVisibility(
                     visible = showCommentFab && replyingComment == null && !showCommentBar,
                     enter = fadeIn() + slideInVertically { it / 2 },
@@ -300,8 +303,9 @@ fun CommentScreen(
                             items(sortedComments, key = { it.stableKey }) { comment ->
                                 VideoCommentCard(
                                     comment = comment,
+                                    showActions = interactionsEnabled,
                                     onReply = {
-                                        if (!isAlreadyLogin) {
+                                        if (!interactionsEnabled) {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar(
                                                     loginFirstText
@@ -312,7 +316,7 @@ fun CommentScreen(
                                         }
                                     },
                                     onThumbUp = {
-                                        if (!isAlreadyLogin) {
+                                        if (!interactionsEnabled) {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar(
                                                     loginFirstText
@@ -323,7 +327,7 @@ fun CommentScreen(
                                         }
                                     },
                                     onThumbDown = {
-                                        if (!isAlreadyLogin) {
+                                        if (!interactionsEnabled) {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar(
                                                     loginFirstText
@@ -334,7 +338,7 @@ fun CommentScreen(
                                         }
                                     },
                                     onReport = {
-                                        if (!isAlreadyLogin) {
+                                        if (!interactionsEnabled) {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar(
                                                     loginFirstText

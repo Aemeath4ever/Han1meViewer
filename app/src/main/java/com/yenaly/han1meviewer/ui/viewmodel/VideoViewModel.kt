@@ -355,7 +355,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
 
     /**
      * missav「喜歡」切換：接口按站內 itemId 操作（`/api/items/{id}/save` POST/DELETE），
-     * 與漢米按 videoCode 的表單提交完全不同。
+     * 與 Hanime按 videoCode 的表單提交完全不同。
      */
     fun toggleMissavFavorite(video: HanimeVideo) {
         val itemId = video.missavItemId
@@ -373,6 +373,51 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
                     _hanimeVideoFlow.update { it?.copy(isFav = target) }
                 }
             }
+        }
+    }
+
+    /**
+     * jable「收藏」切換：按站內 videoId 對影片頁發 AJAX GET。
+     */
+    fun toggleJableFavorite(video: HanimeVideo) {
+        val videoId = video.jableVideoId
+        if (videoId == null) {
+            viewModelScope.launch {
+                _addToFavVideoFlow.emit(WebsiteState.Error(IllegalStateException("jable videoId missing")))
+            }
+            return
+        }
+        val target = !video.isFav
+        viewModelScope.launch {
+            NetworkRepo.jableToggleFavorite(videoCode, videoId, target).collect { state ->
+                _addToFavVideoFlow.emit(state)
+                if (state is WebsiteState.Success) {
+                    _hanimeVideoFlow.update { it?.copy(isFav = target) }
+                }
+            }
+        }
+    }
+
+    /**
+     * jable「稍後觀看」切換：與收藏共用 `add_to_favourites` 接口，差別在 `fav_type=1`。
+     */
+    fun toggleJableWatchLater(video: HanimeVideo) {
+        val videoId = video.jableVideoId
+        if (videoId == null) {
+            viewModelScope.launch {
+                _addToFavVideoFlow.emit(WebsiteState.Error(IllegalStateException("jable videoId missing")))
+            }
+            return
+        }
+        val target = !video.isWatchLater
+        viewModelScope.launch {
+            NetworkRepo.jableToggleFavorite(videoCode, videoId, target, favType = 1)
+                .collect { state ->
+                    _addToFavVideoFlow.emit(state)
+                    if (state is WebsiteState.Success) {
+                        _hanimeVideoFlow.update { it?.copy(isWatchLater = target) }
+                    }
+                }
         }
     }
 

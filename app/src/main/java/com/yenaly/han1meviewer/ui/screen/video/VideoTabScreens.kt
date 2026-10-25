@@ -42,6 +42,7 @@ fun RenderVideoIntroductionContent(
     onNavigateToSearch: (String) -> Unit,
     onToggleSubscribe: (HanimeVideo.Artist) -> Unit,
     onToggleFavorite: (HanimeVideo) -> Unit,
+    onToggleWatchLater: (HanimeVideo) -> Unit,
     onRateVideo: (HanimeVideo, Boolean) -> Unit,
     onManageMyList: (HanimeVideo.MyList?, List<Boolean>) -> Unit,
     onQuickCheckIn: (CheckInRecordEntity) -> Unit,
@@ -82,6 +83,7 @@ fun RenderVideoIntroductionContent(
             },
             onToggleSubscribe = onToggleSubscribe,
             onToggleFavorite = { video?.let(onToggleFavorite) },
+            onToggleWatchLater = { video?.let(onToggleWatchLater) },
             onRateVideo = { isPositive ->
                 video?.let { onRateVideo(it, isPositive) }
             },
@@ -250,6 +252,8 @@ fun RenderVideoCommentContent(
             reportReasons = viewModel.reportReason,
             isPreviewCommentPrefetched = false,
             isAlreadyLogin = isAlreadyLogin,
+            // jable 原站留言沒有讚/踩、回覆與檢舉接口，只做展示。
+            canInteract = !Preferences.isJableSite,
             onRefresh = { viewModel.getComment(VIDEO_COMMENT_PREFIX, viewModel.code) },
             onReply = { comment, text ->
                 if (!isAlreadyLogin) return@CommentScreen

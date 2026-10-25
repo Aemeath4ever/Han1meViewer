@@ -123,6 +123,8 @@
     <string name="playlist_description">Description</string>
     <string name="open_playlist_drawer">Open Playlist Drawer</string>
     <string name="add_to_playlist">Add to Playlist</string>
+    <string name="add_to_watch_later">Add to Watch Later</string>
+    <string name="added_to_watch_later">Added to Watch Later</string>
     <string name="player_settings">Player Settings</string>
     <string name="tablet_mode">Tablet Mode</string>
     <string name="tablet_mode_summary">Enable tablet layout for the video page and home banner, providing a larger viewing area</string>

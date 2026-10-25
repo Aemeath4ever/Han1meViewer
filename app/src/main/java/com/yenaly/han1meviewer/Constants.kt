@@ -60,16 +60,52 @@ val HANIME_BASE_URL = Preferences.baseUrl
  */
 object HanimeConstants {
     val HANIME_HOSTNAME = arrayOf("hanime1.me","hanime1.com","hanimeone.me")
-    val HANIME_URL = arrayOf("https://hanime1.me/","https://hanime1.com/","https://hanimeone.me/","https://missav.ai/")
+
+    /** jable.tv 是 KVS 站，與Hanime / missav 的介面與接口都不同。 */
+    const val JABLE_URL = "https://jable.tv/"
+
+    val HANIME_URL = arrayOf(
+        "https://hanime1.me/",
+        "https://hanime1.com/",
+        "https://hanimeone.me/",
+        "https://missav.ai/",
+        JABLE_URL,
+    )
     val ANIME_URL = arrayOf("https://hanime1.me/","https://hanime1.com/","https://hanimeone.me/")
 }
 
+/**
+ * 目前選擇的站點類型。
+ *
+ * 站點以 [Preferences.baseUrl] 為唯一真相源（自訂鏡像站一律按 Hanime處理），
+ * 不另外持久化，避免切換域名後兩份設定不一致。
+ */
+enum class SiteType {
+    HANIME, MISSAV, JABLE;
+
+    companion object {
+        fun fromBaseUrl(url: String): SiteType = when (url) {
+            HanimeConstants.HANIME_URL[3] -> MISSAV
+            HanimeConstants.JABLE_URL -> JABLE
+            else -> HANIME
+        }
+    }
+}
+
 val HANIME_LOGIN_URL: String
-    get() = if (Preferences.isMissavSite) {
-        // missav 新版把登录做成了 SPA 弹窗（旧的 dm12/login 已 404）。
-        // 片单页未登录时会自动弹出登录框（x-init="showLoginModal()"）。
-        Preferences.baseUrl + "cn/playlists"
-    } else HANIME_BASE_URL + "login"
+    get() = when (Preferences.siteType) {
+        SiteType.MISSAV -> {
+            // missav 新版把登录做成了 SPA 弹窗（旧的 dm12/login 已 404）。
+            // 片单页未登录时会自动弹出登录框（x-init="showLoginModal()"）。
+            Preferences.baseUrl + "cn/playlists"
+        }
+        SiteType.JABLE -> {
+            // jable 的登录是 fancybox 弹出的 AJAX 表單；直接打開也能看到並提交表單，
+            // 成功後服務端 302 回首頁，由 LoginActivity 攔截並保存 cookie。
+            Preferences.baseUrl + "login/"
+        }
+        SiteType.HANIME -> HANIME_BASE_URL + "login"
+    }
 
 // 媒體 CDN
 
@@ -112,6 +148,9 @@ const val CLOUDFLARE_COOKIE = "cf_cookie"
 
 /** missav 登入時使用的帳號。站點未必有顯示名（user.name 可能是 null），抽屜就拿這個兜底。 */
 const val MISSAV_LOGIN_EMAIL = "missav_login_email"
+
+/** jable 登入時使用的帳號，僅用於介面顯示。 */
+const val JABLE_LOGIN_EMAIL = "jable_login_email"
 
 /** missav 推薦使用的 user_uuid（站點把它放在同名 cookie 裡）。 */
 const val MISSAV_USER_UUID = "missav_user_uuid"

@@ -49,9 +49,10 @@ fun MainActivityScaffold(
     isLoggedIn: Boolean,
     isLoading: Boolean,
     currentSite: String,
+    siteOptions: List<SiteSwitchOption>,
     onAvatarClick: () -> Unit,
     onAvatarLongClick: () -> Unit,
-    onSwitchSiteClick: () -> Unit,
+    onSiteSelected: (String) -> Unit,
     onDrawerItemSelected: (MainDrawerDestination) -> Boolean,
     content: @Composable () -> Unit,
 ) {
@@ -74,9 +75,10 @@ fun MainActivityScaffold(
                     isLoggedIn = isLoggedIn,
                     isLoading = isLoading,
                     currentSite = currentSite,
+                    siteOptions = siteOptions,
                     onAvatarClick = onAvatarClick,
                     onAvatarLongClick = onAvatarLongClick,
-                    onSwitchSiteClick = onSwitchSiteClick,
+                    onSiteSelected = onSiteSelected,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Column(
@@ -93,7 +95,7 @@ fun MainActivityScaffold(
                             if (!Preferences.isMissavSite) add(MainDrawerDestination.WatchLater)
                             add(MainDrawerDestination.FavVideo)
                             add(MainDrawerDestination.Playlist)
-                            if (!Preferences.isMissavSite) {
+                            if (!Preferences.isMissavSite && !Preferences.isJableSite) {
                                 add(MainDrawerDestination.Subscription)
                                 add(MainDrawerDestination.CreatorCenter)
                             }
@@ -237,9 +239,14 @@ private fun MainActivityScaffoldPreview() {
             isLoggedIn = true,
             isLoading = false,
             currentSite = "https://hanime1.me/",
+            siteOptions = listOf(
+                SiteSwitchOption("Hanime", "https://hanime1.me/", true),
+                SiteSwitchOption("MissAV", "https://missav.ai/", false),
+                SiteSwitchOption("Jable", "https://jable.tv/", false),
+            ),
             onAvatarClick = {},
             onAvatarLongClick = {},
-            onSwitchSiteClick = {},
+            onSiteSelected = {},
             onDrawerItemSelected = { true },
         ) {
             Box(

@@ -287,30 +287,34 @@ private fun PlaylistSheetContent(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Button(
-                        onClick = { showDeletePlaylistConfirm = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                        modifier = Modifier.size(40.dp),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Icon(
-                            painterResource(R.drawable.ic_baseline_delete_24),
-                            stringResource(R.string.delete),
-                            tint = Color.White
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { showEditPlaylistDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.7f)),
-                        modifier = Modifier.size(40.dp),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Icon(
-                            painterResource(R.drawable.baseline_edit_24),
-                            stringResource(R.string.edit),
-                            tint = Color.Red
-                        )
+                    // jable 的片單建立/編輯/刪除是另一套 KVS 寫接口（還要 CSRF），
+                    // 目前只接入讀取；先隱藏按鈕，避免誤打 Hanime 的接口。
+                    if (!Preferences.isJableSite) {
+                        Button(
+                            onClick = { showDeletePlaylistConfirm = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                            modifier = Modifier.size(40.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_baseline_delete_24),
+                                stringResource(R.string.delete),
+                                tint = Color.White
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = { showEditPlaylistDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.7f)),
+                            modifier = Modifier.size(40.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.baseline_edit_24),
+                                stringResource(R.string.edit),
+                                tint = Color.Red
+                            )
+                        }
                     }
                 }
             }

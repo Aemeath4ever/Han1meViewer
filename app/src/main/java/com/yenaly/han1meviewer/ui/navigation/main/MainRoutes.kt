@@ -52,6 +52,8 @@ data class AvatarCropRoute(
 data class SearchRoute(
     val query: String? = null,
     val advancedSearchJson: String? = null,
+    /** 女優／模特主页地址；非空时展示该主页的作品而不是按关键词搜索。 */
+    val sourceUrl: String? = null,
 )
 
 @Serializable

@@ -22,6 +22,11 @@ data class HomePage(
      * 按頁面順序保存，標題保留站點原文。
      */
     val missavSections: MutableList<MissavSection> = mutableListOf(),
+    /**
+     * jable 首頁分節（最近更新/全新上市/熱門影片/他們在看…），標題保留站點原文。
+     * KVS 站的分節都是同構的，這裡按頁面順序原樣展示。
+     */
+    val jableSections: MutableList<MissavSection> = mutableListOf(),
     val ecchiAnime: MutableList<HanimeInfo>,
     val shortEpisodeAnime: MutableList<HanimeInfo>,
     val twoPointFiveDAnime: MutableList<HanimeInfo>,

@@ -45,6 +45,7 @@ import com.yenaly.han1meviewer.ui.navigation.navigateSafely
 import com.yenaly.han1meviewer.ui.navigation.settings.SettingsPreferenceKeys
 import com.yenaly.han1meviewer.ui.screen.home.homepage.HomePageViewModel
 import com.yenaly.han1meviewer.ui.screen.main.MainActivityContent
+import com.yenaly.han1meviewer.ui.screen.main.SiteSwitchOption
 import com.yenaly.han1meviewer.ui.component.GlobalToasts
 import com.yenaly.han1meviewer.videoUrlRegex
 import com.yenaly.yenaly_libs.ActivityManager
@@ -68,8 +69,6 @@ class MainActivity : FrameActivity(), PermissionRequester {
     private val pendingNavigationRequests = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
     private var currentVideoHost: VideoPageHost? = null
 
-    var showSiteSwitchConfirm by mutableStateOf(false)
-        private set
     var showLogoutConfirm by mutableStateOf(false)
         private set
     private var logoutCloseCurrentPage = false
@@ -109,7 +108,8 @@ class MainActivity : FrameActivity(), PermissionRequester {
                 onOpenAccount = { navController.navigateSafely(AccountRoute) },
                 onLogoutClick = { requestLogout(false) },
                 onRequireLogin = { gotoLoginActivity() },
-                onSwitchSiteClick = { requestSiteSwitch() },
+                siteOptions = buildSiteSwitchOptions(),
+                onSiteSelected = { switchSite(it) },
                 onNavigateControllerReady = { controller -> navController = controller },
             )
         }
@@ -271,29 +271,55 @@ class MainActivity : FrameActivity(), PermissionRequester {
         }
     }
 
-    fun requestSiteSwitch() {
-        showSiteSwitchConfirm = true
-    }
-
-    fun dismissSiteSwitch() {
-        showSiteSwitchConfirm = false
-    }
-
-    fun confirmSiteSwitch() {
-        showSiteSwitchConfirm = false
+    /**
+     * 抽屜「切換站點」的可選項：Hanime / missav / jable。
+     *
+     * Hanime 一項會回到使用者上次選的鏡像站（[Preferences.selectedBaseUrl]），
+     * 而不是固定 hanime1.me。
+     */
+    fun buildSiteSwitchOptions(): List<SiteSwitchOption> {
         val currentSite = Preferences.baseUrl
-        val avSite = HANIME_URL[3]
+        val hanimeSite = if (currentSite in ANIME_URL) {
+            currentSite
+        } else {
+            Preferences.selectedBaseUrl.takeIf { it in ANIME_URL } ?: ANIME_URL[0]
+        }
+        return listOf(
+            SiteSwitchOption(
+                label = getString(R.string.site_hanime),
+                url = hanimeSite,
+                isCurrent = currentSite == hanimeSite,
+            ),
+            SiteSwitchOption(
+                label = getString(R.string.site_missav),
+                url = HANIME_URL[3],
+                isCurrent = currentSite == HANIME_URL[3],
+            ),
+            SiteSwitchOption(
+                label = getString(R.string.site_jable),
+                url = HANIME_URL[4],
+                isCurrent = currentSite == HANIME_URL[4],
+            ),
+        )
+    }
+
+    fun switchSite(targetSite: String) {
+        val currentSite = Preferences.baseUrl
+        if (targetSite == currentSite) return
         val selectedBaseUrl = Preferences.selectedBaseUrl
+        // 離開 Hanime時記住當前鏡像站，下次從其他站點切回來仍然用它。
         if (currentSite in ANIME_URL) {
             Preferences.preferenceSp.edit(true) {
                 putString(SettingsPreferenceKeys.SELECTED_BASE_URL, currentSite)
-                putString(SettingsPreferenceKeys.DOMAIN_NAME, avSite)
             }
-        } else {
+        } else if (selectedBaseUrl !in ANIME_URL) {
+            // 舊版本遷移：selectedBaseUrl 可能被寫成 missav 位址。
             Preferences.preferenceSp.edit(true) {
-                putString(SettingsPreferenceKeys.SELECTED_BASE_URL, selectedBaseUrl)
-                putString(SettingsPreferenceKeys.DOMAIN_NAME, selectedBaseUrl)
+                putString(SettingsPreferenceKeys.SELECTED_BASE_URL, ANIME_URL[0])
             }
+        }
+        Preferences.preferenceSp.edit(true) {
+            putString(SettingsPreferenceKeys.DOMAIN_NAME, targetSite)
         }
         Handler(Looper.getMainLooper()).postDelayed({
             ActivityManager.restart(killProcess = true)

@@ -425,6 +425,11 @@ class HJzvdStd @JvmOverloads constructor(
         gestureLock = findViewById(R.id.lock)
         gestureLock.isSelected = false
         btnLoop = findViewById(R.id.btn_loop)
+        // 快退/快进按钮（10s / 1m / 10m），普通与全屏共用
+        intArrayOf(
+            R.id.seek_back_10s, R.id.seek_back_1m, R.id.seek_back_10m,
+            R.id.seek_forward_10s, R.id.seek_forward_1m, R.id.seek_forward_10m,
+        ).forEach { id -> findViewById<View>(id).setOnClickListener(this) }
         textureViewContainer.isHapticFeedbackEnabled = true
         tvSpeed.setOnClickListener(this)
         tvKeyframe.setOnClickListener(this)
@@ -735,6 +740,12 @@ class HJzvdStd @JvmOverloads constructor(
                     level = if (isLooping) GlobalToasts.ToastLevel.SUCCESS else GlobalToasts.ToastLevel.INFO,
                 )
             }
+            R.id.seek_back_10s -> seekBy(-10_000L)
+            R.id.seek_back_1m -> seekBy(-60_000L)
+            R.id.seek_back_10m -> seekBy(-600_000L)
+            R.id.seek_forward_10s -> seekBy(10_000L)
+            R.id.seek_forward_1m -> seekBy(60_000L)
+            R.id.seek_forward_10m -> seekBy(600_000L)
             R.id.go_home -> {
                 if (screen != SCREEN_FULLSCREEN) {
                     context.findActivityOrNull<MainActivity>()?.let { activity ->
@@ -748,6 +759,24 @@ class HJzvdStd @JvmOverloads constructor(
 
         }
     }
+
+    /**
+     * 相对当前位置快进/快退，边界收敛到 [0, duration]。
+     *
+     * 全屏与非全屏使用同一个播放器实例和同一个 mediaInterface，因此这里一套逻辑
+     * 就能同时覆盖两种模式；结束后刷新进度并重新计时自动隐藏控制条。
+     */
+    private fun seekBy(offsetMillis: Long) {
+        if (state != STATE_PLAYING && state != STATE_PAUSE) return
+        val total = duration
+        if (total <= 0L) return
+        val target = (currentPositionWhenPlaying + offsetMillis).coerceIn(0L, total)
+        mediaInterface?.seekTo(target)
+        currentTimeTextView.text = JZUtils.stringForTime(target)
+        progressBar.progress = (target * 100 / total).toInt()
+        startDismissControlViewTimer()
+    }
+
     @SuppressLint("InflateParams")
     fun clickSuperResolution() {
         onCLickUiToggleToClear()

@@ -121,6 +121,8 @@ fun SearchScreen(
     onLongPressCopy: (String, String) -> Unit,
     onOpenAdvancedSearch: () -> Unit,
     initialQuery: String? = null,
+    /** 女優／模特主页地址；非空时展示该主页作品，不写入搜索历史。 */
+    initialSourceUrl: String? = null,
 ) {
     val searchState by viewModel.searchStateFlow.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchFlow.collectAsStateWithLifecycle()
@@ -149,6 +151,11 @@ fun SearchScreen(
 
     // 搜索执行
     fun executeSearch() {
+        val sourceUrl = viewModel.sourceUrl
+        if (!sourceUrl.isNullOrBlank()) {
+            viewModel.getArtistVideos(sourceUrl, viewModel.page)
+            return
+        }
         viewModel.getHanimeSearchResult(
             viewModel.page,
             viewModel.query,
@@ -207,16 +214,19 @@ fun SearchScreen(
         )
     }
 
-    // 初始 query 自动搜索
-    LaunchedEffect(initialQuery) {
+    // 初始 query / 女優主頁自动搜索
+    LaunchedEffect(initialQuery, initialSourceUrl) {
         val query = initialQuery?.trim().orEmpty()
-        if (query.isNotBlank() && !hasSearched) {
+        if ((query.isNotBlank() || !initialSourceUrl.isNullOrBlank()) && !hasSearched) {
             hasSearched = true
             searchQuery = query
-            viewModel.query = query
+            viewModel.query = query.ifBlank { null }
+            viewModel.sourceUrl = initialSourceUrl
             focusMgr.clearFocus()
             kb?.hide()
-            viewModel.insertSearchHistory(SearchHistoryEntity(query = query))
+            if (initialSourceUrl.isNullOrBlank() && query.isNotBlank()) {
+                viewModel.insertSearchHistory(SearchHistoryEntity(query = query))
+            }
             doSearch()
         }
     }
@@ -257,8 +267,10 @@ fun SearchScreen(
         }
     }
 
-    LaunchedEffect(initialQuery, hasSearchResults, isRefreshing) {
-        if (!isRefreshing && initialQuery.isNullOrBlank() && !hasAdvancedFilters() && !hasSearchResults) {
+    LaunchedEffect(initialQuery, initialSourceUrl, hasSearchResults, isRefreshing) {
+        if (!isRefreshing && initialQuery.isNullOrBlank() && initialSourceUrl.isNullOrBlank() &&
+            !hasAdvancedFilters() && !hasSearchResults
+        ) {
             focusReq.requestFocus()
         } else {
             focusMgr.clearFocus()
@@ -317,6 +329,7 @@ fun SearchScreen(
         if (clearTags) viewModel.tagMap.clear()
         if (clearBrands) viewModel.brandMap.clear()
         if (clearBroad) viewModel.broad = false
+        viewModel.sourceUrl = null
         doSearch(resetScroll = true)
     }
 
@@ -338,7 +351,10 @@ fun SearchScreen(
             val q = searchQuery.trim()
             val shouldSearch = q.isNotBlank() || hasAdvancedFilters()
             if (shouldSearch) {
-                hasSearched = true; viewModel.query = q.ifBlank { null }
+                hasSearched = true
+                // 用户主动搜索时退出女優主頁模式
+                viewModel.sourceUrl = null
+                viewModel.query = q.ifBlank { null }
                 focusMgr.clearFocus(); kb?.hide()
                 if (q.isNotBlank()) {
                     viewModel.insertSearchHistory(
@@ -435,10 +451,12 @@ fun SearchScreen(
                     SearchHistoryList(
                         histories,
                         { query ->
-                            searchQuery = query; hasSearched = true; viewModel.query =
-                            query; focusMgr.clearFocus(); kb?.hide(); viewModel.insertSearchHistory(
-                            SearchHistoryEntity(query = query)
-                        ); doSearch(resetScroll = true)
+                            searchQuery = query; hasSearched = true
+                            viewModel.sourceUrl = null
+                            viewModel.query = query; focusMgr.clearFocus(); kb?.hide()
+                            viewModel.insertSearchHistory(
+                                SearchHistoryEntity(query = query)
+                            ); doSearch(resetScroll = true)
                         },
                         { h ->
                             viewModel.deleteSearchHistory(h); histories =

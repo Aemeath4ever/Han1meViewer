@@ -28,15 +28,25 @@ class WatchLaterSubViewModel(application: Application) : MyListSubViewModel(appl
     private val _deleteMyWatchLaterFlow = MutableSharedFlow<WebsiteState<Boolean>>()
     val deleteMyWatchLaterFlow = _deleteMyWatchLaterFlow.asSharedFlow()
 
-    fun deleteMyWatchLater(videoCode: String) {
+    fun deleteMyWatchLater(videoCode: String, jableVideoId: String? = null) {
         deleteItem(
             deleteCall = {
-                NetworkRepo.addToMyList(
-                    listCode = "save",
-                    videoCode = videoCode,
-                    isChecked = false,
-                    csrfToken = csrfToken,
-                )
+                if (Preferences.isJableSite) {
+                    // jable 的「稍後觀看」= KVS fav_type=1，與喜歡共用同一個接口。
+                    NetworkRepo.jableToggleFavorite(
+                        videoCode = videoCode,
+                        videoId = jableVideoId ?: videoCode,
+                        add = false,
+                        favType = 1,
+                    )
+                } else {
+                    NetworkRepo.addToMyList(
+                        listCode = "save",
+                        videoCode = videoCode,
+                        isChecked = false,
+                        csrfToken = csrfToken,
+                    )
+                }
             },
             emitTo = _deleteMyWatchLaterFlow,
             identifier = videoCode,

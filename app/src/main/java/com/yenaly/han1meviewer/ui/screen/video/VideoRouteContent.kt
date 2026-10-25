@@ -32,6 +32,7 @@ fun VideoRouteContent(
     onNavigateToSearch: (String) -> Unit,
     onToggleSubscribe: (com.yenaly.han1meviewer.logic.model.HanimeVideo.Artist) -> Unit,
     onToggleFavorite: (com.yenaly.han1meviewer.logic.model.HanimeVideo) -> Unit,
+    onToggleWatchLater: (com.yenaly.han1meviewer.logic.model.HanimeVideo) -> Unit,
     onRateVideo: (com.yenaly.han1meviewer.logic.model.HanimeVideo, Boolean) -> Unit,
     onManageMyList: (com.yenaly.han1meviewer.logic.model.HanimeVideo.MyList?, List<Boolean>) -> Unit,
     onQuickCheckIn: (com.yenaly.han1meviewer.logic.entity.CheckInRecordEntity) -> Unit,
@@ -55,6 +56,7 @@ fun VideoRouteContent(
     val tabs = remember(disableComments, hostUiState.commentBadgeCount, fromDownload) {
         buildList {
             add(VideoTabItem(R.string.introduction))
+            // jable 的留言直接取原站影片頁的 KVS comments block（見 NetworkRepo.jableCommentsFlow）。
             if (!fromDownload && !disableComments) {
                 add(VideoTabItem(R.string.comment, badgeCount = hostUiState.commentBadgeCount))
             }
@@ -89,6 +91,7 @@ fun VideoRouteContent(
                     onNavigateToSearch = onNavigateToSearch,
                     onToggleSubscribe = onToggleSubscribe,
                     onToggleFavorite = onToggleFavorite,
+                    onToggleWatchLater = onToggleWatchLater,
                     onRateVideo = onRateVideo,
                     onManageMyList = onManageMyList,
                     onQuickCheckIn = onQuickCheckIn,

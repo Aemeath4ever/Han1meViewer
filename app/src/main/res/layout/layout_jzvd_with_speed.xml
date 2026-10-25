@@ -28,83 +28,179 @@
     <LinearLayout
         android:id="@+id/layout_bottom"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_marginStart="@dimen/player_control_bar_margin"
         android:layout_marginEnd="@dimen/player_control_bar_margin"
         android:layout_marginBottom="16dp"
         android:background="@drawable/frosted_glass"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:orientation="vertical"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
         android:elevation="8dp"
         android:visibility="invisible"
         tools:visibility="visible">
 
-        <!-- 当前时间 -->
-        <TextView
-            android:id="@+id/current"
-            android:paddingStart="15dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="00:00"
-            android:textColor="#FFFFFF" />
+        <!-- 快退/快进：10s / 1m / 10m。与底部控制条同属 layout_bottom，
+             普通与全屏模式共用同一套显示/隐藏逻辑。 -->
+        <LinearLayout
+            android:id="@+id/layout_seek_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=" | "
-            android:textColor="#FFFFFF" />
+            <TextView
+                android:id="@+id/seek_back_10s"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="-10s"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
 
-        <!-- 总时间 -->
-        <TextView
-            android:id="@+id/total"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="00:00"
-            android:textColor="#FFFFFF" />
+            <TextView
+                android:id="@+id/seek_back_1m"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="-1m"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
 
-        <!-- SeekBar -->
-        <SeekBar
-            android:id="@+id/bottom_seek_progress"
-            android:layout_width="0dp"
-            android:layout_height="16dp"
-            android:layout_weight="1"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:progressDrawable="@drawable/bottom_seek_progress"
-            android:thumb="@drawable/jz_bottom_seek_poster"
-            android:background="@null" />
+            <TextView
+                android:id="@+id/seek_back_10m"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="-10m"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
 
-        <ImageView
-            android:id="@+id/btn_loop"
-            android:layout_width="40dp"
-            android:layout_height="match_parent"
-            android:layout_marginEnd="8dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/baseline_repeat_24"
-            android:tint="@color/white"
-            android:contentDescription="@string/loop_play" />
+            <TextView
+                android:id="@+id/seek_forward_10s"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="+10s"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
 
-        <!-- 清晰度 -->
-        <TextView
-            android:id="@+id/clarity"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clickable="true"
-            android:text="@string/clarity"
-            android:textColor="#FFFFFF" />
+            <TextView
+                android:id="@+id/seek_forward_1m"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="+1m"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
 
-        <!-- 全屏按钮 -->
-        <ImageView
-            android:id="@+id/fullscreen"
-            android:layout_width="52dp"
-            android:layout_height="match_parent"
-            android:paddingStart="14dp"
-            android:paddingEnd="15dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/jz_enlarge" />
+            <TextView
+                android:id="@+id/seek_forward_10m"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="+10m"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- 当前时间 -->
+            <TextView
+                android:id="@+id/current"
+                android:paddingStart="15dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#FFFFFF" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" | "
+                android:textColor="#FFFFFF" />
+
+            <!-- 总时间 -->
+            <TextView
+                android:id="@+id/total"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#FFFFFF" />
+
+            <!-- SeekBar -->
+            <SeekBar
+                android:id="@+id/bottom_seek_progress"
+                android:layout_width="0dp"
+                android:layout_height="16dp"
+                android:layout_weight="1"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:progressDrawable="@drawable/bottom_seek_progress"
+                android:thumb="@drawable/jz_bottom_seek_poster"
+                android:background="@null" />
+
+            <ImageView
+                android:id="@+id/btn_loop"
+                android:layout_width="40dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="8dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/baseline_repeat_24"
+                android:tint="@color/white"
+                android:contentDescription="@string/loop_play" />
+
+            <!-- 清晰度 -->
+            <TextView
+                android:id="@+id/clarity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="true"
+                android:text="@string/clarity"
+                android:textColor="#FFFFFF" />
+
+            <!-- 全屏按钮 -->
+            <ImageView
+                android:id="@+id/fullscreen"
+                android:layout_width="52dp"
+                android:layout_height="match_parent"
+                android:paddingStart="14dp"
+                android:paddingEnd="15dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/jz_enlarge" />
+        </LinearLayout>
     </LinearLayout>
 
     <ProgressBar

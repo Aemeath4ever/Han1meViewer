@@ -55,6 +55,7 @@ fun SearchRouteScreen(
     SearchScreen(
         viewModel = viewModel,
         initialQuery = route.query,
+        initialSourceUrl = route.sourceUrl,
         onBack = onBack,
         onOpenVideo = onNavigateToVideo,
         onLongPressCopy = { videoCode, title ->

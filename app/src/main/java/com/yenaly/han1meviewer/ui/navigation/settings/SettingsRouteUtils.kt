@@ -45,7 +45,9 @@ internal fun buildDomainOptions(context: Context): List<Pair<String, String>> =
         val suffix = when (index) {
             0 -> " (${context.getString(R.string.default_)})"
             1, 2 -> " (${context.getString(R.string.alternative)})"
-            else -> " (av)"
+            3 -> " (MissAV)"
+            4 -> " (Jable)"
+            else -> ""
         }
         "$host$suffix" to url
     }

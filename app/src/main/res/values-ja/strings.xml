@@ -123,6 +123,8 @@
     <string name="playlist_description">説明</string>
     <string name="open_playlist_drawer">プレイリスト一覧を開く</string>
     <string name="add_to_playlist">リストに追加</string>
+    <string name="add_to_watch_later">後で見るに追加</string>
+    <string name="added_to_watch_later">後で見るに追加済み</string>
     <string name="player_settings">プレイヤー設定</string>
     <string name="tablet_mode">タブレットモード</string>
     <string name="tablet_mode_summary">有効にすると動画ページとホームのバナーがタブレットレイアウトで表示され、より広い視聴エリアを提供します</string>

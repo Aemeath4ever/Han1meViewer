@@ -6,6 +6,7 @@ import com.yenaly.han1meviewer.util.toLoginCookieList
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -32,6 +33,25 @@ class HCookieJar : CookieJar {
 
         /** `cookieMap` 的讀改寫需要互斥；OkHttp 會在多個 IO 執行緒上同時調用。 */
         private val lock = Any()
+
+        /**
+         * 是否為當前站點自己的主機。
+         *
+         * 登錄 / Cloudflare cookie 只屬於站點本身：以前不管請求去哪個 host
+         * 都把這兩串 cookie 以該 host 為 domain 塞進去，等於把站點 session
+         * （甚至 cf_clearance）發給封面 CDN、Recombee 等第三方。第三方收到
+         * 不屬於自己的 session 容易觸發風控/Cloudflare challenge，也是
+         * 「切站或重開 app 時莫名彈盾」的來源之一。
+         */
+        private fun HttpUrl.isCurrentSiteHost(): Boolean {
+            val site = runCatching { Preferences.baseUrl.toHttpUrlOrNull()?.host }.getOrNull()
+                ?: return false
+            if (host.equals(site, ignoreCase = true)) return true
+            return (host.startsWith("www.", ignoreCase = true) &&
+                    host.substring(4).equals(site, ignoreCase = true)) ||
+                    (site.startsWith("www.", ignoreCase = true) &&
+                            host.equals(site.substring(4), ignoreCase = true))
+        }
 
         /**
          * 把一整串 `a=1; b=2`（WebView 的 `CookieManager.getCookie` 結果）灌進 jar，同名覆蓋。
@@ -72,10 +92,14 @@ class HCookieJar : CookieJar {
         // （以前會把 loginCookie 再追加一遍，服務端收到重複的同名 cookie。）
         val merged = LinkedHashMap<String, Cookie>()
         synchronized(lock) { cookieMap[host]?.forEach { merged[it.name] = it } }
-        Preferences.loginCookieStateFlow.value.toLoginCookieList(host)
-            .forEach { merged.putIfAbsent(it.name, it) }
-        Preferences.cloudFlareCookieStateFlow.value.toLoginCookieList(host)
-            .forEach { merged.putIfAbsent(it.name, it) }
+        // 只向站點自己的 host 附加持久化的登錄 / CF cookie；第三方 host
+        // 只使用它們自己在響應裡種下的 cookie。
+        if (url.isCurrentSiteHost()) {
+            Preferences.loginCookieStateFlow.value.toLoginCookieList(host)
+                .forEach { merged.putIfAbsent(it.name, it) }
+            Preferences.cloudFlareCookieStateFlow.value.toLoginCookieList(host)
+                .forEach { merged.putIfAbsent(it.name, it) }
+        }
 
         val cookies = merged.values.toList()
         // cf_clearance 只記一個不可逆的短指紋，方便對照「WebView 拿到的」和「jar 發出去的」
@@ -94,8 +118,10 @@ class HCookieJar : CookieJar {
             cookieMap[host]?.forEach { merged[it.name] = it }
             // 本次響應的同名 cookie 覆蓋舊值；過期時間在過去的等於服務端要求刪除。
             cookies.forEach { merged[it.name] = it }
-            Preferences.loginCookieStateFlow.value.toLoginCookieList(host)
-                .forEach { merged.putIfAbsent(it.name, it) }
+            if (url.isCurrentSiteHost()) {
+                Preferences.loginCookieStateFlow.value.toLoginCookieList(host)
+                    .forEach { merged.putIfAbsent(it.name, it) }
+            }
             cookieMap[host] = CopyOnWriteArrayList(
                 merged.values.filter { it.expiresAt > now }
             )

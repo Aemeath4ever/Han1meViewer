@@ -194,7 +194,7 @@ object MissavRecommender {
                     coverUrl = "$ITEM_CDN/$id/cover-t.jpg",
                     videoCode = id,
                     duration = formatDuration(values.optInt("duration")),
-                    itemType = HanimeInfo.SIMPLIFIED,
+                    itemType = HanimeInfo.NORMAL,
                     isUncensored = values.optBoolean("is_uncensored_leak") ||
                             isMissavUncensoredCode(id),
                 )

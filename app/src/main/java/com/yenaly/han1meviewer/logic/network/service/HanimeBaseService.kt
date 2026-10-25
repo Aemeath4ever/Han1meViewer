@@ -6,6 +6,12 @@ import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
+/** jable 搜尋結果的 KVS block id（取自搜尋頁 `#list_videos_videos_list_search_result`）。 */
+private const val JABLE_SEARCH_BLOCK_ID = "list_videos_videos_list_search_result"
+
+/** jable 影片頁留言的 KVS block id（取自 `section.comments[data-block-id]`）。 */
+private const val JABLE_COMMENTS_BLOCK_ID = "video_comments_video_comments"
+
 /** missav SPA 登入請求體（對應頁面 `axios.post('/cn/api/login', {email, password, remember})`） */
 @Serializable
 data class MissavLoginRequest(
@@ -148,6 +154,146 @@ interface HanimeBaseService {
     suspend fun missavPlaylistRemove(
         @Body body: MissavPlaylistRequest,
         @Header("X-XSRF-TOKEN") xsrfToken: String?,
+    ): Response<ResponseBody>
+
+    //</editor-fold>
+
+    //<editor-fold desc="jable（KVS，服務端渲染）">
+
+    /** jable 搜尋首頁：`/search/{query}/`，query 為 URL 編碼後的關鍵詞。 */
+    @GET("search/{query}/")
+    suspend fun getJableSearch(@Path("query") query: String): Response<ResponseBody>
+
+    /**
+     * jable 搜尋第 2 頁起。KVS 的分頁是 AJAX block：在當前頁 URL 上追加
+     * `mode=async&function=get_block&block_id=...&from=N`，回應是分頁容器片段。
+     */
+    @GET("search/{query}/")
+    suspend fun getJableSearchPage(
+        @Path("query") query: String,
+        @Query("q") q: String,
+        @Query("mode") mode: String = "async",
+        @Query("function") function: String = "get_block",
+        @Query("block_id") blockId: String = JABLE_SEARCH_BLOCK_ID,
+        @Query("sort_by") sortBy: String = "post_date",
+        // KVS 搜尋 block 的分頁參數有兩種寫法：純影片列表用 from，
+        // 影片+合集混合列表用 from_videos+from_albums。三個都帶上以兼容兩種情況。
+        @Query("from") from: Int,
+        @Query("from_videos") fromVideos: Int,
+        @Query("from_albums") fromAlbums: Int,
+    ): Response<ResponseBody>
+
+    /** 空關鍵詞的 `/search/`（站點顯示全部影片）。 */
+    @GET("search/")
+    suspend fun getJableSearchAll(): Response<ResponseBody>
+
+    /**
+     * 空關鍵詞分頁：站點的「全部影片」分頁連結就是 `/search/{page}/`（服務端直出），
+     * 不需要走 KVS block AJAX。
+     */
+    @GET("search/{page}/")
+    suspend fun getJableSearchAllPage(
+        @Path("page") page: Int,
+    ): Response<ResponseBody>
+
+    @GET("videos/{videoCode}/")
+    suspend fun getJableVideo(
+        @Path("videoCode") videoCode: String,
+    ): Response<ResponseBody>
+
+    /**
+     * jable 影片頁留言第 2 頁起。
+     *
+     * 站點的「載入更多」是 KVS block AJAX：在當前影片頁 URL 上追加
+     * `mode=async&function=get_block&block_id=video_comments_video_comments`
+     * `&sort_by=&from=2&ipp=5`（`data-parameters="sort_by:;from:2;ipp:5"`），
+     * 回應是整個留言 block 的 HTML 片段。
+     */
+    @Headers("X-Requested-With: XMLHttpRequest")
+    @GET("videos/{videoCode}/")
+    suspend fun getJableCommentsPage(
+        @Path("videoCode") videoCode: String,
+        @Query("mode") mode: String = "async",
+        @Query("function") function: String = "get_block",
+        @Query("block_id") blockId: String = JABLE_COMMENTS_BLOCK_ID,
+        @Query("sort_by") sortBy: String = "",
+        @Query("from") from: Int,
+        @Query("ipp") ipp: Int = 5,
+    ): Response<ResponseBody>
+
+    /**
+     * jable 登入。站點是一個 `data-form="ajax"` 的普通表單，JS 提交時追加
+     * `format=json&mode=async`，回應 `{"status":"success"|"failure", "errors":[...]}`。
+     * 表單欄位用 [FieldMap] 原樣轉發，避免站點日後加 hidden 欄位（token）時失效。
+     */
+    @GET("login/")
+    suspend fun getJableLoginPage(): Response<ResponseBody>
+
+    @Headers("Accept: application/json", "X-Requested-With: XMLHttpRequest")
+    @FormUrlEncoded
+    @POST("login/")
+    suspend fun jableLogin(
+        @FieldMap fields: Map<String, String>,
+    ): Response<ResponseBody>
+
+    /**
+     * jable 收藏切換：站點 JS 在當前影片頁 URL 上追加
+     * `?mode=async&format=json&action=add_to_favourites|delete_from_favourites&video_id=...`
+     * （`fav_type=0` 收藏，`1` 稍後觀看）。需要登入會話 cookie。
+     */
+    @Headers("Accept: application/json", "X-Requested-With: XMLHttpRequest")
+    @GET("videos/{videoCode}/")
+    suspend fun jableToggleFavourite(
+        @Path("videoCode") videoCode: String,
+        @Query("mode") mode: String = "async",
+        @Query("format") format: String = "json",
+        @Query("action") action: String,
+        @Query("video_id") videoId: String,
+        @Query("video_ids[]") videoIds: String,
+        @Query("fav_type") favType: Int = 0,
+        @Query("playlist_id") playlistId: Int = 0,
+    ): Response<ResponseBody>
+
+    /**
+     * jable 會員中心「喜歡」影片列表。
+     *
+     * KVS 的會員頁本身是服務端渲染，但分頁統一走 block：
+     * `?mode=async&function=get_block&block_id=list_videos_my_favourite_videos`
+     * `&fav_type=0&playlist_id=0&from_my_fav_videos={page}`。
+     * 第 1 頁也可直接帶同樣參數拿到片段，避免不同主題的 `/my/` 首頁 redirect 差異。
+     */
+    @GET("my/")
+    suspend fun getJableMyFavourites(
+        @Query("mode") mode: String = "async",
+        @Query("function") function: String = "get_block",
+        @Query("block_id") blockId: String = "list_videos_my_favourite_videos",
+        @Query("fav_type") favType: Int = 0,
+        @Query("playlist_id") playlistId: Int = 0,
+        @Query("sort_by") sortBy: String = "",
+        @Query("from_my_fav_videos") from: Int,
+        @Query("_") timestamp: Long = System.currentTimeMillis(),
+    ): Response<ResponseBody>
+
+    /** jable 會員中心完整頁面（AJAX block 拿不到時的兜底）。 */
+    @GET("my/")
+    suspend fun getJableMyPage(): Response<ResponseBody>
+
+    /** jable 會員中心的片單資料夾列表。 */
+    @GET("my/playlists/")
+    suspend fun getJableMyPlaylists(): Response<ResponseBody>
+
+    /**
+     * jable 片單資料夾列表第 2 頁起。部分 KVS 主題的片單列表也支持
+     * `?type=playlists` 形式的會員頁，NetworkRepo 會在 404 時改試它。
+     */
+    @GET("my/playlists/")
+    suspend fun getJableMyPlaylistsPage(
+        @Query("mode") mode: String = "async",
+        @Query("function") function: String = "get_block",
+        @Query("block_id") blockId: String = "list_playlists_my_created_playlists",
+        @Query("sort_by") sortBy: String = "last_content_date",
+        @Query("from_my_playlists") from: Int,
+        @Query("_") timestamp: Long = System.currentTimeMillis(),
     ): Response<ResponseBody>
 
     //</editor-fold>

@@ -240,6 +240,16 @@ class MyPlayListViewModelV2 : ViewModel() {
     // 从详情页删除某视频
     fun deleteFromPlaylist(itemId: String, position: Int) {
         viewModelScope.launch {
+            if (Preferences.isJableSite) {
+                // jable 的片單項目移除走 KVS 的 playlist 寫接口（含 CSRF），
+                // 目前只支援讀取，先明確報錯而不是誤打 Hanime 接口。
+                _deleteFromPlaylistFlow.emit(
+                    WebsiteState.Error(
+                        UnsupportedOperationException("jable playlist editing is not supported")
+                    )
+                )
+                return@launch
+            }
             NetworkRepo.deleteMyListItems(itemId, position, csrfToken).collect {
                 _deleteFromPlaylistFlow.emit(it)
                 _playlistFlow.update { prevList ->
@@ -257,6 +267,14 @@ class MyPlayListViewModelV2 : ViewModel() {
     fun modifyPlaylist(listCode: String, title: String, desc: String, delete: Boolean) {
         Log.i("modify_playlist","${listCode},${title},${desc}")
         viewModelScope.launch {
+            if (Preferences.isJableSite) {
+                _modifyPlaylistFlow.emit(
+                    WebsiteState.Error(
+                        UnsupportedOperationException("jable playlist editing is not supported")
+                    )
+                )
+                return@launch
+            }
             NetworkRepo.modifyPlaylist(listCode, title, desc, delete, csrfToken).collect {
                 _modifyPlaylistFlow.emit(it)
                 if (delete) {
@@ -276,6 +294,14 @@ class MyPlayListViewModelV2 : ViewModel() {
     //创建Playlist
     fun createPlaylist(title: String, description: String) {
         viewModelScope.launch {
+            if (Preferences.isJableSite) {
+                _createPlaylistFlow.emit(
+                    WebsiteState.Error(
+                        UnsupportedOperationException("jable playlist creation is not supported")
+                    )
+                )
+                return@launch
+            }
             NetworkRepo.createPlaylist(EMPTY_STRING, title, description, csrfToken).collect {
                 _createPlaylistFlow.emit(it)
             }

@@ -28,15 +28,25 @@ class FavSubViewModel(application: Application) : MyListSubViewModel(application
     private val _deleteMyFavVideoFlow = MutableSharedFlow<WebsiteState<Boolean>>()
     val deleteMyFavVideoFlow = _deleteMyFavVideoFlow.asSharedFlow()
 
-    fun deleteMyFavVideo(videoCode: String) {
+    fun deleteMyFavVideo(videoCode: String, jableVideoId: String? = null) {
         deleteItem(
             deleteCall = {
-                NetworkRepo.addToMyFavVideo(
-                    videoCode = videoCode,
-                    likeStatus = true,
-                    currentUserId = Preferences.savedUserId,
-                    token = csrfToken,
-                )
+                if (Preferences.isJableSite) {
+                    // jable 的「喜歡」是 KVS AJAX：按站內 video_id 取消 fav_type=0。
+                    // 列表卡片通常帶 data-fav-video-id；沒有時退回 slug（多數主題也接受）。
+                    NetworkRepo.jableToggleFavorite(
+                        videoCode = videoCode,
+                        videoId = jableVideoId ?: videoCode,
+                        add = false,
+                    )
+                } else {
+                    NetworkRepo.addToMyFavVideo(
+                        videoCode = videoCode,
+                        likeStatus = true,
+                        currentUserId = Preferences.savedUserId,
+                        token = csrfToken,
+                    )
+                }
             },
             emitTo = _deleteMyFavVideoFlow,
             identifier = videoCode,

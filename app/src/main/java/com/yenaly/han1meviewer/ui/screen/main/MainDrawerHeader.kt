@@ -15,14 +15,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -38,6 +45,13 @@ import coil3.compose.AsyncImage
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
 
+/** 抽屜「切換站點」下拉選項。 */
+data class SiteSwitchOption(
+    val label: String,
+    val url: String,
+    val isCurrent: Boolean,
+)
+
 @Composable
 fun MainDrawerHeader(
     avatarUrl: String?,
@@ -45,9 +59,10 @@ fun MainDrawerHeader(
     isLoggedIn: Boolean,
     isLoading: Boolean,
     currentSite: String,
+    siteOptions: List<SiteSwitchOption>,
     onAvatarClick: () -> Unit,
     onAvatarLongClick: () -> Unit,
-    onSwitchSiteClick: () -> Unit,
+    onSiteSelected: (String) -> Unit,
 ) {
     ElevatedCard(
         modifier = Modifier
@@ -109,36 +124,63 @@ fun MainDrawerHeader(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Column(
+            var siteMenuExpanded by remember { mutableStateOf(false) }
+            Box(
                 modifier = Modifier
                     .width(IntrinsicSize.Min)
                     .align(Alignment.Top)
-                    .padding(top = 6.dp)
-                    .clickable(
-                        onClick = onSwitchSiteClick,
-                        indication = ripple(bounded = false),
-                        interactionSource = remember { MutableInteractionSource() }
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
+                Column(
                     modifier = Modifier
-                        .size(36.dp)
-                        .padding(6.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(top = 6.dp)
+                        .clickable(
+                            onClick = { siteMenuExpanded = true },
+                            indication = ripple(bounded = false),
+                            interactionSource = remember { MutableInteractionSource() }
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_baseline_switch_24),
-                        contentDescription = stringResource(R.string.switch_site)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .padding(6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_baseline_switch_24),
+                            contentDescription = stringResource(R.string.switch_site)
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.switch_site),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.alpha(0.7f),
+                        textAlign = TextAlign.Center
                     )
                 }
-
-                Text(
-                    text = stringResource(R.string.switch_site),
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.alpha(0.7f),
-                    textAlign = TextAlign.Center
-                )
+                DropdownMenu(
+                    expanded = siteMenuExpanded,
+                    onDismissRequest = { siteMenuExpanded = false },
+                ) {
+                    siteOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                siteMenuExpanded = false
+                                if (!option.isCurrent) onSiteSelected(option.url)
+                            },
+                            trailingIcon = if (option.isCurrent) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                    )
+                                }
+                            } else null,
+                        )
+                    }
+                }
             }
         }
     }
@@ -154,9 +196,14 @@ fun MainDrawerHeaderPreview() {
             isLoggedIn = true,
             isLoading = false,
             currentSite = "https://www.baidu.com",
+            siteOptions = listOf(
+                SiteSwitchOption("Hanime", "https://hanime1.me/", false),
+                SiteSwitchOption("MissAV", "https://missav.ai/", false),
+                SiteSwitchOption("Jable", "https://jable.tv/", true),
+            ),
             onAvatarClick = {},
             onAvatarLongClick = {},
-            onSwitchSiteClick = {}
+            onSiteSelected = {},
         )
     }
 }

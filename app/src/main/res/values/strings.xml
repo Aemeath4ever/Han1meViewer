@@ -124,6 +124,8 @@
     <string name="playlist_description">介紹</string>
     <string name="open_playlist_drawer">打開播放清單列表</string>
     <string name="add_to_playlist">加入清單</string>
+    <string name="add_to_watch_later">加入稍後再看</string>
+    <string name="added_to_watch_later">已加入稍後再看</string>
     <string name="player_settings">播放器設定</string>
     <string name="tablet_mode">平板模式</string>
     <string name="tablet_mode_summary">開啟後影片頁面與首頁橫幅將以平板佈局顯示，提供更大觀看區域</string>
@@ -855,6 +857,10 @@
     <string name="switch_site">切換站點</string>
     <string name="current_site">當前站點：</string>
     <string name="confirm_switch_site">確定要切換站點嗎？</string>
+    <string name="site_hanime">Hanime</string>
+    <string name="site_missav">MissAV</string>
+    <string name="site_jable">Jable</string>
+    <string name="feature_not_supported_on_site">目前站點暫不支援此功能</string>
     <string name="webview_exception">系統 WebView 元件異常，Cloudflare驗證頁面載入失敗！</string>
     <string name="disable_predictive_back_title">關閉預測性返回動畫</string>
     <string name="disable_predictive_back_summary">開啟後，返回手勢只有在鬆手後才會觸發返回，避免觀看影片時因誤觸返回手勢而暫停播放</string>

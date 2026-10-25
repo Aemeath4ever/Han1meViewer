@@ -33,6 +33,7 @@ import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Comment
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.TextNode
 import org.jsoup.select.Elements
 
 /**
@@ -257,6 +258,319 @@ object Parser {
     }
 
     /**
+     * missav 女優頁（`/actresses/{name}`）的作品列表。
+     *
+     * 卡片與搜尋頁同構，分頁是 Laravel 的 `?page=N`。頁首的女優頭像也可能帶
+     * `alt`，但它不會是影片卡片，故過濾掉含空白的「影片碼」。
+     */
+    fun missavArtistVideos(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
+        val parseBody = Jsoup.parse(body).body()
+        val results = parseMissavCards(parseBody)
+            .filterNot { it.videoCode.contains(' ') }
+            .toMutableList()
+        val hasNext = parseBody.select("a[rel=next]").isNotEmpty() ||
+                parseBody.select("a[href]").any {
+                    it.attr("href").contains("page=${page + 1}")
+                }
+        val maxPage = if (results.isEmpty()) page else if (hasNext) page + 1 else page
+        Log.d("missav_artist", "artist page=$page cards=${results.size} hasNext=$hasNext")
+        return PageLoadingState.Success(HanimeSearchResult(results, maxPage))
+    }
+
+    /**
+     * jable 搜尋頁解析。
+     *
+     * 第 1 頁是完整 HTML；第 2 頁起是 KVS 的 AJAX block 片段，卡片結構相同。
+     * 分頁資訊在 `ul.pagination` 的 `data-parameters="...;from:NN"` 裡。
+     */
+    fun jableSearch(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
+        val parseBody = Jsoup.parse(body).body()
+        val results = parseJableCards(parseBody)
+        val maxPage = jableMaxPage(parseBody, page)
+        return PageLoadingState.Success(HanimeSearchResult(results, maxPage))
+    }
+
+    /**
+     * jable 模特頁（`/models/{hash}/`）的作品列表。
+     *
+     * 卡片與搜尋頁同構；分頁沿用 KVS 的 `ul.pagination`。
+     * 同時把分頁連結寫進日誌，方便站點改版後確認下一頁的真實 URL 形式。
+     */
+    fun jableArtistVideos(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
+        val parseBody = Jsoup.parse(body).body()
+        val results = parseJableCards(parseBody)
+        val maxPage = jableMaxPage(parseBody, page)
+        val paginationLinks = parseBody.select("ul.pagination a[href]")
+            .map { "${it.attr("href")} ${it.attr("data-parameters")}".trim() }
+        Log.d(
+            "jable_artist",
+            "artist page=$page cards=${results.size} maxPage=$maxPage links=$paginationLinks"
+        )
+        return PageLoadingState.Success(HanimeSearchResult(results, maxPage))
+    }
+
+    /**
+     * jable 會員中心（`/my/...`）的影片列表：喜歡、稍後觀看、單個片單內容都用它。
+     *
+     * KVS 的分頁 block 與搜尋頁共用同一套卡片結構；第一頁有時是完整頁面，
+     * 第二頁起是 block 片段，兩種都能直接走 [parseJableCards]。
+     */
+    fun jableUserVideoList(body: String, page: Int): PageLoadingState<MyListItems<HanimeInfo>> {
+        val parseBody = Jsoup.parse(body).body()
+        // 會員頁可能同時有「推薦」「最近更新」等影片區塊，若整頁解析會把
+        // 不相關的卡片混進喜歡/片單列表。優先在 KVS block 容器內找。
+        val container = parseBody.selectFirst("#list_videos_my_favourite_videos")
+            ?: parseBody.selectFirst("#playlist_view_playlist_view")
+            ?: parseBody.selectFirst("#list_videos_common_videos_list")
+        // AJAX block 有時只回一段沒有 id 的 HTML 片段；此時整段就是列表。
+        // 但完整頁面若找不到 block 容器，寧可回空列表，也不要把整頁的
+        // 推薦/最近更新誤當成使用者的收藏。
+        val scope = container ?: parseBody.takeIf { !body.contains("<html", ignoreCase = true) }
+        var results = scope?.let { parseJableCards(it) } ?: mutableListOf()
+        if (results.isEmpty()) {
+            results = scope?.let { parseJableGenericVideoCards(it) } ?: mutableListOf()
+        }
+        val maxPage = jableMaxPage(parseBody, page)
+        Log.d("jable_user", "video list page=$page cards=${results.size} maxPage=$maxPage")
+        return PageLoadingState.Success(MyListItems(results, maxPage = maxPage))
+    }
+
+    /**
+     * jable 會員中心的片單資料夾列表（`/my/playlists/`）。
+     *
+     * 站點的片單路徑有兩種寫法：`/my/playlists/{id}/`（自己的）與
+     * `/playlists/{id}/{slug}/`（公開頁）。`listCode` 直接保存完整連結，
+     * 之後取片單內容時不必再猜 id。
+     */
+    fun jablePlaylists(body: String): WebsiteState<Playlists> {
+        val parseBody = Jsoup.parse(body).body()
+        val lists = mutableListOf<Playlists.Playlist>()
+        val seen = mutableSetOf<String>()
+        val playlistPath = Regex("""/(?:my/)?playlists/([^/?#]+)""")
+        for (a in parseBody.select("a[href]")) {
+            val href = a.absUrl("href").ifBlank { a.attr("href") }.trim()
+            // 分頁連結（`/my/playlists/2/`）長得和片單連結一樣，必須先排除，
+            // 否則第 2 頁會被當成一個叫「2」的片單。
+            if (a.closest("ul.pagination") != null) continue
+            if (href.contains("from_my_playlists") || href.contains("block_id=")) continue
+            if (a.hasAttr("data-action") || href.contains("delete")) continue
+            val path = href.substringBefore('?').substringBefore('#')
+            val id = playlistPath.find(path)?.groupValues?.get(1) ?: continue
+            if (id.isBlank() || id in setOf("create", "delete", "my")) continue
+            if (path.trimEnd('/').endsWith("/playlists")) continue
+            // 同一張卡片通常有封面與標題兩個連結，按路徑去重。
+            val key = path.trimEnd('/')
+            if (!seen.add(key)) continue
+
+            val card = a.closest(
+                "div.video-img-box, div.item, div.col-6, div.col-sm-4, div.col-lg-3, li, article"
+            ) ?: a.parent() ?: a
+            val title = card.selectFirst("h6.title a, .title a, h6.title, h5, h4, .title")
+                ?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                ?: a.text().trim().takeIf { it.isNotEmpty() && it.length <= 160 }
+                ?: id
+            if (title.contains("建立", ignoreCase = false) ||
+                title.contains("create", ignoreCase = true)
+            ) continue
+            val img = card.selectFirst("img")
+            val coverUrl = img?.let {
+                sequenceOf("data-src", "data-original", "src")
+                    .map { attr -> it.absUrl(attr) }
+                    .firstOrNull { url ->
+                        url.isNotBlank() && !url.contains("/assets/images/placeholder")
+                    }
+            }
+            val countText = card.selectFirst(".count, .video-count, .stat-item")?.text()
+            val total = countText?.filter(Char::isDigit)?.toIntOrNull()
+                ?: card.selectFirst(".label")?.text()
+                    ?.takeIf { text ->
+                        text.contains("video", ignoreCase = true) ||
+                                text.contains("部") || text.contains("影片")
+                    }
+                    ?.filter(Char::isDigit)?.toIntOrNull()
+                ?: -1
+            lists += Playlists.Playlist(
+                listCode = href,
+                title = title,
+                total = total,
+                coverUrl = coverUrl,
+            )
+        }
+        Log.d(
+            "jable_playlists",
+            "playlists=${lists.size} hrefs=${lists.map { it.listCode }}"
+        )
+        return WebsiteState.Success(
+            Playlists(playlists = lists, maxPage = jableMaxPage(parseBody, 1))
+        )
+    }
+
+    /**
+     * 保守的 KVS 通用影片卡片解析：只在 [parseJableCards] 一張都沒抓到時兜底。
+     * 用 `a[href*=/videos/]` 反查最近的卡片容器，避免會員頁改版後整個列表空白。
+     */
+    private fun parseJableGenericVideoCards(root: Element): MutableList<HanimeInfo> {
+        val results = mutableListOf<HanimeInfo>()
+        val seen = mutableSetOf<String>()
+        for (a in root.select("a[href]")) {
+            val slug = jableVideoSlug(a.attr("href")) ?: continue
+            if (!seen.add(slug)) continue
+            val card = a.closest(
+                "div.video-img-box, div.item, div.col-6, div.col-sm-4, div.col-lg-3, article, li"
+            ) ?: a.parent() ?: a
+            val img = card.selectFirst("img") ?: a.selectFirst("img") ?: continue
+            val coverUrl = sequenceOf("data-src", "data-original", "src")
+                .map { attr -> img.absUrl(attr) }
+                .firstOrNull { url ->
+                    url.isNotBlank() && !url.contains("/assets/images/placeholder")
+                }
+                ?: continue
+            val title = card.selectFirst("h6.title a, .title a, h6, h5, .title")
+                ?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                ?: img.attr("alt").trim().takeIf { it.isNotEmpty() }
+                ?: slug
+            results += HanimeInfo(
+                title = title,
+                coverUrl = coverUrl,
+                videoCode = slug,
+                duration = card.selectFirst("span.label")?.text()?.trim()
+                    ?.takeIf { it.isNotEmpty() },
+                jableVideoId = card.selectFirst("[data-fav-video-id]")
+                    ?.attr("data-fav-video-id")
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() },
+                // jable 封面是 16:9 橫圖，用 NORMAL 讓卡片容器保持 16:9、搜尋頁兩列，
+                // 與站點自身一致；SIMPLIFIED 會套 3:4 的直式容器，底部留大片空白。
+                itemType = HanimeInfo.NORMAL,
+            )
+        }
+        return results
+    }
+
+    /**
+     * jable 通用卡片解析。
+     *
+     * 卡片形如：
+     * ```html
+     * <div class="video-img-box">
+     *   <div class="img-box"><a href="https://jable.tv/videos/{slug}/">
+     *     <img data-src=".../320x180/1.jpg"> <span class="label">2:10:08</span>
+     *   </a></div>
+     *   <div class="detail"><h6 class="title"><a>標題</a></h6><p class="sub-title">觀看數 喜歡數</p></div>
+     * </div>
+     * ```
+     * 部分卡片連結帶 `/s0/` 鏡像前綴，且首頁會混入廣告卡片，因此只認 `.../videos/{slug}/`。
+     */
+    private fun parseJableCards(root: Element): MutableList<HanimeInfo> {
+        val results = mutableListOf<HanimeInfo>()
+        val seen = mutableSetOf<String>()
+        for (card in root.select("div.video-img-box")) {
+            val link = card.selectFirst("div.img-box a[href]")
+                ?: card.selectFirst("a[href]")
+                ?: continue
+            val slug = jableVideoSlug(link.attr("href")) ?: continue
+            if (!seen.add(slug)) continue
+            val img = card.selectFirst("img")
+            val imgCover = img?.let {
+                sequenceOf("data-src", "data-original", "src")
+                    .map { attr -> it.absUrl(attr) }
+                    .firstOrNull { url ->
+                        url.isNotBlank() && !url.contains("/assets/images/placeholder")
+                    }
+            }
+            // 「全新上市」輪播的卡片沒有 <img>，封面放在連結的 inline background-image。
+            val styleCover = card.selectFirst("div.img-box a[style*=background-image]")
+                ?.attr("style")
+                ?.let { style ->
+                    Regex("""url\(['"]?([^'")]+)['"]?\)""")
+                        .find(style)?.groupValues?.get(1)
+                }
+            val coverUrl = imgCover ?: styleCover?.takeIf { it.isNotBlank() } ?: continue
+            val title = card.selectFirst("h6.title a")?.text()?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: slug
+            val duration = card.selectFirst("span.label")?.text()?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            // p.sub-title 的 DOM 是「眼睛圖標 + 觀看數 + 心形圖標 + 喜歡數」，
+            // 直接 text() 會把兩個數字連在一起，取第一個非空 TextNode 才是觀看數。
+            val views = card.selectFirst("p.sub-title")
+                ?.childNodes()
+                ?.filterIsInstance<TextNode>()
+                ?.map { it.text().trim() }
+                ?.firstOrNull { it.isNotEmpty() }
+            results.add(
+                HanimeInfo(
+                    title = title,
+                    coverUrl = coverUrl,
+                    videoCode = slug,
+                    duration = duration,
+                    views = views,
+                    // 收藏列表的卡片帶着站內影片 id，長按移除時直接用它，
+                    // 不必再額外抓一次影片頁。
+                    jableVideoId = card.selectFirst("[data-fav-video-id]")
+                        ?.attr("data-fav-video-id")
+                        ?.trim()
+                        ?.takeIf { it.isNotEmpty() },
+                    itemType = HanimeInfo.NORMAL,
+                )
+            )
+        }
+        return results
+    }
+
+    /**
+     * 把 jable 登入表單轉成 [FieldMap]：保留站點現有的 hidden 欄位（可能有 token），
+     * 再覆蓋帳號密碼，最後補上 AJAX 表單固定追加的 `format=json&mode=async`。
+     */
+    fun jableLoginFormFields(
+        body: String,
+        username: String,
+        password: String,
+    ): Map<String, String> {
+        val form = Jsoup.parse(body).selectFirst("form[action*=login]")
+        val fields = LinkedHashMap<String, String>()
+        form?.select("input[name]")?.forEach { input ->
+            val name = input.attr("name")
+            if (name.isNotBlank()) fields[name] = input.attr("value")
+        }
+        fields["username"] = username
+        fields["pass"] = password
+        fields["remember_me"] = "1"
+        fields["action"] = "login"
+        fields["email_link"] = Preferences.baseUrl + "email/"
+        fields["format"] = "json"
+        fields["mode"] = "async"
+        return fields
+    }
+
+    /** 從 `https://jable.tv/videos/{slug}/`（或帶 `/s0/` 前綴）取出 slug。 */
+    private fun jableVideoSlug(href: String): String? =
+        Regex("""/videos/([A-Za-z0-9][A-Za-z0-9_-]*)(?:/|${'$'})""")
+            .find(href)
+            ?.groupValues
+            ?.get(1)
+            ?.takeIf { it != "videos" }
+
+    /** KVS 分頁總頁數：`data-parameters` 裡最大的 `from:` 值（頁碼從 1 開始）。 */
+    private fun jableMaxPage(root: Element, currentPage: Int): Int {
+        val fromMax = root.select("ul.pagination a[data-parameters]")
+            .mapNotNull { link ->
+                Regex("""from[^:;]*:(\d+)""")
+                    .find(link.attr("data-parameters"))
+                    ?.groupValues?.get(1)?.toIntOrNull()
+            }
+            .maxOrNull()
+        val hrefMax = root.select("ul.pagination a.page-link[href]")
+            .mapNotNull { link ->
+                Regex("""/(\d+)${'$'}""")
+                    .find(link.attr("href").trimEnd('/'))
+                    ?.groupValues?.get(1)?.toIntOrNull()
+            }
+            .maxOrNull()
+        return maxOf(currentPage, fromMax ?: 0, hrefMax ?: 0)
+    }
+
+    /**
      * missav 通用卡片解析。
      *
      * 卡片形如 `<a alt="{slug}" href=".../dmXX/en/{slug}"><img/></a>`，slug 即影片碼；
@@ -284,7 +598,9 @@ object Parser {
             results.add(
                 HanimeInfo(
                     title = title, coverUrl = cover, videoCode = slug,
-                    duration = duration, itemType = HanimeInfo.SIMPLIFIED,
+                    // missav 封面約 3:2（`cover-t.jpg`），站點自身用 16:9 容器裁切，
+                    // 這裡也走 NORMAL 的 16:9 卡片，避免直式容器底部留白。
+                    duration = duration, itemType = HanimeInfo.NORMAL,
                     // 無碼不能只看「是不是在無碼影片這個分節」：FC2 和 *-uncensored-leak
                     // 會出現在最近更新/隨機等分節裏，以前這些卡片不會有無碼角標。
                     isUncensored = uncensored || isMissavUncensoredCode(slug)
@@ -576,32 +892,40 @@ object Parser {
         val relatedTabContent = parseBody.getElementById("related-tabcontent")
 
         relatedTabContent?.also {
-            val children = it.childOrNull(0)?.children()
+            val children: List<Element> = it.childOrNull(0)?.children() ?: emptyList()
             val isSimplified =
-                children?.getOrNull(0)?.select("a")?.getOrNull(0)
+                children.getOrNull(0)?.select("a")?.getOrNull(0)
                     ?.getElementsByClass("home-rows-videos-div")
                     ?.firstOrNull() != null
             if (isSimplified) {
                 for (each in children) {
-                    val eachContent = each.selectFirst("a")
+                    val eachContent = each.selectFirst("a") ?: continue
                     val homeRowsVideosDiv =
-                        eachContent?.getElementsByClass("home-rows-videos-div")?.firstOrNull()
-
-                    if (homeRowsVideosDiv != null) {
-                        val eachVideoCode = eachContent.absUrl("href").toVideoCode() ?: continue
-                        val eachCoverUrl = homeRowsVideosDiv.selectFirst("img")?.absUrl("src")
-                            .throwIfParseNull(Parser::hanimeVideoVer2.name, "eachCoverUrl")
-                        val eachTitle =
-                            homeRowsVideosDiv.selectFirst("div[class$=title]")?.text()
-                                .throwIfParseNull(Parser::hanimeVideoVer2.name, "eachTitle")
-                        relatedAnimeList.add(
-                            HanimeInfo(
-                                title = eachTitle, coverUrl = eachCoverUrl,
-                                videoCode = eachVideoCode,
-                                itemType = HanimeInfo.SIMPLIFIED
-                            )
+                        eachContent.getElementsByClass("home-rows-videos-div").firstOrNull()
+                            ?: continue
+                    val eachVideoCode = eachContent.absUrl("href").toVideoCode() ?: continue
+                    val eachCoverUrl = homeRowsVideosDiv.selectFirst("img")
+                        ?.let { img ->
+                            sequenceOf("data-src", "data-original", "src")
+                                .map { attr -> img.absUrl(attr).ifBlank { img.attr(attr) } }
+                                .firstOrNull { it.isNotBlank() }
+                        }
+                        ?: continue
+                    // 新版標題 div 可能還帶別的 class（例如 `... title fs-14`），舊的
+                    // `div[class$=title]` 匹配不到就拋 ParseException，會讓整部影片
+                    // 解析失敗並被誤導去瀏覽器。這裡放寬選擇器，壞卡片直接跳過。
+                    val eachTitle = homeRowsVideosDiv.selectFirst("[class*=title]")
+                        ?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: homeRowsVideosDiv.selectFirst("img")?.attr("alt")?.trim()
+                            ?.takeIf { it.isNotEmpty() }
+                        ?: continue
+                    relatedAnimeList.add(
+                        HanimeInfo(
+                            title = eachTitle, coverUrl = eachCoverUrl,
+                            videoCode = eachVideoCode,
+                            itemType = HanimeInfo.SIMPLIFIED
                         )
-                    }
+                    )
                 }
             } else {
                 relatedAnimeList.addAll(relatedTabContent.extractHanimeInfo())
@@ -764,9 +1088,14 @@ object Parser {
             }
             .map { it.text().trim() }
             .filter { it.isNotEmpty() }
-        val actressName = infoLinks
-            .firstOrNull { "/actresses/" in it.attr("href") }
+        val actressLink = infoLinks.firstOrNull { "/actresses/" in it.attr("href") }
+        val actressName = actressLink
             ?.text()?.trim()?.takeIf { it.isNotEmpty() }
+        // 直接保存女優主頁連結：名字有日文/英文兩種寫法時，用名字搜索會漏掉其他作品，
+        // 用站內的 /actresses/{name} 頁面則能拿到完整列表。
+        val actressProfileUrl = actressLink
+            ?.absUrl("href")
+            ?.takeIf { it.isNotBlank() }
 
         // 站內物品 id：影片頁的喜歡/片單組件寫死 `api/items/{itemId}/save`
         val missavItemId = Regex("""api/items/([A-Za-z0-9]+)/save""")
@@ -787,10 +1116,174 @@ object Parser {
                 isFav = saved,
                 missavItemId = missavItemId,
                 artist = (actressName ?: artistName)?.let {
-                    HanimeVideo.Artist(name = it, avatarUrl = "", genre = directorName.orEmpty())
+                    HanimeVideo.Artist(
+                        name = it,
+                        avatarUrl = "",
+                        genre = directorName.orEmpty(),
+                        profileUrl = actressProfileUrl,
+                    )
                 },
             )
         )
+    }
+
+    /**
+     * jable 影片頁解析。
+     *
+     * 元數據在 `og:` meta 與 `.video-info` 區塊；播放地址是內聯腳本裡的
+     * `var hlsUrl = '...'`（通常是帶簽名的 m3u8），只對應一個「Unknown」畫質。
+     * 收藏按鈕的初始狀態在 `button.fav` 的 `active` class，站內 id 在
+     * `pageContext.videoId`。
+     */
+    fun jableVideo(body: String): VideoLoadingState<HanimeVideo> {
+        val doc = Jsoup.parse(body)
+        fun ogMeta(property: String) =
+            doc.selectFirst("meta[property=\"$property\"]")?.attr("content")?.trim()
+                ?.takeIf { it.isNotEmpty() }
+
+        val title = ogMeta("og:title")
+            ?: doc.selectFirst(".info-header .header-left h4")?.text()?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: throw ParseException("jableVideo: title not found")
+        val coverUrl = ogMeta("og:image").orEmpty()
+
+        val rawHlsUrl = Regex("""var\s+hlsUrl\s*=\s*['"]([^'"]+)['"]""")
+            .find(body)?.groupValues?.get(1)
+            ?: Regex("""(?:source|src)\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]""")
+                .find(body)?.groupValues?.get(1)
+        val hlsUrl = rawHlsUrl?.replace("\\/", "/")?.let { url ->
+            when {
+                url.startsWith("//") -> "https:$url"
+                url.startsWith("/") ->
+                    Preferences.baseUrl.trimEnd('/') + url
+                else -> url
+            }
+        }
+        val resolution = HanimeResolution()
+        hlsUrl?.let { resolution.parseResolution(null, it) }
+
+        val uploadTime = doc.selectFirst(".header-right .inactive-color")?.text()
+            ?.let { Regex("""(\d{4}-\d{2}-\d{2})""").find(it)?.groupValues?.get(1) }
+            ?.let { runCatching { LocalDate.parse(it, LOCAL_DATE_FORMAT) }.getOrNull() }
+        val metaSpans = doc.select(".info-header .header-left h6 span.mr-3")
+            .map { it.text().trim() }
+            .filter { it.isNotEmpty() }
+        // 第一項是相對時間（「4 年前」），第二項才是觀看數；若站點調整結構則退回第一個含數字的。
+        val views = metaSpans.getOrNull(1)
+            ?: metaSpans.firstOrNull { span ->
+                span.any(Char::isDigit) && !span.contains("前") && !span.contains("ago")
+            }
+        val tags = doc.select("h5.tags a")
+            .map { it.text().trim() }
+            .filter { it.isNotEmpty() }
+        val artist = doc.select("div.models a.model")
+            .mapNotNull { model ->
+                val name = model.selectFirst("span[title]")?.attr("title")?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: model.text().trim().takeIf { it.isNotEmpty() }
+                // 模特頭像旁邊的頭像連到站內模特頁；保留連結，點擊時直接列出她的作品。
+                val profileUrl = model.absUrl("href").ifBlank { model.attr("href") }
+                    .trim().takeIf { it.isNotEmpty() }
+                name?.let {
+                    HanimeVideo.Artist(
+                        name = it,
+                        avatarUrl = "",
+                        genre = "",
+                        profileUrl = profileUrl,
+                    )
+                }
+            }
+            .distinctBy { it.name }
+            .firstOrNull()
+
+        val favButton = doc.selectFirst("button.fav")
+        // 收藏接口的 video_id 是站點資料庫 id。登入後主按鈕會帶 data-fav-video-id；
+        // 匿名頁只有 pageContext.videoId。不能直接取全頁第一個 [data-fav-video-id]——
+        // 那通常是「猜你喜歡」第一張卡片的 id，會收藏到別的影片。
+        val videoId = favButton?.attr("data-fav-video-id")?.takeIf { it.isNotBlank() }
+            ?: doc.selectFirst("section.video-info [data-fav-video-id]")
+                ?.attr("data-fav-video-id")?.takeIf { it.isNotBlank() }
+            ?: Regex("""videoId\s*:\s*['"]([^'"]+)['"]""")
+                .find(body)?.groupValues?.get(1)
+            ?: doc.selectFirst("[data-fav-video-id]")?.attr("data-fav-video-id")
+        val favTimes = favButton?.selectFirst(".count")?.text()
+            ?.filter(Char::isDigit)
+            ?.toIntOrNull()
+        val isFav = favButton?.hasClass("active") == true
+        // 「稍後觀看」是同一排按鈕裏的書籤鍵（SVG `#icon-bookmark-inline`）。
+        // 登入後才會帶 data-fav-type=1；未登入頁只有指向 login-required 的錨點。
+        val watchLaterButton = doc.select("button.btn-action").firstOrNull { button ->
+            button.attr("data-fav-type") == "1" ||
+                    button.outerHtml().contains("icon-bookmark")
+        }
+        val isWatchLater = watchLaterButton?.hasClass("active") == true
+
+        return VideoLoadingState.Success(
+            HanimeVideo(
+                title = title,
+                coverUrl = coverUrl,
+                chineseTitle = title,
+                introduction = ogMeta("og:description"),
+                uploadTime = uploadTime,
+                views = views,
+                videoUrls = resolution.toResolutionLinkMap(),
+                tags = tags,
+                relatedHanimes = parseJableCards(doc.body()),
+                artist = artist,
+                favTimes = favTimes,
+                isFav = isFav,
+                jableVideoId = videoId,
+                isWatchLater = isWatchLater,
+            )
+        )
+    }
+
+    /**
+     * jable 影片頁留言（KVS `video_comments_video_comments` block）。
+     *
+     * 匿名頁與 AJAX 分頁片段的結構一致：
+     * `#video_comments_video_comments_items .item[data-comment-id]`，
+     * 每條留言是 `img.avatar` + `.title`（會員連結、相對時間）+ `.comment-text`。
+     * 原站留言沒有讚/踩與回覆，這裡只映射可展示的欄位。
+     */
+    fun jableComments(body: String): WebsiteState<VideoComments> {
+        val doc = Jsoup.parse(body)
+        val scope = doc.selectFirst("#video_comments_video_comments_items")
+            ?: doc.selectFirst(".comment-list")
+            ?: doc.body()
+        val comments = scope.select(".item[data-comment-id]").mapNotNull { item ->
+            val id = item.attr("data-comment-id").trim()
+                .takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val avatar = item.selectFirst("img.avatar")?.let { img ->
+                img.attr("src").ifBlank { img.attr("data-src") }
+                    .let { if (it.startsWith("//")) "https:$it" else it }
+            }.orEmpty()
+            val username = item.selectFirst(".title a[href*='/members/']")?.text()?.trim()
+                ?: item.selectFirst(".title a")?.text()?.trim().orEmpty()
+            val date = item.selectFirst(".title .inactive-color")?.text()?.trim().orEmpty()
+            val content = item.selectFirst(".comment-text")?.let { text ->
+                // 表情是 `<img alt=":xx:">`，直接去掉，避免把短碼當正文顯示。
+                text.select("img").remove()
+                text.text().trim()
+            }.orEmpty()
+            VideoComments.VideoComment(
+                avatar = avatar,
+                username = username,
+                date = date,
+                content = content,
+                thumbUp = null,
+                isChildComment = false,
+                hasMoreReplies = false,
+                replyCount = 0,
+                id = id,
+                post = VideoComments.VideoComment.POST(foreignId = id),
+            )
+        }
+        val total = doc.selectFirst(".comments .sub-title")?.text()
+            ?.filter(Char::isDigit)
+            ?.toIntOrNull()
+        Log.d("jable_comments", "comments=${comments.size} total=$total")
+        return WebsiteState.Success(VideoComments(comments.toMutableList()))
     }
 
     /**
@@ -983,6 +1476,46 @@ object Parser {
                 aiGenerated = mutableListOf(), mmd = mutableListOf(),
                 cosplay = mutableListOf(), watchingNow = mutableListOf(),
                 newAnimeTrailer = mutableListOf(), userId = ""
+            )
+        )
+    }
+
+    /**
+     * jable 首頁解析。
+     *
+     * 首頁由多個同構的 `section` 組成，每節標題在 `.title-box h2.h3-md`，
+     * 卡片是 `div.video-img-box`。只保留真的有影片卡的分節，廣告位與
+     * 「影片主題/專題合集」這類純連結區塊自然被跳過。
+     */
+    fun jableHomePage(body: String): WebsiteState<HomePage> {
+        val parseBody = Jsoup.parse(body).body()
+        val sections = mutableListOf<HomePage.MissavSection>()
+        for (section in parseBody.select("section")) {
+            val title = section.selectFirst("div.title-box h2.h3-md")?.text()?.trim()
+                ?: section.selectFirst("div.title-with-avatar h2.h3-md")?.text()?.trim()
+                ?: continue
+            val cards = parseJableCards(section)
+            if (cards.isEmpty()) continue
+            if (sections.any { it.title == title }) continue
+            sections.add(HomePage.MissavSection(title = title, videos = cards))
+        }
+        return WebsiteState.Success(
+            HomePage(
+                csrfToken = null,
+                avatarUrl = null,
+                username = Preferences.jableLoginEmail.takeIf {
+                    isAlreadyLogin && it.isNotBlank()
+                },
+                banner = null,
+                latestHanime = mutableListOf(),
+                latestRelease = mutableListOf(),
+                jableSections = sections,
+                ecchiAnime = mutableListOf(), shortEpisodeAnime = mutableListOf(),
+                twoPointFiveDAnime = mutableListOf(), threeDCG = mutableListOf(),
+                motionAnime = mutableListOf(), twoDAnime = mutableListOf(),
+                aiGenerated = mutableListOf(), mmd = mutableListOf(),
+                cosplay = mutableListOf(), watchingNow = mutableListOf(),
+                newAnimeTrailer = mutableListOf(), userId = "",
             )
         )
     }

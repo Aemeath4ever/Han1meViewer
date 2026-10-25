@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -90,10 +91,18 @@ fun VideoCardItem(
                 RetryableImage(
                     model = videoItem.coverUrl,
                     contentDescription = videoItem.title,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // 橫式卡片用 16:9 容器，封面（jable 16:9、missav 約 3:2）
+                        // 按寬度鋪滿後可能略微上下溢出，裁掉避免壓到標題。
+                        .clipToBounds(),
                     placeholder = painterResource(R.drawable.h_chan_loading),
                     error = painterResource(R.drawable.h_chan_load_failed),
-                    contentScale = ContentScale.FillWidth,
+                    contentScale = if (isHorizontalCard) {
+                        ContentScale.Crop
+                    } else {
+                        ContentScale.FillWidth
+                    },
                 )
 
                 if (videoItem.isUncensored) {

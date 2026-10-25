@@ -34,7 +34,7 @@ fun FavVideoRouteScreen(
         onBack = onBack,
         onOpenVideo = { onNavigateToVideo(it.videoCode) },
         onDeleteItem = { item ->
-            fav.deleteMyFavVideo(item.videoCode)
+            fav.deleteMyFavVideo(item.videoCode, item.jableVideoId)
         },
         onRefresh = {
             fav.favVideoPage = 1
@@ -81,7 +81,7 @@ fun WatchLaterRouteScreen(
         onBack = onBack,
         onOpenVideo = { onNavigateToVideo(it.videoCode) },
         onDeleteItem = { item ->
-            wl.deleteMyWatchLater(item.videoCode)
+            wl.deleteMyWatchLater(item.videoCode, item.jableVideoId)
         },
         onRefresh = {
             wl.watchLaterPage = 1

@@ -44,6 +44,10 @@ data class HanimeVideo(
     @Transient val originalComic: String? = null,
     /** missav 站內物品 id（`/api/items/{id}/save`），與 dvd id 不同，用於喜歡操作 */
     @Transient val missavItemId: String? = null,
+    /** jable 站內影片 id（主收藏按鈕的 data-fav-video-id，匿名頁退回 pageContext.videoId） */
+    @Transient val jableVideoId: String? = null,
+    /** jable「稍後觀看」狀態（書籤按鈕 active，fav_type=1） */
+    @Transient val isWatchLater: Boolean = false,
 ) {
 
     val ratingCount: Int?
@@ -117,6 +121,11 @@ data class HanimeVideo(
         val avatarUrl: String,
         val genre: String,
         @Transient val post: POST? = null,
+        /**
+         * 站內女優／演员主页。missav 是 `/actresses/{name}`，
+         * jable 是 `/models/{hash}/`；Hanime 沒有对应页面，保持 null。
+         */
+        @Transient val profileUrl: String? = null,
     ) {
         val isSubscribed: Boolean get() = post != null && post.isSubscribed
 

@@ -33,6 +33,46 @@ class CloudflareInterceptor(
         }.getOrNull()
 
         /**
+         * 是否為「當前站點自己」的主機。
+         *
+         * 只有站點本身的請求被 Cloudflare 攔截時才需要人機驗證。圖片 CDN、
+         * 推薦接口等第三方主機被攔截時若也彈驗證頁，使用者切站或重開 app
+         * 就會無緣無故看到盾 —— 那些資源失敗頂多是封面空白，不影響瀏覽。
+         */
+        private fun String.isSiteHost(): Boolean {
+            val site = baseHost() ?: return false
+            if (equals(site, ignoreCase = true)) return true
+            // 允許 www 前綴（部分鏡像站會 301 到 www），但不放行 cdn/static 等子域。
+            return (startsWith("www.", ignoreCase = true) &&
+                    substring(4).equals(site, ignoreCase = true)) ||
+                    (site.startsWith("www.", ignoreCase = true) &&
+                            equals(site.substring(4), ignoreCase = true))
+        }
+
+        /**
+         * 判斷是否為 Cloudflare 的人機驗證頁。
+         *
+         * `cf-mitigated: challenge` 是最準的訊號，但實際站點不一定每次都帶：
+         * jable 首次被攔時只回 403 + `Just a moment...` 的 HTML，沒有該標頭，
+         * 於是第一次載入直接變成「網路環境無法通過驗證」，手動重試才彈驗證頁。
+         * 這裡補充按狀態碼 + 挑戰頁特徵的判斷；`peekBody` 不消耗原響應。
+         */
+        private fun Response.isCloudflareChallenge(): Boolean {
+            if (header("cf-mitigated") == "challenge") return true
+            if (code != 403 && code != 429 && code != 503) return false
+            val contentType = body?.contentType()?.toString().orEmpty()
+            if (!contentType.contains("text/html", ignoreCase = true)) return false
+            val snippet = runCatching { peekBody(8192).string() }.getOrNull() ?: return false
+            // 不再只看 `challenge-platform`：Cloudflare 的 JavaScript Detections
+            // 會把這段腳本注入普通頁面（含某些 403 錯誤頁），拿它當盾的證據會
+            // 把「不是盾」的 403 也當成盾，使用者就被無故彈驗證頁。
+            return snippet.contains("Just a moment", ignoreCase = true) ||
+                    snippet.contains("Verifying you are human", ignoreCase = true) ||
+                    snippet.contains("Checking your browser", ignoreCase = true) ||
+                    snippet.contains("cf-chl-", ignoreCase = true)
+        }
+
+        /**
          * 讀 WebView 自己的 cookie 存儲，把 Cloudflare 的 cookie 灌進 okhttp 的 jar。
          *
          * WebView 往往早就過了盾（它的 cookie 存儲是持久的），只是 jar 裏還是舊值。
@@ -79,28 +119,31 @@ class CloudflareInterceptor(
         val request = chain.request()
         var response = chain.proceed(request)
 
-        // `cf-mitigated: challenge` 才是權威訊號，狀態碼不一定是 403（也可能是 429/503 等）。
-        // 以前要求 code == 403，會漏掉一部分挑戰頁，於是請求直接帶著挑戰頁 HTML 返回，
-        // 上層只能看到「解析失敗 / 登入失敗」，表現為「點登入沒反應」。
-        if (response.header("cf-mitigated") != "challenge") {
+        // `cf-mitigated: challenge` 是最準的訊號，狀態碼不一定是 403（也可能是 429/503 等）。
+        // 部分站點（jable）首次被攔只給 403 + 挑戰頁 HTML，不帶該標頭，故一併按頁面特徵判斷。
+        if (!response.isCloudflareChallenge()) {
+            return response
+        }
+        // 非站點主機（封面 CDN、Recombee 等）的 challenge 直接放行給呼叫端，
+        // 絕對不要替使用者打開驗證頁：切站/重進 app 時背景請求很多，
+        // 任何一個第三方 challenge 都彈盾會讓人以為「每次都要驗證」。
+        if (!request.url.host.isSiteHost()) {
+            Log.d(TAG, "ignore challenge from non-site host: ${request.url.host}")
             return response
         }
         response.close()
         val url = request.url.toString()
 
         // 第一步：先把 WebView 裏可能已經有效的 cf_clearance 抄進 jar 重試。
-        // 只在 missav 站點做：其他站點沒有這種「WebView 已過盾」的前提，
-        // 把 WebView 的舊會話灌進 jar 反而可能弄壞登錄態。
-        var staleClearanceFp: String? = null
-        if (request.url.host == baseHost()) {
-            staleClearanceFp = syncWebViewCookies(url)
-            if (staleClearanceFp != null) {
-                response = chain.proceed(request)
-                if (response.header("cf-mitigated") != "challenge") {
-                    return response
-                }
-                response.close()
+        // 只同步 cf_clearance / __cf_bm，不動登錄會話，避免用 WebView 的舊 session
+        // 蓋掉 app 裏較新的登錄態。
+        val staleClearanceFp = syncWebViewCookies(url)
+        if (staleClearanceFp != null) {
+            response = chain.proceed(request)
+            if (!response.isCloudflareChallenge()) {
+                return response
             }
+            response.close()
         }
 
         // 第二步：確實需要人機驗證。同一時間只開一個驗證頁，後續被攔的請求

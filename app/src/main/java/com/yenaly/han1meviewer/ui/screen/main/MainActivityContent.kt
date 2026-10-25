@@ -62,7 +62,8 @@ fun MainActivityContent(
     onOpenAccount: () -> Unit,
     onLogoutClick: () -> Unit,
     onRequireLogin: () -> Unit,
-    onSwitchSiteClick: () -> Unit,
+    siteOptions: List<SiteSwitchOption>,
+    onSiteSelected: (String) -> Unit,
     onNavigateControllerReady: (NavHostController) -> Unit,
 ) {
     HanimeTheme {
@@ -136,6 +137,7 @@ fun MainActivityContent(
             isLoggedIn = isLoggedIn,
             isLoading = headerIsLoading,
             currentSite = Preferences.baseUrl,
+            siteOptions = siteOptions,
             onAvatarClick = {
                 if (isLoggedIn) {
                     scope.launch { drawerState.close() }
@@ -147,7 +149,7 @@ fun MainActivityContent(
             onAvatarLongClick = {
                 onLogoutClick()
             },
-            onSwitchSiteClick = onSwitchSiteClick,
+            onSiteSelected = onSiteSelected,
             onDrawerItemSelected = { destination ->
                 val handled = composeNavController.navigateDrawerDestination(
                     destination = destination,
@@ -211,23 +213,6 @@ fun MainActivityContent(
                     onDeclined = { activity.finish() },
                 )
             }
-        }
-
-        if (activity.showSiteSwitchConfirm) {
-            AlertDialog(
-                onDismissRequest = { activity.dismissSiteSwitch() },
-                title = { Text(stringResource(R.string.confirm_switch_site)) },
-                confirmButton = {
-                    TextButton(onClick = { activity.confirmSiteSwitch() }) {
-                        Text(stringResource(R.string.sure))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { activity.dismissSiteSwitch() }) {
-                        Text(stringResource(R.string.no))
-                    }
-                },
-            )
         }
 
         if (activity.showLogoutConfirm) {

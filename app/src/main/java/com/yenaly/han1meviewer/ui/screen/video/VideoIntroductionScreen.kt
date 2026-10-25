@@ -166,6 +166,7 @@ fun VideoIntroductionScreen(
     onToggleFavorite: () -> Unit,
     onRateVideo: (Boolean) -> Unit,
     onManageMyList: (List<String>, List<Boolean>) -> Unit,
+    onToggleWatchLater: () -> Unit = {},
     onQuickCheckIn: (CheckInRecordEntity) -> Unit,
     onPrepareDownload: (String) -> Unit,
     onDismissDownloadPrompt: () -> Unit,
@@ -216,6 +217,7 @@ fun VideoIntroductionScreen(
                 onToggleFavorite = onToggleFavorite,
                 onRateVideo = onRateVideo,
                 onManageMyList = onManageMyList,
+                onToggleWatchLater = onToggleWatchLater,
                 onQuickCheckIn = onQuickCheckIn,
                 onPrepareDownload = onPrepareDownload,
                 onDismissDownloadPrompt = onDismissDownloadPrompt,
@@ -272,6 +274,7 @@ private fun VideoIntroductionContent(
     onToggleFavorite: () -> Unit,
     onRateVideo: (Boolean) -> Unit,
     onManageMyList: (List<String>, List<Boolean>) -> Unit,
+    onToggleWatchLater: () -> Unit,
     onQuickCheckIn: (CheckInRecordEntity) -> Unit,
     onPrepareDownload: (String) -> Unit,
     onDismissDownloadPrompt: () -> Unit,
@@ -429,15 +432,33 @@ private fun VideoIntroductionContent(
 
         if (!fromDownload) {
             item(key = "actions") {
+                val isJable = Preferences.isJableSite
                 ActionSection(
                     isFav = video.isFav,
                     hasOriginalComic = !video.originalComic.isNullOrBlank(),
+                    manageListLabel = if (isJable) {
+                        stringResource(
+                            if (video.isWatchLater) R.string.added_to_watch_later
+                            else R.string.add_to_watch_later
+                        )
+                    } else {
+                        stringResource(R.string.add_to_playlist)
+                    },
+                    manageListIconRes = if (isJable) {
+                        R.drawable.ic_baseline_watch_later_24
+                    } else {
+                        R.drawable.baseline_format_list_bulleted_24
+                    },
                     onQuickCheckIn = { showQuickCheckInDialog = true },
                     onOpenOriginalComic = onOpenOriginalComic,
                     onToggleFavorite = onToggleFavorite,
                     onManageMyList = {
-                        if (video.myList == null) {
-                            // 未登入或站內片單接口沒有返回時，避免按鈕靜默無反應
+                        if (isJable) {
+                            // jable 的片單寫接口（含 CSRF）未接入；
+                            // 這個位置改成原站書籤鍵的「加入稍後再看」。
+                            onToggleWatchLater()
+                        } else if (video.myList == null) {
+                            // 未登入或站內片單接口沒有返回時，避免按鈕靜默無反應。
                             GlobalToasts.show(
                                 context.getString(R.string.login_first),
                                 level = GlobalToasts.ToastLevel.WARNING,
@@ -1497,6 +1518,8 @@ private fun ExpandableIntroductionSection(
 private fun ActionSection(
     isFav: Boolean,
     hasOriginalComic: Boolean,
+    manageListLabel: String,
+    manageListIconRes: Int,
     onQuickCheckIn: () -> Unit,
     onOpenOriginalComic: (() -> Unit)?,
     onToggleFavorite: () -> Unit,
@@ -1531,8 +1554,8 @@ private fun ActionSection(
             onClick = onToggleFavorite,
         )
         VideoActionButton(
-            iconRes = R.drawable.baseline_format_list_bulleted_24,
-            label = stringResource(R.string.add_to_playlist),
+            iconRes = manageListIconRes,
+            label = manageListLabel,
             onClick = onManageMyList,
         )
         VideoActionButton(

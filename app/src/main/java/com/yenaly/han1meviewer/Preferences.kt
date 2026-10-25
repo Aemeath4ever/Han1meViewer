@@ -24,6 +24,15 @@ object Preferences {
     private const val USAGE_NOTICE_ACCEPTED = "usage_notice_accepted"
 
     /**
+     * 登入狀態按站點隔離的遷移標記。
+     *
+     * 舊版本的 `cookie` / `already_login` / `saved_user_id` / `cf_cookie` 是全域的，
+     * 從 missav 切到 jable 時 missav 的會話會被 [HCookieJar][com.yenaly.han1meviewer.logic.network.HCookieJar]
+     * 帶到 jable 的請求上，於是 jable 被誤判成已登入 missav 帳號。
+     */
+    private const val LOGIN_STATE_SCOPED_V1 = "login_state_scoped_v1"
+
+    /**
      * [Preference][androidx.preference.PreferenceFragmentCompat]自帶的SP
      */
     val preferenceSp: SharedPreferences
@@ -31,16 +40,83 @@ object Preferences {
             applicationContext
         )
 
+    /** 把站點無關的舊鍵名變成站點專屬鍵名，例如 `cookie` → `cookie_jable`。 */
+    private fun scopedLoginKey(base: String, site: SiteType = siteType): String =
+        "${base}_${site.name.lowercase()}"
+
+    /**
+     * 一次性把舊版全域登入狀態歸屬到推斷出的站點。
+     *
+     * 推斷依據（依序）：cookie 名稱 → 各站登入信箱 → 目前站點。
+     * 遷移後舊鍵不再被讀取，避免任何站點的會話再被其他站點帶走。
+     */
+    private fun ensureLoginStateScoped() {
+        if (preferenceSp.getBoolean(LOGIN_STATE_SCOPED_V1, false)) return
+        synchronized(this) {
+            if (preferenceSp.getBoolean(LOGIN_STATE_SCOPED_V1, false)) return
+            val legacyCookie = getSpValue(LOGIN_COOKIE, EMPTY_STRING)
+            val legacyLogin = getSpValue(ALREADY_LOGIN, false)
+            val legacyCfCookie = getSpValue(CLOUDFLARE_COOKIE, EMPTY_STRING)
+            val legacyUserId = preferenceSp.getString(SAVED_USER_ID, null)
+                ?: getSpValue(SAVED_USER_ID, EMPTY_STRING).takeIf { it.isNotBlank() }
+            val hasLegacyState = legacyCookie.isNotBlank() || legacyLogin ||
+                    legacyCfCookie.isNotBlank() || !legacyUserId.isNullOrBlank()
+            val owner = if (hasLegacyState) {
+                inferLegacyLoginSite(legacyCookie, legacyUserId)
+            } else {
+                siteType
+            }
+            val suffix = owner.name.lowercase()
+            if (legacyLogin) putSpValue("${ALREADY_LOGIN}_$suffix", true)
+            if (legacyCookie.isNotBlank()) putSpValue("${LOGIN_COOKIE}_$suffix", legacyCookie)
+            if (legacyCfCookie.isNotBlank()) putSpValue("${CLOUDFLARE_COOKIE}_$suffix", legacyCfCookie)
+            preferenceSp.edit {
+                if (!legacyUserId.isNullOrBlank()) {
+                    putString("${SAVED_USER_ID}_$suffix", legacyUserId)
+                }
+                putBoolean(LOGIN_STATE_SCOPED_V1, true)
+            }
+        }
+    }
+
+    /** 舊版全域 cookie / 信箱歸屬推斷；只在首次遷移時使用。 */
+    private fun inferLegacyLoginSite(cookie: String, userId: String?): SiteType {
+        // 只看 cookie 名稱，避免隨機值恰好包含站點關鍵字
+        val cookieNames = cookie.split(';')
+            .map { it.substringBefore('=').trim().lowercase() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+        fun hasName(keyword: String) = cookieNames.any { keyword in it }
+        return when {
+            hasName("missav") -> SiteType.MISSAV
+            hasName("hanime") || hasName("remember_web") -> SiteType.HANIME
+            hasName("phpsessid") || hasName("kt_tcookie") || hasName("jable") -> SiteType.JABLE
+            // 登入信箱是站點自己記錄的，比可能殘留的 savedUserId 可靠
+            missavLoginEmail.isNotBlank() -> SiteType.MISSAV
+            jableLoginEmail.isNotBlank() -> SiteType.JABLE
+            // 只有 missav 會寫這個推薦用 id
+            missavUserUuid.isNotBlank() -> SiteType.MISSAV
+            // savedUserId 只在Hanime 有意義（missav / jable 首頁解析固定回傳空字串），
+            // 但它可能是使用者很早以前在Hanime 留下的殘值，故放在信箱之後。
+            !userId.isNullOrBlank() -> SiteType.HANIME
+            else -> siteType
+        }
+    }
+
     // app 相關
 
     /**
-     * 是否登入，一般跟[loginCookie]一起賦值
+     * 當前站點是否已登入，一般跟[loginCookie]一起賦值。
+     * 每個站點各自保存，切換站點後不會沿用其他站點的登入狀態。
      */
     var isAlreadyLogin: Boolean
-        get() = getSpValue(ALREADY_LOGIN, false)
+        get() {
+            ensureLoginStateScoped()
+            return getSpValue(scopedLoginKey(ALREADY_LOGIN), false)
+        }
         set(value) {
             loginStateFlow.value = value
-            putSpValue(ALREADY_LOGIN, value)
+            putSpValue(scopedLoginKey(ALREADY_LOGIN), value)
         }
 
     val loginStateFlow = MutableStateFlow(isAlreadyLogin)
@@ -49,17 +125,33 @@ object Preferences {
         get() = preferenceSp.getBoolean(USAGE_NOTICE_ACCEPTED, false)
         set(value) = preferenceSp.edit { putBoolean(USAGE_NOTICE_ACCEPTED, value) }
 
-    val savedUserId: String
-        get() = preferenceSp.getString(SAVED_USER_ID,"") ?: ""
+    var savedUserId: String
+        get() {
+            ensureLoginStateScoped()
+            return preferenceSp.getString(scopedLoginKey(SAVED_USER_ID), "") ?: ""
+        }
+        set(value) {
+            ensureLoginStateScoped()
+            preferenceSp.edit {
+                if (value.isBlank()) {
+                    remove(scopedLoginKey(SAVED_USER_ID))
+                } else {
+                    putString(scopedLoginKey(SAVED_USER_ID), value)
+                }
+            }
+        }
 
     /**
-     * 保存的string格式的登入cookie
+     * 保存的string格式的登入cookie（當前站點）。
      */
-    var loginCookie
-        get() = CookieString(getSpValue(LOGIN_COOKIE, EMPTY_STRING))
+    var loginCookie: CookieString
+        get() {
+            ensureLoginStateScoped()
+            return CookieString(getSpValue(scopedLoginKey(LOGIN_COOKIE), EMPTY_STRING))
+        }
         set(value) {
             loginCookieStateFlow.value = value
-            putSpValue(LOGIN_COOKIE, value.cookie)
+            putSpValue(scopedLoginKey(LOGIN_COOKIE), value.cookie)
         }
 
     val loginCookieStateFlow = MutableStateFlow(loginCookie)
@@ -68,6 +160,11 @@ object Preferences {
     var missavLoginEmail: String
         get() = getSpValue(MISSAV_LOGIN_EMAIL, EMPTY_STRING)
         set(value) = putSpValue(MISSAV_LOGIN_EMAIL, value)
+
+    /** jable 登入帳號，僅用於介面顯示。 */
+    var jableLoginEmail: String
+        get() = getSpValue(JABLE_LOGIN_EMAIL, EMPTY_STRING)
+        set(value) = putSpValue(JABLE_LOGIN_EMAIL, value)
 
     /**
      * missav 首頁 Recombee 推薦用的使用者 id（對應站點 cookie `user_uuid`）。
@@ -85,11 +182,20 @@ object Preferences {
         get() = getSpValue(MISSAV_RECOMBEE_TOKEN, EMPTY_STRING)
         set(value) = putSpValue(MISSAV_RECOMBEE_TOKEN, value)
 
-    var cloudFlareCookie
-        get() = CookieString(getSpValue(CLOUDFLARE_COOKIE   , EMPTY_STRING))
+    /**
+     * 當前站點的 Cloudflare 驗證 cookie。
+     *
+     * 不同站點的 `cf_clearance` 不能互用；共用一份會讓切換站點後的第一個請求
+     * 帶著上一站的驗證值，被 Cloudflare 當成無效會話，表現為「網路環境有問題」。
+     */
+    var cloudFlareCookie: CookieString
+        get() {
+            ensureLoginStateScoped()
+            return CookieString(getSpValue(scopedLoginKey(CLOUDFLARE_COOKIE), EMPTY_STRING))
+        }
         set(value) {
             cloudFlareCookieStateFlow.value = value
-            putSpValue(CLOUDFLARE_COOKIE, value.cookie)
+            putSpValue(scopedLoginKey(CLOUDFLARE_COOKIE), value.cookie)
         }
     val cloudFlareCookieStateFlow = MutableStateFlow(cloudFlareCookie)
 
@@ -234,17 +340,34 @@ object Preferences {
         }
 
     /**
+     * 當前站點類型。以 [baseUrl] 為唯一真相源，自訂鏡像站視為 Hanime。
+     */
+    val siteType: SiteType
+        get() = SiteType.fromBaseUrl(baseUrl)
+
+    /**
      * 當前站點是否為 missav（AV 站）
      */
     val isMissavSite: Boolean
-        get() = baseUrl == HANIME_URL[3]
+        get() = siteType == SiteType.MISSAV
+
+    /**
+     * 當前站點是否為 jable（KVS 站）
+     */
+    val isJableSite: Boolean
+        get() = siteType == SiteType.JABLE
 
     /**
      * 首頁請求地址。missav 的內容位於 /dm12/cn 目錄下，
      * 直接請求根路徑或 /en/ 會被 Cloudflare 中轉頁（JS 跳轉）攔截，故顯式帶上目錄。
+     * jable 的首頁就是根路徑，分節（最近更新/全新上市/熱門影片…）都在根頁。
      */
     val homeRequestUrl: String
-        get() = if (isMissavSite) baseUrl + "dm12/cn" else homeUrl
+        get() = when (siteType) {
+            SiteType.MISSAV -> baseUrl + "dm12/cn"
+            SiteType.JABLE -> baseUrl
+            SiteType.HANIME -> homeUrl
+        }
 
     val useCustomMirrorSite: Boolean
         get() = preferenceSp.getBoolean(SettingsPreferenceKeys.USE_CUSTOM_MIRROR_SITE, false)

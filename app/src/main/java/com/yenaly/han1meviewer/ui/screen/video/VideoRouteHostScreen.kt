@@ -58,7 +58,6 @@ import com.yenaly.han1meviewer.logic.DatabaseRepo
 import com.yenaly.han1meviewer.logic.dao.CheckInRecordDatabase
 import com.yenaly.han1meviewer.logic.entity.HKeyframeEntity
 import com.yenaly.han1meviewer.logic.entity.WatchHistoryEntity
-import com.yenaly.han1meviewer.logic.exception.ParseException
 import com.yenaly.han1meviewer.logic.model.HanimeVideo
 import com.yenaly.han1meviewer.logic.model.SearchOption
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
@@ -307,6 +306,7 @@ fun VideoRouteHostScreen(
                 onNavigateToSearch = actions::openTagSearch,
                 onToggleSubscribe = actions::toggleArtistSubscription,
                 onToggleFavorite = actions::toggleFavorite,
+                onToggleWatchLater = actions::toggleWatchLater,
                 onRateVideo = actions::rateVideo,
                 onManageMyList = actions::updateMyListSelection,
                 onQuickCheckIn = { record ->
@@ -563,10 +563,9 @@ fun VideoRouteHostScreen(
             viewModel.hanimeVideoStateFlow.collect { state ->
                 when (state) {
                     is VideoLoadingState.Error -> {
+                        // 解析失敗只提示，不再自動拉起瀏覽器：曾經因為推薦位解析
+                        // 異常（ParseException）讓本可播放的影片被誤導出 App。
                         state.throwable.localizedMessage?.let { GlobalToasts.show(it, level = GlobalToasts.ToastLevel.ERROR) }
-                        if (state.throwable is ParseException) {
-                            activity.browse(getHanimeVideoLink(route.videoCode))
-                        }
                     }
 
                     is VideoLoadingState.Loading -> Unit

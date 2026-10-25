@@ -2,7 +2,6 @@ package com.yenaly.han1meviewer.ui.screen.home.homepage
 
 import android.util.Log
 import androidx.annotation.StringRes
-import androidx.core.content.edit
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +9,6 @@ import com.google.firebase.database.FirebaseDatabase
 import com.yenaly.han1meviewer.FIREBASE_REALTIME_DATABASE
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
-import com.yenaly.han1meviewer.SAVED_USER_ID
 import com.yenaly.han1meviewer.logic.DatabaseRepo
 import com.yenaly.han1meviewer.logic.NetworkRepo
 import com.yenaly.han1meviewer.logic.entity.HKeyframeEntity
@@ -96,7 +94,7 @@ class HomePageViewModel: ViewModel() {
                         val currentAnnouncements = announcementsDeferred.await()
                         AppViewModel.csrfToken = networkState.info.csrfToken
                         networkState.info.userId.takeIf { it.isNotEmpty() }?.let { userId ->
-                            Preferences.preferenceSp.edit { putString(SAVED_USER_ID, userId) }
+                            Preferences.savedUserId = userId
                         }
                         val homeData = HomeData(page = networkState.info, announcements = currentAnnouncements)
                         _homePageFlow.value = PageState.Success(info = homeData, isRefreshing = false)

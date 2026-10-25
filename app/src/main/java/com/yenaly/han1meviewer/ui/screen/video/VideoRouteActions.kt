@@ -49,6 +49,15 @@ class VideoRouteActions(
     private val onRequestDownloadPermissionSettings: () -> Unit,
 ) {
     fun openArtistSearch(artist: HanimeVideo.Artist) {
+        // missav / jable 的影片頁有女優／模特主頁連結：直接列主頁作品，
+        // 避免用日文/英文名字搜索時因譯名不一致而漏作品。
+        val profileUrl = artist.profileUrl?.trim()?.takeIf { it.isNotEmpty() }
+        if (profileUrl != null && (Preferences.isMissavSite || Preferences.isJableSite)) {
+            (context as? MainActivity)?.navController?.navigateSafely(
+                SearchRoute(query = artist.name, sourceUrl = profileUrl)
+            )
+            return
+        }
         val searchKey = genres.firstOrNull { option ->
             option.lang?.let { lang ->
                 artist.genre == lang.zhrCN ||
@@ -103,6 +112,11 @@ class VideoRouteActions(
             viewModel.toggleMissavFavorite(video)
             return
         }
+        // jable 的收藏也是站內 AJAX GET（按 pageContext.videoId）
+        if (Preferences.isJableSite) {
+            viewModel.toggleJableFavorite(video)
+            return
+        }
         if (video.isFav) {
             viewModel.removeFromFavVideo(viewModel.videoCode, video.currentUserId)
         } else {
@@ -110,7 +124,27 @@ class VideoRouteActions(
         }
     }
 
+    /**
+     * jable 的「加入稍後再看」：影片頁的書籤鍵（fav_type=1），
+     * 與 Hanime 的片單/稍後觀看接口完全無關。
+     */
+    fun toggleWatchLater(video: HanimeVideo) {
+        if (!Preferences.isJableSite) return
+        if (!Preferences.isAlreadyLogin) {
+            GlobalToasts.show(context.getString(R.string.login_first), level = GlobalToasts.ToastLevel.WARNING)
+            return
+        }
+        viewModel.toggleJableWatchLater(video)
+    }
+
     fun rateVideo(video: HanimeVideo, isPositive: Boolean) {
+        if (Preferences.isJableSite) {
+            GlobalToasts.show(
+                context.getString(R.string.feature_not_supported_on_site),
+                level = GlobalToasts.ToastLevel.WARNING,
+            )
+            return
+        }
         if (!Preferences.isAlreadyLogin) {
             GlobalToasts.show(context.getString(R.string.login_first), level = GlobalToasts.ToastLevel.WARNING)
             return
@@ -165,6 +199,14 @@ class VideoRouteActions(
     }
 
     fun startDownloadFlow(videoData: HanimeVideo) {
+        // jable 的播放源是簽名 m3u8，下載器只支援直鏈檔案，強行下載會得到播放清單而非影片。
+        if (Preferences.isJableSite) {
+            GlobalToasts.show(
+                context.getString(R.string.feature_not_supported_on_site),
+                level = GlobalToasts.ToastLevel.WARNING,
+            )
+            return
+        }
         if (videoData.videoUrls.isEmpty()) {
             GlobalToasts.show(context.getString(R.string.no_video_links_found), level = GlobalToasts.ToastLevel.WARNING)
             return

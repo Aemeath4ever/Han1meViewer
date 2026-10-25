@@ -23,6 +23,10 @@ class HanimeDataSource : JZDataSource {
         if (resolutionLinkMap.values.any { it.link.contains("surrit.") }) {
             this.headerMap["Referer"] = Preferences.baseUrl
         }
+        // jable 的 m3u8 走第三方簽名 CDN；帶上站點 Referer 更接近站內播放器行為。
+        if (Preferences.isJableSite) {
+            this.headerMap["Referer"] = Preferences.baseUrl
+        }
         this.looping = false
         this.objects = null
     }

@@ -17,6 +17,7 @@ import com.yenaly.han1meviewer.logic.model.HanimeInfo
 import com.yenaly.han1meviewer.logic.model.MyListItems
 import com.yenaly.han1meviewer.logic.model.MyListType
 import com.yenaly.han1meviewer.logic.model.OnlineWatchHistorySort
+import com.yenaly.han1meviewer.logic.model.Playlists
 import com.yenaly.han1meviewer.logic.model.HanimeSearchResult
 import com.yenaly.han1meviewer.logic.model.HomePage
 import com.yenaly.han1meviewer.logic.model.VideoCommentArgs
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.transform
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -53,6 +55,9 @@ import javax.net.ssl.SSLHandshakeException
  * @time 2022/06/08 008 22:38
  */
 object NetworkRepo {
+
+    /** jable 留言每頁條數（站點留言 block 的 `data-parameters` 固定 ipp=5）。 */
+    private const val JABLE_COMMENTS_PAGE_SIZE = 5
 
     //<editor-fold desc="Hanime">
 
@@ -75,6 +80,12 @@ object NetworkRepo {
         }.catch { e ->
             emit(WebsiteState.Error(handleException(e)))
         }.flowOn(Dispatchers.IO)
+    } else if (Preferences.isJableSite) {
+        // jable 是 KVS 站，首頁所有分節都由服務端直出，直接解析根路徑即可。
+        websiteIOFlow(
+            request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
+            action = Parser::jableHomePage,
+        )
     } else {
         websiteIOFlow(
             request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
@@ -95,6 +106,27 @@ object NetworkRepo {
                 },
                 action = { Parser.missavSearch(it, page) },
             )
+        } else if (Preferences.isJableSite) {
+            // jable 同樣只支持關鍵詞；genre/sort/date 等高級篩選不生效。
+            val keyword = query.orEmpty().trim()
+            pageIOFlow(
+                request = {
+                    if (keyword.isEmpty()) {
+                        if (page <= 1) HanimeNetwork.hanimeService.getJableSearchAll()
+                        else HanimeNetwork.hanimeService.getJableSearchAllPage(page)
+                    } else {
+                        if (page <= 1) HanimeNetwork.hanimeService.getJableSearch(keyword)
+                        else HanimeNetwork.hanimeService.getJableSearchPage(
+                            query = keyword,
+                            q = keyword,
+                            from = page,
+                            fromVideos = page,
+                            fromAlbums = page,
+                        )
+                    }
+                },
+                action = { Parser.jableSearch(it, page) },
+            )
         } else {
             pageIOFlow(
                 request = {
@@ -107,6 +139,296 @@ object NetworkRepo {
                 action = Parser::hanimeSearch
             )
         }
+    }
+
+    /**
+     * 女優／模特主頁的作品列表。
+     *
+     * - missav：`/actresses/{name}?page=N`（Laravel 分頁）。
+     * - jable：`/models/{hash}/{N}/`；若該路徑式分頁沒有卡片，再退回 `?page=N`。
+     *
+     * 女優名字在不同語言下有多種寫法，按名字搜索會漏作品；直接用站內主頁連結最準。
+     */
+    fun getArtistVideos(
+        profileUrl: String,
+        page: Int,
+    ): Flow<PageLoadingState<HanimeSearchResult>> {
+        val url = profileUrl.toAbsoluteSiteUrl()
+        return when {
+            Preferences.isMissavSite -> pageIOFlow(
+                request = { HanimeNetwork.hanimeService.getHomePage(url.withPageQuery(page)) },
+                action = { Parser.missavArtistVideos(it, page) },
+            )
+
+            Preferences.isJableSite -> jableArtistVideosFlow(url, page)
+
+            else -> flow {
+                emit(PageLoadingState.NoMoreData)
+            }
+        }
+    }
+
+    /**
+     * jable 模特頁分頁。KVS 主題可能用路徑式（`/models/{hash}/2/`）或
+     * query 式（`/models/{hash}/?page=2`）分頁，先試路徑式，拿不到卡片再試 query。
+     */
+    private fun jableArtistVideosFlow(
+        profileUrl: String,
+        page: Int,
+    ): Flow<PageLoadingState<HanimeSearchResult>> = flow {
+        val base = profileUrl.trimEnd('/')
+        val candidates = if (page <= 1) {
+            listOf("$base/")
+        } else {
+            listOf("$base/$page/", "$base/?page=$page")
+        }
+        var lastState: PageLoadingState<HanimeSearchResult>? = null
+        for (candidate in candidates) {
+            val state = try {
+                val response = HanimeNetwork.hanimeService.getHomePage(candidate)
+                val body = response.body()?.string()?.replaceBackupMediaCdnHost()
+                if (!response.isSuccessful || body == null) response.throwRequestException()
+                Parser.jableArtistVideos(body, page)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PageLoadingState.Error(handleException(e))
+            }
+            lastState = state
+            val hasCards = (state as? PageLoadingState.Success)
+                ?.info?.list?.isNotEmpty() == true
+            if (hasCards || candidate == candidates.last()) {
+                emit(state)
+                return@flow
+            }
+        }
+        emit(lastState ?: PageLoadingState.NoMoreData)
+    }.catch { e ->
+        emit(PageLoadingState.Error(handleException(e)))
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * jable 會員中心影片列表（喜歡 / 稍後觀看）。
+     *
+     * KVS 主題常把 `/my/` 做成 profile 首頁，真正的影片 block 必須帶 async 參數；
+     * 若該主題不吃 block 參數，再退回完整 `/my/` 頁面解析。第 1 頁兩者都拿不到卡片時
+     * 回空列表（真的沒收藏），第 2 頁起同理，UI 會據此停止翻頁。
+     */
+    private fun jableFavouritesFlow(
+        page: Int,
+        favType: Int,
+    ): Flow<PageLoadingState<MyListItems<HanimeInfo>>> = flow {
+        val candidates: List<suspend () -> Response<ResponseBody>> = buildList {
+            add {
+                HanimeNetwork.hanimeService.getJableMyFavourites(
+                    favType = favType,
+                    from = page,
+                )
+            }
+            if (page <= 1) {
+                add { HanimeNetwork.hanimeService.getJableMyPage() }
+            }
+        }
+        var lastError: Throwable? = null
+        for ((index, request) in candidates.withIndex()) {
+            try {
+                val response = request()
+                val body = response.body()?.string()?.replaceBackupMediaCdnHost()
+                if (!response.isSuccessful || body == null) {
+                    response.throwRequestException()
+                }
+                val state = Parser.jableUserVideoList(body, page)
+                val cards = (state as? PageLoadingState.Success)
+                    ?.info?.hanimeInfo.orEmpty()
+                if (cards.isNotEmpty() || index == candidates.lastIndex) {
+                    emit(state)
+                    return@flow
+                }
+                Log.d(
+                    "jable_user",
+                    "fav_type=$favType page=$page candidate #$index empty, trying next"
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastError = e
+                Log.w(
+                    "jable_user",
+                    "fav_type=$favType page=$page candidate #$index failed: ${e.message}"
+                )
+            }
+        }
+        emit(
+            PageLoadingState.Error(
+                handleException(
+                    lastError ?: IllegalStateException("jable favourites returned no data")
+                )
+            )
+        )
+    }.catch { e ->
+        emit(PageLoadingState.Error(handleException(e)))
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * jable 會員中心的片單資料夾列表。
+     *
+     * 先走 `/my/playlists/`；部分主題把片單掛在 `/my/?type=playlists`，
+     * 404 或空列表時自動改試後者。`listCode` 保存完整連結，供列表內容使用。
+     */
+    private fun jablePlaylistsFlow(page: Int): Flow<WebsiteState<Playlists>> = flow {
+        val base = Preferences.baseUrl.trimEnd('/')
+        val typePlaylistsUrl = "$base/my/?type=playlists"
+        val candidates: List<suspend () -> Response<ResponseBody>> = buildList {
+            if (page <= 1) {
+                add { HanimeNetwork.hanimeService.getJableMyPlaylists() }
+                add { HanimeNetwork.hanimeService.getHomePage(typePlaylistsUrl) }
+            } else {
+                add { HanimeNetwork.hanimeService.getJableMyPlaylistsPage(from = page) }
+                add {
+                    HanimeNetwork.hanimeService.getHomePage(
+                        typePlaylistsUrl.withJableBlock(
+                            blockId = "list_playlists_my_created_playlists",
+                            fromParam = "from_my_playlists",
+                            from = page,
+                        )
+                    )
+                }
+            }
+        }
+        var lastState: WebsiteState<Playlists>? = null
+        for ((index, request) in candidates.withIndex()) {
+            try {
+                val response = request()
+                val body = response.body()?.string()?.replaceBackupMediaCdnHost()
+                if (!response.isSuccessful || body == null) {
+                    response.throwRequestException()
+                }
+                val state = Parser.jablePlaylists(body)
+                lastState = state
+                val lists = (state as? WebsiteState.Success)?.info?.playlists.orEmpty()
+                if (lists.isNotEmpty() || index == candidates.lastIndex) {
+                    emit(state)
+                    return@flow
+                }
+                Log.d("jable_playlists", "page=$page candidate #$index empty, trying next")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastState = WebsiteState.Error(handleException(e))
+                Log.w(
+                    "jable_playlists",
+                    "page=$page candidate #$index failed: ${e.message}"
+                )
+            }
+        }
+        emit(lastState ?: WebsiteState.Error(IllegalStateException("jable playlists failed")))
+    }.catch { e ->
+        emit(WebsiteState.Error(handleException(e)))
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * jable 單個片單的內容。
+     *
+     * `listCode` 是片單資料夾頁解析出來的完整連結（`/my/playlists/{id}/` 或
+     * `/playlists/{id}/{slug}/`）。第 2 頁起優先走 KVS block；不同主題的 block id
+     * 可能是 `playlist_view_playlist_view` 或 `list_videos_my_favourite_videos`，
+     * 故依序嘗試，最後才退回路徑式分頁。
+     */
+    private fun jablePlaylistItemsFlow(
+        listCode: String,
+        page: Int,
+    ): Flow<PageLoadingState<MyListItems<HanimeInfo>>> = flow {
+        val url = listCode.toAbsoluteSiteUrl()
+        val playlistId = Regex("""/(?:my/)?playlists/([^/?#]+)""")
+            .find(url)
+            ?.groupValues
+            ?.get(1)
+        val candidates = mutableListOf<String>()
+        if (page <= 1) candidates += url
+        candidates += url.withJableBlock(
+            blockId = "playlist_view_playlist_view",
+            fromParam = "from",
+            from = page,
+        )
+        if (playlistId != null) {
+            candidates += url.withJableBlock(
+                blockId = "list_videos_my_favourite_videos",
+                fromParam = "from_my_fav_videos",
+                from = page,
+                extra = mapOf("fav_type" to "0", "playlist_id" to playlistId),
+            )
+        }
+        if (page > 1 && !url.contains('?')) {
+            candidates += url.trimEnd('/') + "/$page/"
+        }
+
+        var lastError: Throwable? = null
+        for ((index, candidate) in candidates.withIndex()) {
+            try {
+                val response = HanimeNetwork.hanimeService.getHomePage(candidate)
+                val body = response.body()?.string()?.replaceBackupMediaCdnHost()
+                if (!response.isSuccessful || body == null) {
+                    response.throwRequestException()
+                }
+                val state = Parser.jableUserVideoList(body, page)
+                val cards = (state as? PageLoadingState.Success)
+                    ?.info?.hanimeInfo.orEmpty()
+                if (cards.isNotEmpty() || index == candidates.lastIndex) {
+                    emit(state)
+                    return@flow
+                }
+                Log.d(
+                    "jable_playlist",
+                    "page=$page candidate #$index empty: $candidate"
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastError = e
+                Log.w(
+                    "jable_playlist",
+                    "page=$page candidate #$index failed: ${e.message}"
+                )
+            }
+        }
+        emit(
+            PageLoadingState.Error(
+                handleException(
+                    lastError ?: IllegalStateException("jable playlist returned no data")
+                )
+            )
+        )
+    }.catch { e ->
+        emit(PageLoadingState.Error(handleException(e)))
+    }.flowOn(Dispatchers.IO)
+
+    private fun String.withJableBlock(
+        blockId: String,
+        fromParam: String,
+        from: Int,
+        extra: Map<String, String> = emptyMap(),
+    ): String {
+        val url = toAbsoluteSiteUrl().toHttpUrlOrNull() ?: return this
+        return url.newBuilder()
+            .addQueryParameter("mode", "async")
+            .addQueryParameter("function", "get_block")
+            .addQueryParameter("block_id", blockId)
+            .addQueryParameter(fromParam, from.toString())
+            .apply { extra.forEach { (key, value) -> addQueryParameter(key, value) } }
+            .addQueryParameter("_", System.currentTimeMillis().toString())
+            .build()
+            .toString()
+    }
+
+    private fun String.toAbsoluteSiteUrl(): String {
+        if (startsWith("http://") || startsWith("https://")) return this
+        return Preferences.baseUrl.trimEnd('/') + "/" + trimStart('/')
+    }
+
+    private fun String.withPageQuery(page: Int): String {
+        if (page <= 1) return this
+        val url = toHttpUrlOrNull() ?: return this
+        return url.newBuilder().setQueryParameter("page", page.toString()).build().toString()
     }
 
     fun getHanimeVideo(videoCode: String) =
@@ -122,6 +444,11 @@ object NetworkRepo {
                     } else state
                 )
             }.flowOn(Dispatchers.IO)
+        } else if (Preferences.isJableSite) {
+            videoIOFlow(
+                request = { HanimeNetwork.hanimeService.getJableVideo(videoCode) },
+                action = Parser::jableVideo,
+            )
         } else {
             videoIOFlow(
                 request = { HanimeNetwork.hanimeService.getHanimeVideo(videoCode) },
@@ -180,6 +507,25 @@ object NetworkRepo {
         return java.io.IOException("missav 登入失敗：HTTP $code$hint")
     }
 
+    /**
+     * jable 登入失敗原因：KVS 回 `{status:"failure", errors:[{field, code, message}]}`，
+     * 直接把第一條 message 交给使用者。
+     */
+    private fun jableLoginError(code: Int, body: String?): Throwable {
+        val json = runCatching { JSONObject(body.orEmpty()) }.getOrNull()
+        val message = json?.optJSONArray("errors")?.let { errors ->
+            (0 until errors.length())
+                .mapNotNull { index ->
+                    errors.optJSONObject(index)?.optString("message")
+                        ?.takeIf { it.isNotBlank() }
+                }
+                .firstOrNull()
+        }
+        if (!message.isNullOrBlank()) return IllegalStateException(message)
+        val hint = if (code == 403) "（Cloudflare 人機驗證攔截）" else ""
+        return java.io.IOException("jable 登入失敗：HTTP $code$hint")
+    }
+
     /** 當前 missav 主機名（可能被鏡像站覆蓋，不能寫死 `missav.ai`）。 */
     private fun missavHost(): String = runCatching {
         java.net.URI(Preferences.baseUrl).host
@@ -233,7 +579,7 @@ object NetworkRepo {
     }
 
     /**
-     * missav「喜歡」切換。注意與漢米不同：按站內 itemId 操作，取消用 DELETE。
+     * missav「喜歡」切換。注意與 Hanime不同：按站內 itemId 操作，取消用 DELETE。
      */
     fun missavToggleSave(itemId: String, save: Boolean) = websiteIOFlow(
         request = {
@@ -244,6 +590,42 @@ object NetworkRepo {
     ) { body ->
         Log.d("missav_save", "save=$save, body=$body")
         WebsiteState.Success(save)
+    }
+
+    /**
+     * jable「收藏」切換。
+     *
+     * 站點 JS 是對當前影片頁發 GET（`mode=async&format=json&action=...`），
+     * 成功回 `{"status":"success"}`；未登入回 `not_logged_in`。
+     */
+    fun jableToggleFavorite(
+        videoCode: String,
+        videoId: String,
+        add: Boolean,
+        favType: Int = 0,
+    ) = websiteIOFlow(
+        request = {
+            HanimeNetwork.hanimeService.jableToggleFavourite(
+                videoCode = videoCode,
+                action = if (add) "add_to_favourites" else "delete_from_favourites",
+                videoId = videoId,
+                videoIds = videoId,
+                favType = favType,
+            )
+        }
+    ) { body ->
+        val json = runCatching { JSONObject(body) }.getOrNull()
+        if (json?.optString("status") == "success") {
+            WebsiteState.Success(add)
+        } else {
+            val message = json?.optJSONArray("errors")
+                ?.optJSONObject(0)
+                ?.optString("message")
+                ?.takeIf { it.isNotBlank() }
+            WebsiteState.Error(
+                IllegalStateException(message ?: body.take(200).ifBlank { "jable favourite failed" })
+            )
+        }
     }
 
     /**
@@ -281,6 +663,32 @@ object NetworkRepo {
     //<editor-fold desc="My List">
 
     fun getMyListItems(userId: String, listType: Any, page: Int): Flow<PageLoadingState<MyListItems<HanimeInfo>>> {
+        // jable 是 KVS 會員中心：
+        //  - 喜歡 / 稍後觀看共用同一個 block，只差 fav_type（0/1）；
+        //  - 片單內容由 getMyPlayListItems 按片單連結抓取。
+        if (Preferences.isJableSite) {
+            return when (listType) {
+                is MyListType -> when (listType) {
+                    MyListType.FAV_VIDEO -> jableFavouritesFlow(page, favType = 0)
+                    MyListType.WATCH_LATER -> jableFavouritesFlow(page, favType = 1)
+                    else -> kotlinx.coroutines.flow.flowOf(PageLoadingState.NoMoreData)
+                }
+
+                is String -> when (listType) {
+                    MyListType.FAV_VIDEO.value -> jableFavouritesFlow(page, favType = 0)
+                    MyListType.WATCH_LATER.value -> jableFavouritesFlow(page, favType = 1)
+                    else -> if (listType.contains("/playlists/") ||
+                        listType.startsWith("http")
+                    ) {
+                        jablePlaylistItemsFlow(listType, page)
+                    } else {
+                        kotlinx.coroutines.flow.flowOf(PageLoadingState.NoMoreData)
+                    }
+                }
+
+                else -> kotlinx.coroutines.flow.flowOf(PageLoadingState.NoMoreData)
+            }
+        }
         if (Preferences.isMissavSite) {
             // missav 的「喜歡」= /cn/saved（站內用 api/items/{id}/save 切換）。
             // 「稍後觀看」在這個站沒有對應頁面，UI 已隱藏，這裡返回空。
@@ -315,7 +723,8 @@ object NetworkRepo {
     }
 
     fun getMyPlayListItems(page: Int = 1, listCode: String = "0") =
-        if (Preferences.isMissavSite) pageIOFlow(
+        if (Preferences.isJableSite) jablePlaylistItemsFlow(listCode, page)
+        else if (Preferences.isMissavSite) pageIOFlow(
             request = { HanimeNetwork.hanimeService.getMissavPlaylistItems(listCode, page) },
             action = { Parser.missavUserVideoList(it, page) },
         ) else pageIOFlow(
@@ -329,7 +738,8 @@ object NetworkRepo {
         userId: String,
         sort: OnlineWatchHistorySort,
         page: Int,
-    ) = if (Preferences.isMissavSite) pageIOFlow(
+    ) = if (Preferences.isJableSite) kotlinx.coroutines.flow.flowOf(PageLoadingState.NoMoreData)
+    else if (Preferences.isMissavSite) pageIOFlow(
         request = { HanimeNetwork.hanimeService.getMissavHistory(page) },
         action = { Parser.missavUserVideoList(it, page) },
     ) else pageIOFlow(
@@ -495,7 +905,8 @@ object NetworkRepo {
     }
 
     fun getPlaylists(page: Int, userId: String ) =
-        if (Preferences.isMissavSite) websiteIOFlow(
+        if (Preferences.isJableSite) jablePlaylistsFlow(page)
+        else if (Preferences.isMissavSite) websiteIOFlow(
             request = { HanimeNetwork.hanimeService.getMissavPlaylistFolders(page) },
             action = Parser::missavPlaylistFolders,
         ) else websiteIOFlow(
@@ -608,10 +1019,46 @@ object NetworkRepo {
 
     //<editor-fold desc="Comment">
 
-    fun getComments(type: String, code: String) = websiteIOFlow(
-        request = { HanimeNetwork.commentService.getComments(type, code) },
-        action = Parser::comments
-    )
+    fun getComments(type: String, code: String): Flow<WebsiteState<VideoComments>> {
+        // jable 的留言就是原站影片頁的 KVS comments block，與 Hanime 的
+        // `loadComment` 接口無關；影片碼在這裏是 jable 的 slug。
+        if (Preferences.isJableSite) return jableCommentsFlow(code)
+        return websiteIOFlow(
+            request = { HanimeNetwork.commentService.getComments(type, code) },
+            action = Parser::comments
+        )
+    }
+
+    /**
+     * jable 留言：先解析影片頁自帶的第一頁，再按站點「載入更多」的規則
+     * （`data-max-queries=3`、每頁 5 條）補 2~4 頁。
+     * 第一頁先 emit，後續頁面拿到再更新，避免用戶要等 4 個請求才看到留言。
+     */
+    private fun jableCommentsFlow(videoCode: String) = flow {
+        val firstResponse = HanimeNetwork.hanimeService.getJableVideo(videoCode)
+        val firstBody = firstResponse.body()?.string()?.replaceBackupMediaCdnHost()
+        if (!firstResponse.isSuccessful || firstBody == null) {
+            firstResponse.throwRequestException()
+        }
+        val first = Parser.jableComments(firstBody ?: EMPTY_STRING)
+        emit(first)
+
+        val all = (first as? WebsiteState.Success)?.info?.videoComment ?: return@flow
+        if (all.isEmpty()) return@flow
+        for (page in 2..4) {
+            val response = HanimeNetwork.hanimeService.getJableCommentsPage(videoCode, from = page)
+            val body = response.body()?.string()
+            if (!response.isSuccessful || body == null) break
+            val more = (Parser.jableComments(body) as? WebsiteState.Success)
+                ?.info?.videoComment.orEmpty()
+            if (more.isEmpty()) break
+            all.addAll(more)
+            emit(WebsiteState.Success(VideoComments(all.toMutableList())))
+            if (more.size < JABLE_COMMENTS_PAGE_SIZE) break
+        }
+    }.catch { e ->
+        emit(WebsiteState.Error(handleException(e)))
+    }.flowOn(Dispatchers.IO)
 
     fun getCommentReply(commentId: String) = websiteIOFlow(
         request = { HanimeNetwork.commentService.getCommentReply(commentId) },
@@ -816,6 +1263,48 @@ object NetworkRepo {
                 // 把真正的原因帶給使用者：422 取服務端原文（Laravel 的 message / errors），
                 // 403 是 Cloudflare 攔截，其餘保留 HTTP 狀態碼。
                 emit(WebsiteState.Error(missavLoginError(req.code(), respBody)))
+            }
+        } else if (Preferences.isJableSite) {
+            val host = missavHost()
+            // 預熱 WebView 拿到的 cf_clearance / 會話 cookie；Cloudflare 的盾要靠它。
+            seedMissavCookies(host, seedCookies.orEmpty())
+            val loginPage = HanimeNetwork.hanimeService.getJableLoginPage()
+            val loginBody = loginPage.body()?.string()
+            if (!loginPage.isSuccessful || loginBody.isNullOrBlank()) {
+                emit(WebsiteState.Error(jableLoginError(loginPage.code(), null)))
+            } else {
+                val fields = Parser.jableLoginFormFields(loginBody, email, password)
+                val req = HanimeNetwork.hanimeService.jableLogin(fields)
+                val respBody = readResponseBody(req)
+                val json = runCatching { JSONObject(respBody.orEmpty()) }.getOrNull()
+                Log.d(
+                    "jable_login",
+                    "login resp code=${req.code()}, status=${json?.optString("status")}",
+                )
+                if (req.isSuccessful && json?.optString("status") == "success") {
+                    val merged = LinkedHashMap<String, String>()
+                    fun putAll(list: List<String>) {
+                        list.forEach { c ->
+                            val name = c.substringBefore('=').trim()
+                            if (name.isNotEmpty()) merged[name] = c
+                        }
+                    }
+                    putAll(req.headers().values("Set-Cookie").map { it.substringBefore(';') })
+                    putAll(
+                        com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap[host]
+                            .orEmpty()
+                            .map { "${it.name}=${it.value}" }
+                    )
+                    val cookies = merged.values.toList()
+                    Log.d("jable_login", "login ok, cookies=${cookies.map { it.substringBefore('=') }}")
+                    if (cookies.isEmpty()) {
+                        emit(WebsiteState.Error(IllegalStateException(getString(R.string.login_failed))))
+                    } else {
+                        emit(WebsiteState.Success(cookies))
+                    }
+                } else {
+                    emit(WebsiteState.Error(jableLoginError(req.code(), respBody)))
+                }
             }
         } else {
             // 首先获取token

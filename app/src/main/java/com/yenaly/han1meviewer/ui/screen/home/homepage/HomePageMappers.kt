@@ -65,6 +65,19 @@ fun buildHomeHeroItems(
  * @return 当前站点类型下存在视频内容的分类行列表。
  */
 fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
+    // jable 的分節來自站點自身（最近更新/全新上市/熱門影片/他們在看），
+    // 與 Hanime固定分類沒有對應關係，原樣按頁面順序展示。
+    if (Preferences.isJableSite) {
+        return homePage.jableSections.mapIndexed { index, section ->
+            HomeCategory(
+                key = "$HOME_CATEGORY_JABLE_SECTION_PREFIX$index",
+                titleRes = R.string.latest_av,
+                titleText = section.title,
+                videos = section.videos,
+            )
+        }.filter { it.videos.isNotEmpty() }
+    }
+
     val isAVSite = Preferences.baseUrl == HanimeConstants.HANIME_URL[3]
 
     return listOfNotNull(

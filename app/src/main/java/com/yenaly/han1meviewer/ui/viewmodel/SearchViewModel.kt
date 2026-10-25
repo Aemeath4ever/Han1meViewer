@@ -81,6 +81,14 @@ class SearchViewModel(
         get() = state["duration"]
         set(value) { state["duration"] = value }
 
+    /**
+     * 女優／模特主页地址。非空时列表来自该主页而不是关键词搜索；
+     * 用户重新输入关键词或应用高级筛选时清空。
+     */
+    var sourceUrl: String?
+        get() = state["sourceUrl"]
+        set(value) { state["sourceUrl"] = value }
+
     var gridFirstVisibleItemIndex: Int
         get() = state["gridFirstVisibleItemIndex"] ?: 0
         set(value) {
@@ -146,6 +154,7 @@ class SearchViewModel(
         approxTime = null
         broad = false
         duration = null
+        sourceUrl = null
         tagMap.clear()
         brandMap.clear()
         recyclerViewState = null
@@ -166,29 +175,38 @@ class SearchViewModel(
                 page, query, genre,
                 sort, broad, date ,
                 duration, tags, brands
-            ).collect { state ->
-                _searchStateFlow.value = state
-                if (state is PageLoadingState.Success) {
-                    _totalPagesFlow.value = state.info.totalPages
-                    val list = state.info.list
-                    val updatedList = if (Preferences.showPlayedIndicator) {
-                        val codes = list.map { it.videoCode }
-                        val watchedCodes = withContext(Dispatchers.IO) {
-                            DatabaseRepo.WatchHistory.getWatched(codes).toSet()
-                        }
-                        list.map { item ->
-                            item.copy(watched = watchedCodes.contains(item.videoCode))
-                        }
-                    } else {
-                        list
-                    }
-                    if (Preferences.searchPagination) {
-                        _searchFlow.value = updatedList
-                    } else {
-                        _searchFlow.update { prevList ->
-                            (prevList + updatedList).distinctBy(HanimeInfo::videoCode)
-                        }
-                    }
+            ).collect(::applySearchState)
+        }
+    }
+
+    /** 女優／模特主頁的作品列表，複用搜索結果的狀態與增量合併邏輯。 */
+    fun getArtistVideos(sourceUrl: String, page: Int) {
+        viewModelScope.launch {
+            NetworkRepo.getArtistVideos(sourceUrl, page).collect(::applySearchState)
+        }
+    }
+
+    private suspend fun applySearchState(state: PageLoadingState<HanimeSearchResult>) {
+        _searchStateFlow.value = state
+        if (state is PageLoadingState.Success) {
+            _totalPagesFlow.value = state.info.totalPages
+            val list = state.info.list
+            val updatedList = if (Preferences.showPlayedIndicator) {
+                val codes = list.map { it.videoCode }
+                val watchedCodes = withContext(Dispatchers.IO) {
+                    DatabaseRepo.WatchHistory.getWatched(codes).toSet()
+                }
+                list.map { item ->
+                    item.copy(watched = watchedCodes.contains(item.videoCode))
+                }
+            } else {
+                list
+            }
+            if (Preferences.searchPagination) {
+                _searchFlow.value = updatedList
+            } else {
+                _searchFlow.update { prevList ->
+                    (prevList + updatedList).distinctBy(HanimeInfo::videoCode)
                 }
             }
         }
@@ -270,12 +288,15 @@ class SearchViewModel(
     val refreshTriggerFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     fun triggerNewSearch() {
         page = 1
+        // 高級搜索的條件生效時，退出女優主頁模式
+        sourceUrl = null
         clearHanimeSearchResult()
         refreshTriggerFlow.tryEmit(Unit)
     }
     fun restoreSearchMap(history: HanimeAdvancedSearchHistoryEntity) {
         with(this) {
             page = 1
+            sourceUrl = null
             query = history.query
             genre = history.genre
             sort = history.sort
