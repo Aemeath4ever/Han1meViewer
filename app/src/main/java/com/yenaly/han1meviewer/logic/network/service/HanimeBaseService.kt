@@ -11,7 +11,9 @@ import retrofit2.http.*
 data class MissavLoginRequest(
     val email: String,
     val password: String,
-    val remember: Boolean = true,
+    // 不給預設值：kotlinx.serialization 預設不會編碼「等於預設值」的欄位，
+    // 給預設值會讓 remember 從請求體裡消失。
+    val remember: Boolean,
 )
 
 /**

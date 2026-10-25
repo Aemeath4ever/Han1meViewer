@@ -40,9 +40,17 @@ object ServiceCreator {
 
     private val dns = HDns()
 
+    /**
+     * 注意：**必須**掛 kotlinx-serialization 轉換器。
+     * 以前這裏沒有轉換器，凡是 `@Body` 自訂型別的介面（missav 的
+     * `missavLogin` / `missavPlaylistAdd` / `missavPlaylistRemove`）在呼叫時就會
+     * 同步拋 `IllegalArgumentException: Unable to create @Body converter`，
+     * 請求根本發不出去 —— 表現為「點登入毫無反應」。
+     */
     inline fun <reified T> create(baseUrl: String): T = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(hClient)
+        .addConverterFactory(HJson.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(T::class.java)
 
