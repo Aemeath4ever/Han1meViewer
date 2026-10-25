@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,30 +56,52 @@ fun PlaylistItem(
     ) {
         Column {
             Box(modifier = Modifier.height(100.dp)) {
-                RetryableImage(
-                    model = playlist.coverUrl ?: "",
-                    contentDescription = playlist.title,
-                    placeholder = painterResource(R.drawable.h_chan_loading),
-                    error = painterResource(R.drawable.h_chan_load_failed),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .background(
-                            MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(topStart = 8.dp)
+                val cover = playlist.coverUrl
+                if (cover.isNullOrBlank()) {
+                    // missav 的片單列表頁不提供封面。以前把空字串丟給 RetryableImage，
+                    // 顯示的是「載入失敗」的佔位圖 —— 看起來就像封面抓錯了。
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_baseline_list_24),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(36.dp),
                         )
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.video_count, playlist.total),
-                        style = MaterialTheme.typography.bodySmall.copy(color = Color.White),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    }
+                } else {
+                    RetryableImage(
+                        model = cover,
+                        contentDescription = playlist.title,
+                        placeholder = painterResource(R.drawable.h_chan_loading),
+                        error = painterResource(R.drawable.h_chan_load_failed),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
                     )
+                }
+
+                // total < 0 = 站點未提供數量（missav），不顯示「-1 部」
+                if (playlist.total >= 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .background(
+                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(topStart = 8.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.video_count, playlist.total),
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color.White),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 

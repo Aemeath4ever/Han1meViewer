@@ -826,27 +826,45 @@ object Parser {
         val parseBody = Jsoup.parse(body).body()
         val lists = mutableListOf<Playlists.Playlist>()
         val seen = mutableSetOf<String>()
-        for (a in parseBody.select("a[href]")) {
+        // 片單列表是 `<ul role="list"><li><a href="/cn/playlists/{key}">`。
+        // 同頁還有三個坑：
+        //  1. 「建立片單」指向 `/playlists/create`，會被當成一個片單；
+        //  2. 分頁/麵包屑是 `?page=N` 連結；
+        //  3. 第 2 頁以後（超出實際片單數時）只會剩「建立片單」。
+        // 以前三者都沒排除，於是每頁都解析出 1 個「片單」→ 列表永遠不為空 →
+        // ViewModel 的 noMore 永不成立 → 一直翻到 page=30 還在 fetch。
+        for (a in parseBody.select("li a[href]")) {
             val href = a.attr("href")
+            if (href.contains("page=")) continue
             val idx = href.indexOf("/playlists/")
             if (idx < 0) continue
             val key = href.substring(idx + "/playlists/".length)
                 .substringBefore('?').trim('/')
-            if (key.isBlank() || !seen.add(key)) continue
-            val img = a.selectFirst("img")
-            val cover = img?.let { it.attr("data-src").ifBlank { it.attr("src") } }
-            val title = a.text().trim().ifBlank { img?.attr("alt").orEmpty() }.ifBlank { key }
+            if (key.isBlank() || key == "create" || !seen.add(key)) continue
+            // 標題是卡片裏的第一個 <p>（class 含 truncate）；用 a.text() 會把
+            // 「私人 / 擁有者 / 最后更新于 …」整串吞進來。
+            val title = a.selectFirst("p.truncate")?.text()?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: a.selectFirst("p")?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                ?: key
+            // missav 的片單列表頁不提供封面，也沒有影片數量（站點本身就只列名稱/擁有者/更新時間）。
+            // total = -1 / coverUrl = null 由 UI 顯示中性佔位，不再顯示「-1 部」和載入失敗圖。
             lists += Playlists.Playlist(
                 listCode = key,
                 title = title,
                 total = -1,
-                coverUrl = cover?.takeIf { it.isNotBlank() },
+                coverUrl = null,
             )
         }
-        val hasNext = parseBody.select("a[href]").any { it.attr("href").contains("page=2") }
-        Log.d("missav_user", "playlist folders=${lists.size} hasNext=$hasNext")
+        val maxPage = parseBody.select("a[href]")
+            .mapNotNull {
+                Regex("""[?&]page=(\d+)""").find(it.attr("href"))
+                    ?.groupValues?.get(1)?.toIntOrNull()
+            }
+            .maxOrNull() ?: 1
+        Log.d("missav_user", "playlist folders=${lists.size} maxPage=$maxPage")
         return WebsiteState.Success(
-            Playlists(playlists = lists, csrfToken = null, maxPage = if (hasNext) 2 else 1)
+            Playlists(playlists = lists, csrfToken = null, maxPage = maxPage)
         )
     }
 
