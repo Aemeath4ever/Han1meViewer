@@ -6,10 +6,11 @@ import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.logic.isMissavUncensoredCode
 import com.yenaly.han1meviewer.logic.model.HanimeInfo
 import com.yenaly.han1meviewer.logic.model.HomePage
+import com.yenaly.han1meviewer.util.toLoginCookieList
 import com.yenaly.yenaly_libs.utils.applicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -202,8 +203,10 @@ object MissavRecommender {
     }
 
     private fun post(path: String, token: String, body: String): String? {
+        // Recombee 的路徑是 `/{databaseId}{path}`；簽名裡帶了 database 前綴，
+        // 實際請求 URL 也必須帶，否則第一個 path 段會被當成 databaseId → 401。
         val request = Request.Builder()
-            .url(BASE_URI + signedPath(path, token))
+            .url("$BASE_URI/$DATABASE" + signedPath(path, token))
             .post(body.toRequestBody(mediaType))
             .build()
         return runCatching {
@@ -245,35 +248,48 @@ object MissavRecommender {
     //<editor-fold desc="使用者 id / token">
 
     /**
-     * 站點把推薦畫像記在 cookie `user_uuid` 下面。優先沿用站點的 id（WebView 登入時
-     * 會把整串 cookie 灌進 jar），沒有才生成一個並寫回去，保證 WebView 與 okhttp 用同一個。
+     * 站點把推薦畫像記在 cookie `user_uuid` 下面。
+     *
+     * 站點自己的 id 在登錄 cookie 裏（登入時從 WebView 整串抄過來），必須優先採用 ——
+     * 之前只看 jar，而 jar 裏是舊版寫進去的隨機 UUID，等於每次都在用一個沒有歷史行為的
+     * 新畫像，推薦自然不準。找不到站點 id 才退回 jar / 本地生成的 id。
      */
     private fun userUuid(): String {
         val host = runCatching { URI(Preferences.baseUrl).host }.getOrNull()
         if (host != null) {
-            HCookieJar.cookieMap[host]
+            Preferences.loginCookieStateFlow.value.toLoginCookieList(host)
+                .firstOrNull { it.name == "user_uuid" }
+                ?.value?.takeIf { it.isNotBlank() }
+                ?.let { uuid ->
+                    // 讓 jar 也回到站點的 id（舊版本可能留了一個隨機 UUID 在裏面）
+                    HCookieJar.putRawCookieString(host, "user_uuid=$uuid")
+                    return uuid
+                }
+            runCatching {
+                Preferences.baseUrl.toHttpUrlOrNull()?.let { HCookieJar().loadForRequest(it) }
+            }.getOrNull()
                 ?.firstOrNull { it.name == "user_uuid" }
                 ?.value?.takeIf { it.isNotBlank() }
                 ?.let { return it }
         }
-        Preferences.missavUserUuid.takeIf { it.isNotBlank() }?.let { uuid ->
-            if (host != null) HCookieJar.putRawCookieString(host, "user_uuid=$uuid")
-            return uuid
-        }
+        Preferences.missavUserUuid.takeIf { it.isNotBlank() }?.let { return it }
         val uuid = UUID.randomUUID().toString()
         Preferences.missavUserUuid = uuid
-        if (host != null) HCookieJar.putRawCookieString(host, "user_uuid=$uuid")
         return uuid
     }
 
-    private suspend fun publicToken(homeHtml: String): String? {
+    private fun publicToken(homeHtml: String): String? {
         Preferences.missavRecombeeToken.takeIf { it.isNotBlank() }?.let { return it }
         val jsUrl = extractAppJsUrl(homeHtml) ?: return null
-        // 首次要下載 ~100KB 的 bundle；給個上限，別讓首頁卡在「推薦」上
+        // 首次要下載 ~100KB 的 bundle。不能走 hClient：靜態資源被盾攔時
+        // CloudflareInterceptor 會彈出驗證頁（用戶看到的是「驗證頁打開了一個 js 檔」），
+        // 而且會把首頁請求一起卡住。取不到就默默跳過推薦。
         val js = runCatching {
-            withTimeoutOrNull(15_000) {
-                HanimeNetwork.hanimeService.getHomePage(jsUrl).body()?.string()
-            }
+            ServiceCreator.assetClient
+                .newCall(Request.Builder().url(jsUrl).build())
+                .execute().use { response ->
+                    if (response.isSuccessful) response.body?.string() else null
+                }
         }.getOrNull() ?: return null
         val token = Regex(
             """ApiClient\(\s*["']$DATABASE["']\s*,\s*["']([^"']+)["']"""
@@ -292,8 +308,11 @@ object MissavRecommender {
 
     /** 站點 `window.genreMap`（日文標籤 id → 當前語言的名稱）。 */
     private fun parseGenreMap(homeHtml: String): Map<String, String> {
-        val raw = Regex("""window\.genreMap\s*=\s*(\{.*?})\s*;""")
-            .find(homeHtml)?.groupValues?.get(1) ?: return emptyMap()
+        // `}` 在 Java 正則裡要轉義，否則 PatternSyntaxException（同 Parser 裡踩過的坑）
+        val raw = Regex(
+            """window\.genreMap\s*=\s*(\{.*?\})\s*;""",
+            RegexOption.DOT_MATCHES_ALL,
+        ).find(homeHtml)?.groupValues?.get(1) ?: return emptyMap()
         val json = runCatching { JSONObject(raw) }.getOrNull() ?: return emptyMap()
         return buildMap {
             json.keys().forEach { key ->

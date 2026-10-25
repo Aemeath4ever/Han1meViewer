@@ -78,7 +78,11 @@ class HCookieJar : CookieJar {
             .forEach { merged.putIfAbsent(it.name, it) }
 
         val cookies = merged.values.toList()
-        Log.d("HCookieJar", "loadForRequest for $host: ${cookies.map { it.name }}")
+        // cf_clearance 只記一個不可逆的短指紋，方便對照「WebView 拿到的」和「jar 發出去的」
+        // 是不是同一份（排查過盾失敗時用），不把 cookie 值寫進日誌。
+        val clearanceFp = merged["cf_clearance"]?.value
+            ?.let { " cf#${Integer.toHexString(it.hashCode())}" }.orEmpty()
+        Log.d("HCookieJar", "loadForRequest for $host: ${cookies.map { it.name }}$clearanceFp")
         return cookies
     }
 

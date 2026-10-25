@@ -93,12 +93,24 @@ object ServiceCreator {
         private set
 
     /**
+     * 下載站點靜態資源（目前只有 missav 的 `app.<hash>.js`，用來取 Recombee 的公開
+     * token）用的 client：要帶 cookie / UA / 代理，但**不掛** [CloudflareInterceptor]。
+     *
+     * 走 [hClient] 的話，資源請求被盾攔時會給用戶彈出人機驗證頁（頁面裏是一個 js 檔），
+     * 還會佔住 CloudflareActivity 的等待鎖，把真正的首頁請求一起拖死。靜態資源拿不到
+     * 就該直接放棄推薦，而不是驚動用戶。
+     */
+    var assetClient: OkHttpClient = buildAssetClient()
+        private set
+
+    /**
      * Rebuild OkHttpClient
      */
     fun rebuildOkHttpClient() {
         hClient = buildHClient()
         getchuClient = buildGetchuClient()
         recombeeClient = buildRecombeeClient()
+        assetClient = buildAssetClient()
     }
 
     private fun buildGetchuClient(): OkHttpClient {
@@ -149,6 +161,18 @@ object ServiceCreator {
             .readTimeout(8, TimeUnit.SECONDS)
             .callTimeout(10, TimeUnit.SECONDS)
             .addInterceptor(UserAgentInterceptor)
+            .proxySelector(HProxySelector())
+            .dns(dns)
+            .build()
+    }
+
+    private fun buildAssetClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .callTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor(UserAgentInterceptor)
+            .cookieJar(HCookieJar())
             .proxySelector(HProxySelector())
             .dns(dns)
             .build()
