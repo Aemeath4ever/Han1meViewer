@@ -74,6 +74,11 @@ class LoginActivity : FrameActivity() {
 
         val composeView = ComposeView(this)
         setContentView(composeView)
+        // missav 站点的登录是站内 SPA 弹窗（依赖 Alpine/axios 全链路），WebView 内交互不稳定；
+        // 直接弹出原生登录框走 /cn/api/login，网页作为兜底。
+        if (Preferences.isMissavSite) {
+            showLoginDialog = true
+        }
         composeView.setContent {
             HanimeTheme {
                 if (showLoginDialog) {

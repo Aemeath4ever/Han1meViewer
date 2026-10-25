@@ -76,6 +76,10 @@ class HanimeApplication : YenalyApplication() {
         super.onCreate()
         if (!isMainProcess()) return
         initCrashX()
+        // debug 包开放 WebView 远程调试（chrome://inspect / CDP），便于排查站点页面在 WebView 内的行为
+        if (BuildConfig.DEBUG) {
+            android.webkit.WebView.setWebContentsDebuggingEnabled(true)
+        }
         ThemeUtils.applyDarkModeFromPreferences(this)
         if (Preferences.useDynamicColor){
             DynamicColors.applyToActivitiesIfAvailable(this)

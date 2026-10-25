@@ -567,6 +567,7 @@ object NetworkRepo {
                         runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
                     }
             val preLoginCookies = jarCookies()
+            Log.d("missav_login", "warmup done, jar cookies=${preLoginCookies.map { it.substringBefore('=') }}, xsrf=${xsrfToken() != null}")
 
             var req = HanimeNetwork.hanimeService.missavLogin(
                 com.yenaly.han1meviewer.logic.network.service.MissavLoginRequest(
@@ -574,6 +575,7 @@ object NetworkRepo {
                 ),
                 xsrfToken(),
             )
+            Log.d("missav_login", "login resp code=${req.code()}")
             // 419 = CSRF token 過期，重新抓頁面再試一次
             if (req.code() == 419) {
                 runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
@@ -583,6 +585,7 @@ object NetworkRepo {
                     ),
                     xsrfToken(),
                 )
+                Log.d("missav_login", "login retry(419) code=${req.code()}")
             }
             if (req.isSuccessful) {
                 // 會話 cookie 可能來自預熱請求（POST 響應不一定重複下發），
@@ -598,6 +601,7 @@ object NetworkRepo {
                 putAll(req.headers().values("Set-Cookie").map { it.substringBefore(';') })
                 putAll(jarCookies())
                 val cookies = merged.values.toList()
+                Log.d("missav_login", "login ok, cookies=${cookies.map { it.substringBefore('=') }}")
                 if (cookies.isEmpty()) {
                     emit(WebsiteState.Error(IllegalStateException(getString(R.string.login_failed))))
                 } else {

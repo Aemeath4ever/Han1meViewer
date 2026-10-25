@@ -49,6 +49,12 @@ fun LoginScreen(
     HanimeScaffold(
         title = stringResource(R.string.login),
         onBack = onBack,
+        actions = {
+            // 原生账号登录入口：missav 站内登录依赖 SPA 交互，网页内操作不可靠
+            TextButton(onClick = onShowLoginDialog) {
+                Text(stringResource(R.string.try_login_here))
+            }
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 text = { Text(stringResource(R.string.scan_for_cookies)) },
