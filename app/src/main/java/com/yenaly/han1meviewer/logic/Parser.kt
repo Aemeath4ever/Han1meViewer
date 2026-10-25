@@ -914,7 +914,9 @@ object Parser {
         val parseBody = Jsoup.parse(body).body()
         // 已登入時，頁面內聯的 Alpine 根狀態長這樣：`user: { name: "..." }`（未登入是 `user: null`）。
         // 站點本身可能在 user.name 為 null 時顯示別的名字，所以兩邊都兜。
-        val missavUser = Regex("""user:\s*\{[^{}]*}""").find(body)?.value
+        // 注意 `}` 在 Java 正則裡必須轉義，否則 PatternSyntaxException: Illegal repetition（src 17），
+        // 整個首頁解析會直接失敗 → 使用者看到「頁面載入失敗」。
+        val missavUser = Regex("""user:\s*\{[^{}]*\}""").find(body)?.value
         val missavUserName = missavUser
             ?.let { Regex("""["']?name["']?\s*:\s*["']([^"']+)["']""").find(it)?.groupValues?.get(1) }
             ?.trim()?.takeIf { it.isNotEmpty() }
