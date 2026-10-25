@@ -751,14 +751,19 @@ object Parser {
 
         // 詳情頁信息區：`div.space-y-2` 內每行是一個 div.text-secondary，
         // 標籤/女優/片商都是站內鏈接；用帶 <time datetime> 的那一塊定位，避免依賴語言文案。
-        val infoBlock = doc.select("div.space-y-2")
+        val infoLinks = doc.select("div.space-y-2")
             .firstOrNull { it.select("time[datetime]").isNotEmpty() }
-        val tags = infoBlock
-            ?.select("a[href*=/genres/], a[href*=/uncensored-leak]")
-            ?.map { it.text().trim() }
-            ?.filter { it.isNotEmpty() }
+            ?.select("a[href]")
             .orEmpty()
-        val actressName = infoBlock?.selectFirst("a[href*=/actresses/]")
+        val tags = infoLinks
+            .filter { link ->
+                val href = link.attr("href")
+                "/genres/" in href || "/uncensored-leak" in href
+            }
+            .map { it.text().trim() }
+            .filter { it.isNotEmpty() }
+        val actressName = infoLinks
+            .firstOrNull { "/actresses/" in it.attr("href") }
             ?.text()?.trim()?.takeIf { it.isNotEmpty() }
 
         // 站內物品 id：影片頁的喜歡/片單組件寫死 `api/items/{itemId}/save`
