@@ -24,6 +24,7 @@ import com.yenaly.han1meviewer.logic.state.PageLoadingState
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
 import com.yenaly.han1meviewer.logic.state.WebsiteState
 import com.yenaly.han1meviewer.replaceBackupMediaCdnHost
+import com.yenaly.han1meviewer.util.toLoginCookieList
 import com.yenaly.yenaly_libs.utils.applicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -104,7 +105,7 @@ object NetworkRepo {
                         VideoLoadingState.Success(enrichMissavVideo(videoCode, state.info))
                     } else state
                 )
-            }
+            }.flowOn(Dispatchers.IO)
         } else {
             videoIOFlow(
                 request = { HanimeNetwork.hanimeService.getHanimeVideo(videoCode) },
@@ -112,11 +113,19 @@ object NetworkRepo {
             )
         }
 
-    /** missav 的 Laravel CSRF：`XSRF-TOKEN` cookie 需 URL 解碼後放進 `X-XSRF-TOKEN` 頭。 */
-    private fun missavXsrfToken(): String? =
-        com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap["missav.ai"]
-            ?.firstOrNull { it.name == "XSRF-TOKEN" }?.value
+    /**
+     * missav 的 Laravel CSRF：`XSRF-TOKEN` cookie 需 URL 解碼後放進 `X-XSRF-TOKEN` 頭。
+     *
+     * 不能只讀 [HCookieJar.cookieMap]：它要等本次行程收過該 host 的響應後才有值，
+     * 而 `HCookieJar.loadForRequest` 同時還會帶上持久化的登入 cookie。
+     */
+    private fun missavXsrfToken(): String? {
+        val host = "missav.ai"
+        val candidates = com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap[host].orEmpty() +
+            Preferences.loginCookie.toLoginCookieList(host)
+        return candidates.firstOrNull { it.name == "XSRF-TOKEN" }?.value
             ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+    }
 
     /**
      * 補齊 missav 影片的用戶數據（未登入時直接跳過）：
