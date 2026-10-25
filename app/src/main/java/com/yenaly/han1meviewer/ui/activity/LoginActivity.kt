@@ -206,8 +206,21 @@ class LoginActivity : FrameActivity() {
 
     private fun handleLogin(username: String, password: String) {
         isLoggingIn = true
+        // 登入頁的 WebView 是唯一「真瀏覽器」會話：cf_clearance / XSRF-TOKEN / missav_session
+        // 都只存在 CookieManager 裏。okhttp 自己抓 /dm12/cn 只會拿到 Cloudflare 快取的 301，
+        // 沒有 Set-Cookie，於是 POST /cn/api/login 必然 419。把這些 cookie 轉交給 okhttp。
+        val seedCookies = if (Preferences.isMissavSite) {
+            runCatching { CookieManager.getInstance().getCookie(HANIME_LOGIN_URL) }
+                .getOrNull()
+                ?.split(';')
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                .orEmpty()
+        } else {
+            emptyList()
+        }
         lifecycleScope.launch {
-            NetworkRepo.login(username, password).collect { state ->
+            NetworkRepo.login(username, password, seedCookies).collect { state ->
                 when (state) {
                     WebsiteState.Loading -> Unit
 

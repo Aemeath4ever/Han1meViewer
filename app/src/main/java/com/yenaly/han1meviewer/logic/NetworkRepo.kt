@@ -2,6 +2,7 @@ package com.yenaly.han1meviewer.logic
 
 import android.util.Log
 import com.yenaly.han1meviewer.EMPTY_STRING
+import com.yenaly.han1meviewer.HANIME_LOGIN_URL
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.Preferences.isAlreadyLogin
 import com.yenaly.han1meviewer.R
@@ -119,12 +120,61 @@ object NetworkRepo {
      * 不能只讀 [HCookieJar.cookieMap]：它要等本次行程收過該 host 的響應後才有值，
      * 而 `HCookieJar.loadForRequest` 同時還會帶上持久化的登入 cookie。
      */
-    private fun missavXsrfToken(): String? {
-        val host = "missav.ai"
-        val candidates = com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap[host].orEmpty() +
-            Preferences.loginCookie.toLoginCookieList(host)
-        return candidates.firstOrNull { it.name == "XSRF-TOKEN" }?.value
-            ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+    private fun missavXsrfToken(): String? = missavCookies().firstOrNull { it.name == "XSRF-TOKEN" }
+        ?.value
+        ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+
+    /** 登入失敗時把「狀態碼 + CF 標記 + 響應體前 300 字」寫進 log，這是唯一能定位 419/403 的線索。 */
+    private fun describeResponse(resp: retrofit2.Response<*>) = buildString {
+        append("code=").append(resp.code())
+        resp.headers()["cf-mitigated"]?.let { append(", cf-mitigated=").append(it) }
+        append(", set-cookie=").append(resp.headers().values("Set-Cookie").map { it.substringBefore('=') })
+        runCatching {
+            val body = (resp as? retrofit2.Response<okhttp3.ResponseBody>)?.errorBody()
+                ?: resp.body() as? okhttp3.ResponseBody
+            body?.string()?.take(300)?.let { append(", body=").append(it) }
+        }
+    }
+
+    /** 當前 missav 主機名（可能被鏡像站覆蓋，不能寫死 `missav.ai`）。 */
+    private fun missavHost(): String = runCatching {
+        java.net.URI(Preferences.baseUrl).host
+    }.getOrNull()?.takeIf { it.isNotBlank() } ?: "missav.ai"
+
+    private fun missavCookies(host: String = missavHost()): List<okhttp3.Cookie> =
+        com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap[host].orEmpty() +
+                Preferences.loginCookie.toLoginCookieList(host)
+
+    /**
+     * 把 WebView 裏的會話 cookie 灌進 okhttp 的 [HCookieJar]。
+     *
+     * WebView 是「真瀏覽器」：它已經通過 Cloudflare（`cf_clearance`）並且由 Laravel 下發過
+     * `XSRF-TOKEN` / `missav_session`。okhttp 自己空手去撞 `/cn/api/login` 時，
+     * 首頁 `/dm12/cn` 只是個 Cloudflare 快取的 301（`cf-cache-status: HIT`，不帶 Set-Cookie），
+     * 拿不到 CSRF token，於是必然 419。
+     */
+    private fun seedMissavCookies(host: String, rawCookies: List<String>) {
+        if (rawCookies.isEmpty()) return
+        val jar = com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap
+            .getOrPut(host) { mutableListOf() }
+        rawCookies.forEach { raw ->
+            val pair = raw.substringBefore(';').trim()
+            val name = pair.substringBefore('=').trim()
+            val value = pair.substringAfter('=', "").trim()
+            if (name.isEmpty() || value.isEmpty()) return@forEach
+            val cookie = runCatching {
+                okhttp3.Cookie.Builder()
+                    .domain(host)
+                    .path("/")
+                    .name(name)
+                    .value(value)
+                    .expiresAt(Long.MAX_VALUE)
+                    .build()
+            }.getOrNull() ?: return@forEach
+            jar.removeAll { it.name == name }
+            jar.add(cookie)
+        }
+        Log.d("missav_login", "seeded cookies=${jar.map { it.name }}")
     }
 
     /**
@@ -636,41 +686,53 @@ object NetworkRepo {
         }
     }.flowOn(Dispatchers.IO)
 
-    fun login(email: String, password: String) = flow {
+    /**
+     * @param seedCookies 由登入頁 WebView 取到的「真瀏覽器」cookie（`missav_session` / `XSRF-TOKEN`
+     *   / `cf_clearance`）。okhttp 自己拿不到 CSRF token 時就靠它。
+     */
+    fun login(email: String, password: String, seedCookies: List<String>? = null) = flow {
         emit(WebsiteState.Loading)
         if (Preferences.isMissavSite) {
-            // 預熱請求：拿到 XSRF-TOKEN，同時建立會話 cookie（Laravel 首次請求就會 Set-Cookie）
-            runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
-            fun jarCookies(): List<String> =
-                com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap["missav.ai"]
-                    ?.map { "${it.name}=${it.value}" }
-                    .orEmpty()
-            fun xsrfToken(): String? =
-                com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap["missav.ai"]
-                    ?.firstOrNull { it.name == "XSRF-TOKEN" }?.value
-                    ?.let {
-                        runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
-                    }
+            val host = missavHost()
+            seedMissavCookies(host, seedCookies.orEmpty())
+
+            // 預熱請求：仍缺 XSRF-TOKEN 時才抓頁面（Laravel 會 Set-Cookie）。
+            // 注意 `/dm12/cn` 是 Cloudflare 快取的 301（cf-cache-status: HIT），常常不帶 Set-Cookie，
+            // 所以要再補一個動態頁（片單頁就是登入頁入口，未登入會彈登入框，必然是 Laravel 直出）。
+            if (missavCookies(host).none { it.name == "XSRF-TOKEN" }) {
+                runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
+            }
+            if (missavCookies(host).none { it.name == "XSRF-TOKEN" }) {
+                runCatching { HanimeNetwork.hanimeService.getHomePage(HANIME_LOGIN_URL) }
+            }
+            fun jarCookies(): List<String> = missavCookies().map { "${it.name}=${it.value}" }
             val preLoginCookies = jarCookies()
-            Log.d("missav_login", "warmup done, jar cookies=${preLoginCookies.map { it.substringBefore('=') }}, xsrf=${xsrfToken() != null}")
+            Log.d(
+                "missav_login",
+                "warmup done, jar=${missavCookies().map { it.name }}, xsrf=${missavXsrfToken() != null}"
+            )
 
             var req = HanimeNetwork.hanimeService.missavLogin(
                 com.yenaly.han1meviewer.logic.network.service.MissavLoginRequest(
                     email = email, password = password, remember = true
                 ),
-                xsrfToken(),
+                missavXsrfToken(),
             )
-            Log.d("missav_login", "login resp code=${req.code()}")
+            Log.d("missav_login", "login resp ${describeResponse(req)}")
             // 419 = CSRF token 過期，重新抓頁面再試一次
             if (req.code() == 419) {
-                runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
+                // `/dm12/cn` 是 CF 快取的 301，重抓它換不到新 token；要抓動態頁。
+                runCatching { HanimeNetwork.hanimeService.getHomePage(HANIME_LOGIN_URL) }
+                if (missavCookies(host).none { it.name == "XSRF-TOKEN" }) {
+                    runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
+                }
                 req = HanimeNetwork.hanimeService.missavLogin(
                     com.yenaly.han1meviewer.logic.network.service.MissavLoginRequest(
                         email = email, password = password, remember = true
                     ),
-                    xsrfToken(),
+                    missavXsrfToken(),
                 )
-                Log.d("missav_login", "login retry(419) code=${req.code()}")
+                Log.d("missav_login", "login retry(419) ${describeResponse(req)}")
             }
             if (req.isSuccessful) {
                 // 會話 cookie 可能來自預熱請求（POST 響應不一定重複下發），
@@ -693,7 +755,18 @@ object NetworkRepo {
                     emit(WebsiteState.Success(cookies))
                 }
             } else {
-                emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
+                // 只有 422（Laravel 表單驗證失敗）才真的是帳號密碼錯；
+                // 419 = CSRF token 不匹配（拿不到 / 過期的 XSRF-TOKEN），
+                // 403 = Cloudflare 人機驗證，其他非 2xx 一律當登入失敗並保留狀態碼。
+                emit(
+                    WebsiteState.Error(
+                        if (req.code() == 422) {
+                            IllegalStateException(getString(R.string.account_or_password_wrong))
+                        } else {
+                            java.io.IOException("missav login HTTP ${req.code()}")
+                        }
+                    )
+                )
             }
         } else {
             // 首先获取token
