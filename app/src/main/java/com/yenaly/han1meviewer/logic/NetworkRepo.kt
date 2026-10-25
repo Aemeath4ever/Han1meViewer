@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.transform
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -96,13 +97,88 @@ object NetworkRepo {
             videoIOFlow(
                 request = { HanimeNetwork.hanimeService.getMissavVideo(videoCode) },
                 action = Parser::missavVideo
-            )
+            ).transform { state ->
+                // 喜歡狀態與片單屬於用戶數據，SSR HTML 裏只有匿名默認值，需再補兩個接口
+                emit(
+                    if (state is VideoLoadingState.Success) {
+                        VideoLoadingState.Success(enrichMissavVideo(videoCode, state.info))
+                    } else state
+                )
+            }
         } else {
             videoIOFlow(
                 request = { HanimeNetwork.hanimeService.getHanimeVideo(videoCode) },
                 action = Parser::hanimeVideoVer2
             )
         }
+
+    /** missav 的 Laravel CSRF：`XSRF-TOKEN` cookie 需 URL 解碼後放進 `X-XSRF-TOKEN` 頭。 */
+    private fun missavXsrfToken(): String? =
+        com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap["missav.ai"]
+            ?.firstOrNull { it.name == "XSRF-TOKEN" }?.value
+            ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+
+    /**
+     * 補齊 missav 影片的用戶數據（未登入時直接跳過）：
+     * - `GET /api/items/{itemId}/view` → `saved`（站內打開影片頁時同樣會調，附帶記錄觀看歷史）
+     * - `GET /api/playlists/{dvdId}` → 用戶片單，含 is_added
+     */
+    private suspend fun enrichMissavVideo(
+        videoCode: String,
+        video: com.yenaly.han1meviewer.logic.model.HanimeVideo,
+    ): com.yenaly.han1meviewer.logic.model.HanimeVideo {
+        if (!Preferences.isAlreadyLogin) return video
+        var saved = video.isFav
+        video.missavItemId?.let { itemId ->
+            runCatching {
+                HanimeNetwork.hanimeService.missavItemView(itemId)
+                    .takeIf { it.isSuccessful }?.body()?.string()
+                    ?.let { JSONObject(it).optBoolean("saved", saved) }
+                    ?.let { saved = it }
+            }.onFailure { Log.w("missav_view", "view($itemId) failed: ${it.message}") }
+        }
+        val myList = runCatching {
+            HanimeNetwork.hanimeService.missavPlaylists(videoCode)
+                .takeIf { it.isSuccessful }?.body()?.string()
+                ?.let(Parser::missavPlaylists)
+        }.onFailure { Log.w("missav_playlists", "playlists($videoCode) failed: ${it.message}") }
+            .getOrNull()
+        return video.copy(isFav = saved, myList = myList ?: video.myList)
+    }
+
+    /**
+     * missav「喜歡」切換。注意與漢米不同：按站內 itemId 操作，取消用 DELETE。
+     */
+    fun missavToggleSave(itemId: String, save: Boolean) = websiteIOFlow(
+        request = {
+            val xsrf = missavXsrfToken()
+            if (save) HanimeNetwork.hanimeService.missavSaveItem(itemId, xsrf)
+            else HanimeNetwork.hanimeService.missavUnsaveItem(itemId, xsrf)
+        }
+    ) { body ->
+        Log.d("missav_save", "save=$save, body=$body")
+        WebsiteState.Success(save)
+    }
+
+    /**
+     * missav 片單增刪：影片頁 `{dvdId, key}`，key 可能是數字或字串，按原樣回傳。
+     */
+    fun missavTogglePlaylist(dvdId: String, key: String, add: Boolean) = websiteIOFlow(
+        request = {
+            val keyElement = key.toLongOrNull()
+                ?.let { kotlinx.serialization.json.JsonPrimitive(it) }
+                ?: kotlinx.serialization.json.JsonPrimitive(key)
+            val body = com.yenaly.han1meviewer.logic.network.service.MissavPlaylistRequest(
+                dvdId = dvdId, key = keyElement,
+            )
+            val xsrf = missavXsrfToken()
+            if (add) HanimeNetwork.hanimeService.missavPlaylistAdd(body, xsrf)
+            else HanimeNetwork.hanimeService.missavPlaylistRemove(body, xsrf)
+        }
+    ) { body ->
+        Log.d("missav_playlist", "add=$add, key=$key, body=$body")
+        WebsiteState.Success(Unit)
+    }
 
     fun getHanimePreview(date: String) = websiteIOFlow(
         request = { HanimeNetwork.hanimeService.getHanimePreview(date) },

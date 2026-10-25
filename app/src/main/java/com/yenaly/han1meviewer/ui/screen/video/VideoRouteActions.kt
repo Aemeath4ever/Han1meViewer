@@ -98,6 +98,11 @@ class VideoRouteActions(
             GlobalToasts.show(context.getString(R.string.login_first), level = GlobalToasts.ToastLevel.WARNING)
             return
         }
+        // missav 的「喜歡」是站內 JSON 接口（按 itemId POST/DELETE），走另一條路徑
+        if (Preferences.isMissavSite) {
+            viewModel.toggleMissavFavorite(video)
+            return
+        }
         if (video.isFav) {
             viewModel.removeFromFavVideo(viewModel.videoCode, video.currentUserId)
         } else {

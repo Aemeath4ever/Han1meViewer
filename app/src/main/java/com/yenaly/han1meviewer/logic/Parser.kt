@@ -749,6 +749,13 @@ object Parser {
 
         val relatedAnimeList = parseMissavCards(doc.body())
 
+        // 站內物品 id：影片頁的喜歡/片單組件寫死 `api/items/{itemId}/save`
+        val missavItemId = Regex("""api/items/([A-Za-z0-9]+)/save""")
+            .find(body)?.groupValues?.get(1)
+        // Blade 渲染的初始喜歡狀態（未登入恆為 false，登入後由 /view 接口校正）
+        val saved = Regex("""saved:\s*(true|false)""")
+            .find(body)?.groupValues?.get(1)?.toBoolean() ?: false
+
         return VideoLoadingState.Success(
             HanimeVideo(
                 title = title, coverUrl = coverUrl,
@@ -758,11 +765,38 @@ object Parser {
                 videoUrls = hanimeResolution.toResolutionLinkMap(),
                 tags = emptyList(),
                 relatedHanimes = relatedAnimeList,
+                isFav = saved,
+                missavItemId = missavItemId,
                 artist = artistName?.let {
                     HanimeVideo.Artist(name = it, avatarUrl = "", genre = directorName.orEmpty())
                 },
             )
         )
+    }
+
+    /**
+     * missav 影片所屬的用戶片單：`{data: [{key, name, is_added}]}`。
+     *
+     * 復用 [HanimeVideo.MyList]（code 即片單 key，isSelected 即 is_added），
+     * 這樣影片頁的「加入清單」彈窗無需為 missav 另寫一套 UI。
+     */
+    fun missavPlaylists(body: String): HanimeVideo.MyList? {
+        val data = runCatching { org.json.JSONObject(body).optJSONArray("data") }
+            .getOrNull() ?: return null
+        val infos = buildList {
+            for (i in 0 until data.length()) {
+                val item = data.optJSONObject(i) ?: continue
+                val key = item.optString("key").takeIf { it.isNotEmpty() } ?: continue
+                add(
+                    HanimeVideo.MyList.MyListInfo(
+                        code = key,
+                        title = item.optString("name"),
+                        isSelected = item.optBoolean("is_added", false),
+                    )
+                )
+            }
+        }
+        return HanimeVideo.MyList(isWatchLater = false, myListInfo = infos)
     }
 
     /**

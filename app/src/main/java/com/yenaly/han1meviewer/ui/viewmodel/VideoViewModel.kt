@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.yenaly.han1meviewer.EMPTY_STRING
 import com.yenaly.han1meviewer.HCacheManager
 import com.yenaly.han1meviewer.HanimeResolution
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.logic.DatabaseRepo
 import com.yenaly.han1meviewer.logic.NetworkRepo
@@ -352,6 +353,29 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
         }
     }
 
+    /**
+     * missav「喜歡」切換：接口按站內 itemId 操作（`/api/items/{id}/save` POST/DELETE），
+     * 與漢米按 videoCode 的表單提交完全不同。
+     */
+    fun toggleMissavFavorite(video: HanimeVideo) {
+        val itemId = video.missavItemId
+        if (itemId == null) {
+            viewModelScope.launch {
+                _addToFavVideoFlow.emit(WebsiteState.Error(IllegalStateException("missav itemId missing")))
+            }
+            return
+        }
+        val target = !video.isFav
+        viewModelScope.launch {
+            NetworkRepo.missavToggleSave(itemId, target).collect { state ->
+                _addToFavVideoFlow.emit(state)
+                if (state is WebsiteState.Success) {
+                    _hanimeVideoFlow.update { it?.copy(isFav = target) }
+                }
+            }
+        }
+    }
+
     fun rateVideo(video: HanimeVideo, isPositive: Boolean) {
         viewModelScope.launch {
             NetworkRepo.rateVideo(
@@ -382,7 +406,13 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
         position: Int,
     ) {
         viewModelScope.launch {
-            NetworkRepo.addToMyList(listCode, videoCode, isChecked, csrfToken).collect {
+            // missav 的片單是 `{dvdId, key}` 的 JSON 接口，listCode 即片單 key
+            val flow = if (Preferences.isMissavSite) {
+                NetworkRepo.missavTogglePlaylist(videoCode, listCode, isChecked)
+            } else {
+                NetworkRepo.addToMyList(listCode, videoCode, isChecked, csrfToken)
+            }
+            flow.collect {
                 _modifyMyListFlow.emit(it)
                 _hanimeVideoFlow.update { prev ->
                     val myList = prev?.myList?.myListInfo.orEmpty().toMutableList()

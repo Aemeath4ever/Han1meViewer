@@ -42,6 +42,8 @@ data class HanimeVideo(
     @Transient val csrfToken: String? = null,
     @Transient val currentUserId: String? = null,
     @Transient val originalComic: String? = null,
+    /** missav 站內物品 id（`/api/items/{id}/save`），與 dvd id 不同，用於喜歡操作 */
+    @Transient val missavItemId: String? = null,
 ) {
 
     val ratingCount: Int?

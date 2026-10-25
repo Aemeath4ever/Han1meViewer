@@ -15,6 +15,16 @@ data class MissavLoginRequest(
 )
 
 /**
+ * missav 片單增刪請求體（影片頁 `{dvdId, key}`，key 即片單的 key）。
+ * key 在頁面裏可能是數字或字串，故保留原始 JSON 型別回傳。
+ */
+@Serializable
+data class MissavPlaylistRequest(
+    val dvdId: String,
+    val key: kotlinx.serialization.json.JsonElement,
+)
+
+/**
  * @project Hanime1
  * @author Yenaly Liew
  * @time 2022/06/08 008 22:10
@@ -63,6 +73,59 @@ interface HanimeBaseService {
         @Body body: MissavLoginRequest,
         @Header("X-XSRF-TOKEN") xsrfToken: String?,
     ): Response<ResponseBody>
+
+    //<editor-fold desc="missav 喜歡 / 片單（取自影片頁內聯 Alpine 組件的 axios 調用）">
+
+    /**
+     * 影片頁載入時站內調用：返回 `{user, saved}`，同時寫入觀看記錄。
+     * `itemId` 是站內物品 id（非 dvd id），可從影片頁 HTML 的 `api/items/{id}/save` 取得。
+     */
+    @Headers("Accept: application/json")
+    @GET("api/items/{itemId}/view")
+    suspend fun missavItemView(
+        @Path("itemId") itemId: String,
+    ): Response<ResponseBody>
+
+    /** 加入「喜歡」（影片頁 `axios.post('/api/items/{id}/save')`） */
+    @Headers("Accept: application/json", "X-Requested-With: XMLHttpRequest")
+    @POST("api/items/{itemId}/save")
+    suspend fun missavSaveItem(
+        @Path("itemId") itemId: String,
+        @Header("X-XSRF-TOKEN") xsrfToken: String?,
+    ): Response<ResponseBody>
+
+    /** 取消「喜歡」（影片頁 `axios.delete('/api/items/{id}/save')`） */
+    @Headers("Accept: application/json", "X-Requested-With: XMLHttpRequest")
+    @HTTP(method = "DELETE", path = "api/items/{itemId}/save", hasBody = false)
+    suspend fun missavUnsaveItem(
+        @Path("itemId") itemId: String,
+        @Header("X-XSRF-TOKEN") xsrfToken: String?,
+    ): Response<ResponseBody>
+
+    /** 該影片所屬的片單列表：`{data: [{key, name, is_added}]}` */
+    @Headers("Accept: application/json")
+    @GET("api/playlists/{dvdId}")
+    suspend fun missavPlaylists(
+        @Path("dvdId") dvdId: String,
+    ): Response<ResponseBody>
+
+    /** 把影片加入片單（影片頁 `axios.post('/api/playlists/add', {dvdId, key})`） */
+    @Headers("Accept: application/json", "X-Requested-With: XMLHttpRequest")
+    @POST("api/playlists/add")
+    suspend fun missavPlaylistAdd(
+        @Body body: MissavPlaylistRequest,
+        @Header("X-XSRF-TOKEN") xsrfToken: String?,
+    ): Response<ResponseBody>
+
+    /** 把影片移出片單（影片頁 `axios.post('/api/playlists/remove', {dvdId, key})`） */
+    @Headers("Accept: application/json", "X-Requested-With: XMLHttpRequest")
+    @POST("api/playlists/remove")
+    suspend fun missavPlaylistRemove(
+        @Body body: MissavPlaylistRequest,
+        @Header("X-XSRF-TOKEN") xsrfToken: String?,
+    ): Response<ResponseBody>
+
+    //</editor-fold>
 
     @GET("watch")
     suspend fun getHanimeVideo(
