@@ -101,6 +101,8 @@ object MissavHomeWebViewFetcher {
         if (cookie.contains("cf_clearance")) {
             Preferences.cloudFlareCookie =
                 com.yenaly.han1meviewer.util.CookieString(cookie)
+            // 同步進 jar，否則 jar 裡的舊值會在 loadForRequest 時蓋掉這份新值
+            HCookieJar.putRawCookieString(host, cookie)
         }
     }
 }

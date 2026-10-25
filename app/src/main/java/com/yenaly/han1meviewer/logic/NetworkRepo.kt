@@ -186,26 +186,9 @@ object NetworkRepo {
      */
     private fun seedMissavCookies(host: String, rawCookies: List<String>) {
         if (rawCookies.isEmpty()) return
-        val jar = com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap
-            .getOrPut(host) { mutableListOf() }
-        rawCookies.forEach { raw ->
-            val pair = raw.substringBefore(';').trim()
-            val name = pair.substringBefore('=').trim()
-            val value = pair.substringAfter('=', "").trim()
-            if (name.isEmpty() || value.isEmpty()) return@forEach
-            val cookie = runCatching {
-                okhttp3.Cookie.Builder()
-                    .domain(host)
-                    .path("/")
-                    .name(name)
-                    .value(value)
-                    .expiresAt(Long.MAX_VALUE)
-                    .build()
-            }.getOrNull() ?: return@forEach
-            jar.removeAll { it.name == name }
-            jar.add(cookie)
-        }
-        Log.d("missav_login", "seeded cookies=${jar.map { it.name }}")
+        com.yenaly.han1meviewer.logic.network.HCookieJar
+            .putRawCookieString(host, rawCookies.joinToString("; "))
+        Log.d("missav_login", "seeded cookies=${missavCookies(host).map { it.name }}")
     }
 
     /**

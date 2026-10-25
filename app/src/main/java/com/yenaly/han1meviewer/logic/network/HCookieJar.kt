@@ -32,6 +32,38 @@ class HCookieJar : CookieJar {
 
         /** `cookieMap` 的讀改寫需要互斥；OkHttp 會在多個 IO 執行緒上同時調用。 */
         private val lock = Any()
+
+        /**
+         * 把一整串 `a=1; b=2`（WebView 的 `CookieManager.getCookie` 結果）灌進 jar，同名覆蓋。
+         *
+         * WebView 過完 Cloudflare、或在站內拿到新會話之後必須走這裡：`loadForRequest`
+         * 是「jar 優先」，jar 裡的舊 `cf_clearance` 會把 WebView 剛拿到的新值蓋掉，
+         * 於是重放請求又被攔，使用者看到的就是「當前網路環境無法通過驗證」。
+         */
+        @JvmStatic
+        fun putRawCookieString(host: String, raw: String?) {
+            if (raw.isNullOrBlank()) return
+            synchronized(lock) {
+                val jar = cookieMap.getOrPut(host) { CopyOnWriteArrayList() }
+                raw.split(';').forEach { part ->
+                    val pair = part.trim()
+                    val name = pair.substringBefore('=').trim()
+                    val value = pair.substringAfter('=', "").trim()
+                    if (name.isEmpty() || value.isEmpty()) return@forEach
+                    val cookie = runCatching {
+                        Cookie.Builder()
+                            .domain(host)
+                            .path("/")
+                            .name(name)
+                            .value(value)
+                            .expiresAt(Long.MAX_VALUE)
+                            .build()
+                    }.getOrNull() ?: return@forEach
+                    jar.removeAll { it.name == name }
+                    jar.add(cookie)
+                }
+            }
+        }
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {

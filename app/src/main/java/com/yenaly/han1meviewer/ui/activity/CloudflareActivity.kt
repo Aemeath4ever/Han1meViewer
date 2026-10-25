@@ -144,6 +144,12 @@ class CloudflareActivity : AppCompatActivity() {
             val cookies = cookieMgr.getCookie(url) ?: ""
             if (cookies.contains("cf_clearance")) {
                 cloudFlareCookie = CookieString(cookies)
+                // 必須同時灌進 okhttp 的 jar：loadForRequest 是 jar 優先，
+                // 只寫 Preferences 的話，jar 裡的舊 cf_clearance 會蓋掉這裡剛拿到的新值。
+                runCatching {
+                    com.yenaly.han1meviewer.logic.network.HCookieJar
+                        .putRawCookieString(android.net.Uri.parse(url).host ?: return@runCatching, cookies)
+                }
                 cookieMgr.flush()
                 onFinished?.invoke()
                 onFinished = null
