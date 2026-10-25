@@ -553,25 +553,80 @@ object NetworkRepo {
 
     fun login(email: String, password: String) = flow {
         emit(WebsiteState.Loading)
-        // 首先获取token
-        val loginPage = HanimeNetwork.hanimeService.getLoginPage()
-        val token = loginPage.body()?.string()?.let(Parser::extractTokenFromLoginPage)
-        val req = HanimeNetwork.hanimeService.login(token, email, password)
-        if (req.isSuccessful) {
-            // 再次获取登录页面，如果失败则返回 cookie
-            // 因为登录成功再次访问 login 会 404，这是判断是否登录成功的方法
-            val loginPageAgain = HanimeNetwork.hanimeService.getLoginPage()
-            if (loginPageAgain.code() == 404) {
-                // Cookie 會返回 XSRF-TOKEN 和 hanime1_session，我們只需要後者
-                // 错误的，还需要 remember_web 字段！但我没找到！
-                Log.d("login_headers", req.headers().toMultimap().toString())
-                emit(WebsiteState.Success(req.headers().values("Set-Cookie")))
+        if (Preferences.isMissavSite) {
+            // 預熱請求：拿到 XSRF-TOKEN，同時建立會話 cookie（Laravel 首次請求就會 Set-Cookie）
+            runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
+            fun jarCookies(): List<String> =
+                com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap["missav.ai"]
+                    ?.map { "${it.name}=${it.value}" }
+                    .orEmpty()
+            fun xsrfToken(): String? =
+                com.yenaly.han1meviewer.logic.network.HCookieJar.cookieMap["missav.ai"]
+                    ?.firstOrNull { it.name == "XSRF-TOKEN" }?.value
+                    ?.let {
+                        runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
+                    }
+            val preLoginCookies = jarCookies()
+
+            var req = HanimeNetwork.hanimeService.missavLogin(
+                com.yenaly.han1meviewer.logic.network.service.MissavLoginRequest(
+                    email = email, password = password, remember = true
+                ),
+                xsrfToken(),
+            )
+            // 419 = CSRF token 過期，重新抓頁面再試一次
+            if (req.code() == 419) {
+                runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
+                req = HanimeNetwork.hanimeService.missavLogin(
+                    com.yenaly.han1meviewer.logic.network.service.MissavLoginRequest(
+                        email = email, password = password, remember = true
+                    ),
+                    xsrfToken(),
+                )
+            }
+            if (req.isSuccessful) {
+                // 會話 cookie 可能來自預熱請求（POST 響應不一定重複下發），
+                // 因此把「預熱 jar + 響應 Set-Cookie + 登入後 jar」按名稱合併，後者覆蓋前者。
+                val merged = LinkedHashMap<String, String>()
+                fun putAll(list: List<String>) {
+                    list.forEach { c ->
+                        val name = c.substringBefore('=').trim()
+                        if (name.isNotEmpty()) merged[name] = c
+                    }
+                }
+                putAll(preLoginCookies)
+                putAll(req.headers().values("Set-Cookie").map { it.substringBefore(';') })
+                putAll(jarCookies())
+                val cookies = merged.values.toList()
+                if (cookies.isEmpty()) {
+                    emit(WebsiteState.Error(IllegalStateException(getString(R.string.login_failed))))
+                } else {
+                    emit(WebsiteState.Success(cookies))
+                }
             } else {
                 emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
             }
         } else {
-            // 雙重保險
-            emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
+            // 首先获取token
+            val loginPage = HanimeNetwork.hanimeService.getLoginPage()
+            val token = loginPage.body()?.string()?.let(Parser::extractTokenFromLoginPage)
+            val req = HanimeNetwork.hanimeService.login(token, email, password)
+            if (req.isSuccessful) {
+                // 再次获取登录页面，如果失败则返回 cookie
+                // 因为登录成功再次访问 login 会 404，这是判断是否登录成功的方法
+                val loginPageAgain = HanimeNetwork.hanimeService.getLoginPage()
+                if (loginPageAgain.code() == 404) {
+                    // Cookie 會返回 XSRF-TOKEN 和 hanime1_session，我們只需要後者
+                    // 错误的，还需要 remember_web 字段！但我没找到！
+                    Log.d("login_headers", req.headers().toMultimap().toString())
+                    emit(WebsiteState.Success(req.headers().values("Set-Cookie")))
+                } else {
+                    emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
+                }
+            } else {
+                // 雙重保險
+                emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
+            }
         }
     }.catch { e ->
         emit(WebsiteState.Error(handleException(e)))

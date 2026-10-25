@@ -814,10 +814,14 @@ object Parser {
         for (heading in parseBody.select("h2")) {
             val sectionTitle = heading.text().trim()
             if (sectionTitle.isEmpty()) continue
-            // 分節容器：h2 所在標題欄的祖先，卡片的 grid div 是它的直接子節點
+            // 分節容器：h2 所在標題欄的祖先，卡片的 grid div 是它的直接子節點。
+            // 只認「含影片卡（a[alt] 內有 video）」且「只含一個 h2」的祖先，
+            // 避免爬到頁面外層把其他分節的卡片吞進來（頁尾/登入框就是這樣被誤判的）。
             val container = generateSequence(heading.parent()) { it.parent() }
                 .take(4)
-                .firstOrNull { it.select("a[alt] img").isNotEmpty() && it.children().size > 1 }
+                .firstOrNull {
+                    it.select("a[alt] video").isNotEmpty() && it.select("h2").size == 1
+                }
                 ?: continue
             val uncensored = sectionTitle.lowercase().let {
                 it.contains("uncensored") || it.contains("無碼") || it.contains("无码")

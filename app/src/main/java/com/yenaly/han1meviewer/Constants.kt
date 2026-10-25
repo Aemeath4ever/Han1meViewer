@@ -65,8 +65,11 @@ object HanimeConstants {
 }
 
 val HANIME_LOGIN_URL: String
-    get() = if (Preferences.isMissavSite) Preferences.baseUrl + "dm12/login"
-    else HANIME_BASE_URL + "login"
+    get() = if (Preferences.isMissavSite) {
+        // missav 新版把登录做成了 SPA 弹窗（旧的 dm12/login 已 404）。
+        // 片单页未登录时会自动弹出登录框（x-init="showLoginModal()"）。
+        Preferences.baseUrl + "cn/playlists"
+    } else HANIME_BASE_URL + "login"
 
 // 媒體 CDN
 

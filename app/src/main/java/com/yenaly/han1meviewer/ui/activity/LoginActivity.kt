@@ -24,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import com.yenaly.han1meviewer.HANIME_LOGIN_URL
 import com.yenaly.han1meviewer.HanimeConstants.HANIME_URL
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.USER_AGENT
 import com.yenaly.han1meviewer.logic.NetworkRepo
@@ -95,13 +96,18 @@ class LoginActivity : FrameActivity() {
     }
 
     private var webView: WebView? = null
+    private var missavLoginWatching = false
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(): WebView {
         return WebView(this).apply {
             webView = this
-            CookieManager.getInstance().removeAllCookies(null)
-            CookieManager.getInstance().flush()
+            // missav 依赖 cf_clearance cookie，清空会导致重新触发 Cloudflare 人机验证；
+            // 其登录是无跳转的 XHR，改由轮询登录态捕获，不走重定向判定。
+            if (!Preferences.isMissavSite) {
+                CookieManager.getInstance().removeAllCookies(null)
+                CookieManager.getInstance().flush()
+            }
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.userAgentString = USER_AGENT
@@ -109,6 +115,7 @@ class LoginActivity : FrameActivity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String) {
                     isRefreshing = false
+                    if (Preferences.isMissavSite) watchMissavLogin(view)
                 }
 
                 override fun shouldOverrideUrlLoading(
@@ -141,6 +148,37 @@ class LoginActivity : FrameActivity() {
             }
             loadUrl(HANIME_LOGIN_URL)
         }
+    }
+
+    /**
+     * missav 登录态轮询：站点是 Alpine SPA，登录成功后根组件 `user` 从 null 变为对象。
+     * 检测到已登录后把 WebView 全部 cookie 交给 [login] 保存，供 okhttp 使用。
+     */
+    private fun watchMissavLogin(view: WebView) {
+        if (missavLoginWatching) return
+        missavLoginWatching = true
+        val probe = "(function(){try{var els=document.querySelectorAll('[x-data]');" +
+                "for(var i=0;i<els.length;i++){var d=els[i]._x_dataStack;" +
+                "if(d&&d[0]&&d[0].user)return true;}return false;}catch(e){return false;}})()"
+        val checker = object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                view.evaluateJavascript(probe) { result ->
+                    if (result == "true") {
+                        val cookies = CookieManager.getInstance().getCookie(view.url)
+                        if (!cookies.isNullOrBlank()) {
+                            Log.d("login_cookie", cookies)
+                            login(cookies)
+                            setResult(RESULT_OK)
+                            finish()
+                        }
+                    } else {
+                        view.postDelayed(this, 1500)
+                    }
+                }
+            }
+        }
+        view.postDelayed(checker, 2500)
     }
 
     private fun openQrScanner() {

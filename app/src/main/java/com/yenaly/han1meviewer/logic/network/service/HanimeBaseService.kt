@@ -1,9 +1,18 @@
 package com.yenaly.han1meviewer.logic.network.service
 
 import androidx.annotation.IntRange
+import kotlinx.serialization.Serializable
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
+
+/** missav SPA 登入請求體（對應頁面 `axios.post('/cn/api/login', {email, password, remember})`） */
+@Serializable
+data class MissavLoginRequest(
+    val email: String,
+    val password: String,
+    val remember: Boolean = true,
+)
 
 /**
  * @project Hanime1
@@ -40,8 +49,20 @@ interface HanimeBaseService {
     @GET("dm12/cn")
     suspend fun getMissavHomePage(): Response<ResponseBody>
 
-    @GET("en/{videoCode}")
+    /** 詳情頁固定走 /cn/，避免服務端按 IP 自動選擇語言（與首頁 /dm12/cn 保持一致） */
+    @GET("cn/{videoCode}")
     suspend fun getMissavVideo(@Path("videoCode") videoCode: String): Response<ResponseBody>
+
+    /**
+     * missav 登入：SPA 的 JSON API（頁面 JS 中 `axios.post('/cn/api/login', ...)`）。
+     * 需要先 GET 任意頁面拿 XSRF-TOKEN cookie，再以 X-XSRF-TOKEN 頭提交。
+     */
+    @Headers("Accept: application/json")
+    @POST("cn/api/login")
+    suspend fun missavLogin(
+        @Body body: MissavLoginRequest,
+        @Header("X-XSRF-TOKEN") xsrfToken: String?,
+    ): Response<ResponseBody>
 
     @GET("watch")
     suspend fun getHanimeVideo(
