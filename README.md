@@ -24,6 +24,8 @@ Han1meViewer 是一个使用 Kotlin 开发的 Android 客户端，用于浏览�
 
 许可证文件：[LICENSE](LICENSE)
 
+missav 站点适配的完整技术记录见 [docs/missav-adaptation.md](docs/missav-adaptation.md)。
+
 ## ⚠️ 免责声明
 
 本应用程序与 `https://hanime1.me/` 及其关联方无任何隶属、合作或授权关系。
