@@ -28,15 +28,21 @@ private const val HANIME_TITLE_HTML =
 val hanimeSpannedTitle = HANIME_TITLE_HTML.parseAsHtml()
 
 /**
- * 獲取 Hanime 影片地址
+ * 獲取影片地址（同時用於「跳轉網頁」與分享文本）
+ *
+ * missav 的影片頁形如 `https://missav.ai/cn/{slug}`，與漢米的 `watch?v=` 完全不同。
  */
-fun getHanimeVideoLink(videoCode: String) = HANIME_BASE_URL + "watch?v=" + videoCode
+fun getHanimeVideoLink(videoCode: String) =
+    if (Preferences.isMissavSite) Preferences.baseUrl + "cn/" + videoCode
+    else HANIME_BASE_URL + "watch?v=" + videoCode
 
 
 /**
- * 獲取 Hanime 搜索地址
+ * 獲取搜索地址
  */
-fun getHanimeSearchLink(artist: String) = HANIME_BASE_URL + "search?query=" + artist
+fun getHanimeSearchLink(artist: String) =
+    if (Preferences.isMissavSite) Preferences.baseUrl + "cn/search/" + artist
+    else HANIME_BASE_URL + "search?query=" + artist
 /**
  * 獲取 Hanime 影片分享文本
  */
