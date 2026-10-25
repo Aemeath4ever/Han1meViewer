@@ -749,6 +749,18 @@ object Parser {
 
         val relatedAnimeList = parseMissavCards(doc.body())
 
+        // 詳情頁信息區：`div.space-y-2` 內每行是一個 div.text-secondary，
+        // 標籤/女優/片商都是站內鏈接；用帶 <time datetime> 的那一塊定位，避免依賴語言文案。
+        val infoBlock = doc.select("div.space-y-2")
+            .firstOrNull { it.select("time[datetime]").isNotEmpty() }
+        val tags = infoBlock
+            ?.select("a[href*=/genres/], a[href*=/uncensored-leak]")
+            ?.map { it.text().trim() }
+            ?.filter { it.isNotEmpty() }
+            .orEmpty()
+        val actressName = infoBlock?.selectFirst("a[href*=/actresses/]")
+            ?.text()?.trim()?.takeIf { it.isNotEmpty() }
+
         // 站內物品 id：影片頁的喜歡/片單組件寫死 `api/items/{itemId}/save`
         val missavItemId = Regex("""api/items/([A-Za-z0-9]+)/save""")
             .find(body)?.groupValues?.get(1)
@@ -763,11 +775,11 @@ object Parser {
                 uploadTime = uploadTime,
                 introduction = introduction,
                 videoUrls = hanimeResolution.toResolutionLinkMap(),
-                tags = emptyList(),
+                tags = tags,
                 relatedHanimes = relatedAnimeList,
                 isFav = saved,
                 missavItemId = missavItemId,
-                artist = artistName?.let {
+                artist = (actressName ?: artistName)?.let {
                     HanimeVideo.Artist(name = it, avatarUrl = "", genre = directorName.orEmpty())
                 },
             )
