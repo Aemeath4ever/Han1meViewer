@@ -238,6 +238,7 @@
     <string name="doh_disabled_summary">已關閉</string>
     <string name="password">密碼</string>
     <string name="try_login_here">試試在這裡登入</string>
+    <string name="missav_recommended">推薦給你</string>
     <string name="missav_login_hint">請使用上方的登入框輸入 missav 帳號與密碼\n此頁僅用於建立登入工作階段</string>
     <string name="email">電子郵件</string>
     <string name="login_failed">登入失敗</string>

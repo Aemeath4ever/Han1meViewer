@@ -285,7 +285,9 @@ object Parser {
                 HanimeInfo(
                     title = title, coverUrl = cover, videoCode = slug,
                     duration = duration, itemType = HanimeInfo.SIMPLIFIED,
-                    isUncensored = uncensored
+                    // 無碼不能只看「是不是在無碼影片這個分節」：FC2 和 *-uncensored-leak
+                    // 會出現在最近更新/隨機等分節裏，以前這些卡片不會有無碼角標。
+                    isUncensored = uncensored || isMissavUncensoredCode(slug)
                 )
             )
         }
@@ -1620,4 +1622,16 @@ object Parser {
             }
         }
     }
+}
+
+/**
+ * missav 的番號裏藏着是否無碼的信息。
+ *
+ * 站點自己也是這麼判的：詳情頁的「無碼影片」角標只認 `-uncensored-leak` 後綴，
+ * 而 FC2-PPV 這類素人片源本身就沒有馬賽克，站點把它們歸在「無碼影片」分節。
+ * 所以不能只看卡片落在哪個分節 —— 最近更新/隨機裏同樣會混進這兩類。
+ */
+internal fun isMissavUncensoredCode(code: String): Boolean {
+    val lower = code.lowercase()
+    return lower.contains("uncensored") || lower.startsWith("fc2")
 }

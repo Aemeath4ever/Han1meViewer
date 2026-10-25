@@ -69,6 +69,22 @@ object Preferences {
         get() = getSpValue(MISSAV_LOGIN_EMAIL, EMPTY_STRING)
         set(value) = putSpValue(MISSAV_LOGIN_EMAIL, value)
 
+    /**
+     * missav 首頁 Recombee 推薦用的使用者 id（對應站點 cookie `user_uuid`）。
+     * 站點會把瀏覽行為記在這個 id 下，所以優先沿用它，否則每次安裝都會是一份空白畫像。
+     */
+    var missavUserUuid: String
+        get() = getSpValue(MISSAV_USER_UUID, EMPTY_STRING)
+        set(value) = putSpValue(MISSAV_USER_UUID, value)
+
+    /**
+     * Recombee frontend public token（從 missav 的 app.js 裡取），
+     * 用於給 client-rapi 請求簽名。緩存起來避免每次啟動都下載 100KB 的 bundle。
+     */
+    var missavRecombeeToken: String
+        get() = getSpValue(MISSAV_RECOMBEE_TOKEN, EMPTY_STRING)
+        set(value) = putSpValue(MISSAV_RECOMBEE_TOKEN, value)
+
     var cloudFlareCookie
         get() = CookieString(getSpValue(CLOUDFLARE_COOKIE   , EMPTY_STRING))
         set(value) {

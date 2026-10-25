@@ -32,6 +32,8 @@ fun buildHomeHeroItems(
         )
     }
     val videos = categories
+        // 推薦區塊是行為畫像內容，不參與 hero 輪播，避免首屏和登入前不一致
+        .filterNot { it.key.startsWith(HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX) }
         .sortedBy { if (it.key == HOME_CATEGORY_WATCHING_NOW) 0 else 1 }
         .flatMap { it.videos }
         .asSequence()
@@ -150,7 +152,17 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
     ).let { base ->
         if (!isAVSite) base
         else {
-            // missav 首頁的其餘區塊（推薦給你、中出等）插入到固定分類之後
+            // missav 登入後，首頁最前面幾欄是 Recombee 按帳號行為生成的
+            // 「推薦給你 / 中出 / 巨乳 …」；站點把它們排在新作上市之前。
+            val recommended = homePage.missavRecommended.mapIndexed { index, section ->
+                HomeCategory(
+                    key = "$HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX$index",
+                    titleRes = R.string.missav_recommended,
+                    titleText = section.title,
+                    videos = section.videos
+                )
+            }
+            // missav 首頁的其餘靜態區塊（無碼影片、隨機等）維持在固定分類之後
             val missavExtra = homePage.missavSections.mapIndexed { index, section ->
                 HomeCategory(
                     key = "${HOME_CATEGORY_MISSAV_SECTION_PREFIX}$index",
@@ -159,14 +171,23 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
                     videos = section.videos
                 )
             }
-            base + missavExtra
+            recommended + base + missavExtra
         }
     }.filter { it.videos.isNotEmpty() }
         .let { categories ->
             val hiddenKeys = hiddenHomeCategoryKeys
             val orderIndex = homeCategoryOrder.withIndex().associate { it.value to it.index }
-            categories
+            val visible = categories
                 .filterNot { it.key in hiddenKeys }
                 .sortedBy { orderIndex[it.key] ?: Int.MAX_VALUE }
+            if (!isAVSite) visible
+            else {
+                // 動態 key 不在用戶的排序表裏（Int.MAX_VALUE），排完會落到最後，
+                // 所以推薦區塊要再單獨提到最前；其餘順序保持不變。
+                val (recommended, rest) = visible.partition {
+                    it.key.startsWith(HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX)
+                }
+                recommended + rest
+            }
         }
 }

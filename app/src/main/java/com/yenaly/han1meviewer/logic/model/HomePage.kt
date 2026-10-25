@@ -13,7 +13,12 @@ data class HomePage(
     val latestHanime: MutableList<HanimeInfo>,
     val latestRelease: MutableList<HanimeInfo>,
     /**
-     * missav 首頁其餘 h2 區塊（「推薦給你」「中出」等），
+     * missav 首頁由 Recombee 推薦接口下發的區塊（「推薦給你」「中出」「巨乳」…），
+     * 只有登入時才會填充。展示時排在靜態分節（新作上市/最近更新/無碼影片）之前。
+     */
+    val missavRecommended: MutableList<MissavSection> = mutableListOf(),
+    /**
+     * missav 首頁其餘 h2 區塊（「無碼影片」「隨機」等），
      * 按頁面順序保存，標題保留站點原文。
      */
     val missavSections: MutableList<MissavSection> = mutableListOf(),

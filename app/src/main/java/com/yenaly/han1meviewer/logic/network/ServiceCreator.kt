@@ -83,11 +83,22 @@ object ServiceCreator {
         private set
 
     /**
+     * Recombee 推薦接口（missav 首頁前幾欄）用的 client。
+     *
+     * **不能共用 [hClient]**：`HCookieJar.loadForRequest` 會把 `Preferences.loginCookie`
+     * 按請求的 host 重新拼成 Cookie 發出去，也就是會把 missav 的會話 cookie 送到
+     * `*.recombee.com`。這裏刻意不掛 CookieJar。
+     */
+    var recombeeClient: OkHttpClient = buildRecombeeClient()
+        private set
+
+    /**
      * Rebuild OkHttpClient
      */
     fun rebuildOkHttpClient() {
         hClient = buildHClient()
         getchuClient = buildGetchuClient()
+        recombeeClient = buildRecombeeClient()
     }
 
     private fun buildGetchuClient(): OkHttpClient {
@@ -126,6 +137,18 @@ object ServiceCreator {
             .addInterceptor(CloudflareInterceptor(applicationContext))
             .cache(cache)
             .cookieJar(HCookieJar())
+            .proxySelector(HProxySelector())
+            .dns(dns)
+            .build()
+    }
+
+    private fun buildRecombeeClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            // 推薦只是首頁的錦上添花：接口不通時要儘快失敗，別把首頁拖住
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .callTimeout(10, TimeUnit.SECONDS)
+            .addInterceptor(UserAgentInterceptor)
             .proxySelector(HProxySelector())
             .dns(dns)
             .build()

@@ -113,6 +113,12 @@ const val CLOUDFLARE_COOKIE = "cf_cookie"
 /** missav 登入時使用的帳號。站點未必有顯示名（user.name 可能是 null），抽屜就拿這個兜底。 */
 const val MISSAV_LOGIN_EMAIL = "missav_login_email"
 
+/** missav 推薦使用的 user_uuid（站點把它放在同名 cookie 裡）。 */
+const val MISSAV_USER_UUID = "missav_user_uuid"
+
+/** Recombee frontend public token（取自 missav app.js，用於請求簽名）。 */
+const val MISSAV_RECOMBEE_TOKEN = "missav_recombee_token"
+
 const val ALREADY_LOGIN = "already_login"
 
 // Notification

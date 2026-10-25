@@ -23,6 +23,7 @@ import com.yenaly.han1meviewer.logic.model.VideoCommentArgs
 import com.yenaly.han1meviewer.logic.model.VideoComments
 import com.yenaly.han1meviewer.logic.network.HUpdater
 import com.yenaly.han1meviewer.logic.network.HanimeNetwork
+import com.yenaly.han1meviewer.logic.network.MissavRecommender
 import com.yenaly.han1meviewer.logic.state.PageLoadingState
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
 import com.yenaly.han1meviewer.logic.state.WebsiteState
@@ -56,12 +57,24 @@ object NetworkRepo {
     //<editor-fold desc="Hanime">
 
     fun getHomePage(): Flow<WebsiteState<HomePage>> = if (Preferences.isMissavSite) {
-        // missav 新版首页的服务端静态分节（新作上市/最近更新/无码影片/随机）okhttp 可直接获取；
-        // 「推荐给你」等 Recombee 分节为客户端渲染，静态 HTML 中无数据，不展示。
-        websiteIOFlow(
-            request = { HanimeNetwork.hanimeService.getMissavHomePage() },
-            action = Parser::missavHomePage,
-        )
+        // missav 新版首頁分兩部分：
+        //  - 服務端靜態分節（新作上市/最近更新/無碼影片/隨機），okhttp 直接解析；
+        //  - 「推薦給你」+ 3 個行為分節，由瀏覽器端調 Recombee 生成，靜態 HTML 裏只有骨架。
+        // 登入後補上後者，並排在最前面；推薦失敗就只顯示靜態分節，不影響原有內容。
+        flow {
+            val response = HanimeNetwork.hanimeService.getMissavHomePage()
+            val body = response.body()?.string()?.replaceBackupMediaCdnHost()
+            if (!response.isSuccessful) response.throwRequestException()
+            val state = Parser.missavHomePage(body ?: EMPTY_STRING)
+            if (state is WebsiteState.Success && isAlreadyLogin && body != null) {
+                val recommended = MissavRecommender.fetch(body)
+                state.info.missavRecommended.clear()
+                state.info.missavRecommended.addAll(recommended)
+            }
+            emit(state)
+        }.catch { e ->
+            emit(WebsiteState.Error(handleException(e)))
+        }.flowOn(Dispatchers.IO)
     } else {
         websiteIOFlow(
             request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
