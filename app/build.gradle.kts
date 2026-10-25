@@ -91,6 +91,12 @@ android {
             )
             applicationIdSuffix = ".debug"
             manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_debug"
+            // CI 的 debug keystore 每次构建都是新生成的，签名不一致会导致覆盖安装失败。
+            // CI 传 -PciDebugSigning=true 时改用 release keystore；本地/服务器构建不传，
+            // 仍使用默认 debug 签名。
+            if (project.providers.gradleProperty("ciDebugSigning").orNull == "true") {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     buildFeatures {
