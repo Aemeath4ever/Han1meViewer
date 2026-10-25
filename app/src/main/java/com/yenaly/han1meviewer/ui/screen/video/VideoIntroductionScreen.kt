@@ -83,6 +83,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,6 +101,7 @@ import com.yenaly.han1meviewer.logic.model.HanimeVideo
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
 import com.yenaly.han1meviewer.ui.component.BottomSheetHandler
 import com.yenaly.han1meviewer.ui.component.ExpandableRichText
+import com.yenaly.han1meviewer.ui.component.GlobalToasts
 import com.yenaly.han1meviewer.ui.component.TagChipGroup
 import com.yenaly.han1meviewer.ui.component.VideoCardItem
 import com.yenaly.han1meviewer.ui.component.content.EmptyContent
@@ -289,6 +291,7 @@ private fun VideoIntroductionContent(
     recommendedGroupId: Int?,
 ) {
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val context = LocalContext.current
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = introFirstVisibleItemIndex,
         initialFirstVisibleItemScrollOffset = introFirstVisibleItemScrollOffset,
@@ -432,7 +435,17 @@ private fun VideoIntroductionContent(
                     onQuickCheckIn = { showQuickCheckInDialog = true },
                     onOpenOriginalComic = onOpenOriginalComic,
                     onToggleFavorite = onToggleFavorite,
-                    onManageMyList = { showMyListDialog = true },
+                    onManageMyList = {
+                        if (video.myList == null) {
+                            // 未登入或站內片單接口沒有返回時，避免按鈕靜默無反應
+                            GlobalToasts.show(
+                                context.getString(R.string.login_first),
+                                level = GlobalToasts.ToastLevel.WARNING,
+                            )
+                        } else {
+                            showMyListDialog = true
+                        }
+                    },
                     onDownload = { showDownloadQualityDialog = true },
                     onShare = onShare,
                     onCopyShareText = onCopyShareText,
