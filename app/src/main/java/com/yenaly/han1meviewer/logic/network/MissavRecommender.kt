@@ -9,6 +9,7 @@ import com.yenaly.han1meviewer.logic.model.HomePage
 import com.yenaly.yenaly_libs.utils.applicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -139,10 +140,12 @@ object MissavRecommender {
         val blocks = runCatching { JSONArray(json) }.getOrNull() ?: return emptyList()
         return buildList {
             for (i in 0 until blocks.length()) {
-                val block = blocks.optJSONObject(i) ?: continue
-                if (block.optInt("code") != 200) continue
-                val recomms = block.optJSONObject("json")?.optJSONArray("recomms") ?: continue
-                add(parseItems(recomms))
+                // 下標必須與請求一一對應（標題按位置取），失敗的段補空列表而不是跳過，
+                // 否則後面某段失敗會讓後續區塊全部錯位到別的標題下。
+                val block = blocks.optJSONObject(i)
+                val recomms = block?.takeIf { it.optInt("code") == 200 }
+                    ?.optJSONObject("json")?.optJSONArray("recomms")
+                add(if (recomms == null) emptyList() else parseItems(recomms))
             }
         }
     }
@@ -266,8 +269,11 @@ object MissavRecommender {
     private suspend fun publicToken(homeHtml: String): String? {
         Preferences.missavRecombeeToken.takeIf { it.isNotBlank() }?.let { return it }
         val jsUrl = extractAppJsUrl(homeHtml) ?: return null
+        // 首次要下載 ~100KB 的 bundle；給個上限，別讓首頁卡在「推薦」上
         val js = runCatching {
-            HanimeNetwork.hanimeService.getHomePage(jsUrl).body()?.string()
+            withTimeoutOrNull(15_000) {
+                HanimeNetwork.hanimeService.getHomePage(jsUrl).body()?.string()
+            }
         }.getOrNull() ?: return null
         val token = Regex(
             """ApiClient\(\s*["']$DATABASE["']\s*,\s*["']([^"']+)["']"""
