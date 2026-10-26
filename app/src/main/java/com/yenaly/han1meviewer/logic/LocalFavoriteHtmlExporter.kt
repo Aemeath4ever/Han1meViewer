@@ -175,7 +175,7 @@ footer{padding:0 18px 28px;color:var(--muted,#6b6b76);font-size:11px}
 """
             )
             items.forEachIndexed { index, item ->
-                val siteLabel = item.siteType?.let { context.getString(it.labelRes) }
+                val siteLabel = item.resolvedSiteType?.let { context.getString(it.labelRes) }
                     ?: item.site
                 val title = item.title.escapeHtml()
                 val cover = covers.getOrNull(index)

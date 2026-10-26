@@ -144,7 +144,7 @@ fun MainNavHost(
                 onBack = onBack,
                 onOpenVideo = { item -> onNavigateToVideo(item.videoCode) },
                 onSwitchSiteAndOpen = { item ->
-                    item.siteType?.let { site ->
+                    item.resolvedSiteType?.let { site ->
                         activity.switchSiteForVideo(site, item.videoCode)
                     }
                 },

@@ -970,9 +970,6 @@ hanime1.me以外のドメインは、特定の時間帯にhanime1.meにリダイ
     <string name="export_local_favorites_progress">書き出し中 %1$d/%2$d…</string>
     <string name="export_local_favorites_success">オフライン HTML を書き出しました</string>
     <string name="export_local_favorites_failed">書き出しに失敗しました</string>
-    <string name="local_favorite_switching_site">このお気に入りは %1$s のものです。サイトを切り替えて開きますか？</string>
-    <string name="local_favorite_switch_and_open">切り替えて開く</string>
-    <string name="local_favorite_open_in_browser">ブラウザで開く</string>
     <string name="filter_all">すべて</string>
     <string name="local_favorite_export_html_header">Han1meViewer ローカルお気に入り</string>
     <string name="local_favorite_export_html_summary">%1$d 件・%2$s に書き出し</string>

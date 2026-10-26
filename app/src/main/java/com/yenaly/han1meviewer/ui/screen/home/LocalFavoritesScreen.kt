@@ -68,7 +68,6 @@ import com.yenaly.han1meviewer.ui.component.appbar.HanimeScaffold
 import com.yenaly.han1meviewer.ui.component.content.EmptyContent
 import com.yenaly.han1meviewer.ui.screen.RetryableImage
 import com.yenaly.han1meviewer.ui.viewmodel.LocalFavoritesViewModel
-import com.yenaly.yenaly_libs.utils.browse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,7 +93,6 @@ fun LocalFavoritesScreen(
     var filterSite by rememberSaveable { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf<LocalFavoriteEntity?>(null) }
     var pendingDelete by remember { mutableStateOf<LocalFavoriteEntity?>(null) }
-    var pendingSwitch by remember { mutableStateOf<LocalFavoriteEntity?>(null) }
     var exporting by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     val filtered = if (filterSite == null) {
@@ -224,28 +222,20 @@ fun LocalFavoritesScreen(
                             LocalFavoriteCard(
                                 item = item,
                                 onClick = {
-                                    val target = item.siteType
-                                    when {
-                                        target == null -> GlobalToasts.show(
+                                    // 不再拉起浏览器：直接进播放页。
+                                    // 站点缺失时按影片地址自动推断；跨站点则自动切站并打开。
+                                    when (val target = item.resolvedSiteType) {
+                                        null -> GlobalToasts.show(
                                             context.getString(R.string.fault_prompt),
                                             level = GlobalToasts.ToastLevel.WARNING,
                                         )
 
-                                        target == currentSite -> onOpenVideo(item)
-                                        else -> pendingSwitch = item
+                                        currentSite -> onOpenVideo(item)
+                                        else -> onSwitchSiteAndOpen(item)
                                     }
                                 },
                                 onEdit = { editing = item },
                                 onDelete = { pendingDelete = item },
-                                onOpenInBrowser = {
-                                    runCatching { context.browse(item.videoUrl) }
-                                        .onFailure {
-                                            GlobalToasts.show(
-                                                context.getString(R.string.action_not_support),
-                                                level = GlobalToasts.ToastLevel.WARNING,
-                                            )
-                                        }
-                                },
                             )
                         }
                     }
@@ -294,24 +284,6 @@ fun LocalFavoritesScreen(
         onDismiss = { pendingDelete = null },
     )
 
-    val switching = pendingSwitch
-    ConfirmDialog(
-        visible = switching != null,
-        title = stringResource(R.string.switch_site),
-        message = stringResource(
-            R.string.local_favorite_switching_site,
-            switching?.siteType?.let { stringResource(it.labelRes) }
-                ?: switching?.site.orEmpty(),
-        ),
-        confirmText = stringResource(R.string.local_favorite_switch_and_open),
-        dismissText = stringResource(R.string.cancel),
-        onConfirm = {
-            switching?.let(onSwitchSiteAndOpen)
-            pendingSwitch = null
-        },
-        onDismiss = { pendingSwitch = null },
-    )
-
     val progress = exporting
     if (progress != null) {
         AlertDialog(
@@ -344,7 +316,6 @@ private fun LocalFavoriteCard(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onOpenInBrowser: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -374,7 +345,7 @@ private fun LocalFavoriteCard(
                     contentScale = ContentScale.Crop,
                 )
                 SiteBadge(
-                    site = item.siteType,
+                    site = item.resolvedSiteType,
                     fallback = item.site,
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -432,16 +403,6 @@ private fun LocalFavoriteCard(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = stringResource(R.string.edit),
-                            modifier = Modifier.size(17.dp),
-                        )
-                    }
-                    IconButton(
-                        onClick = onOpenInBrowser,
-                        modifier = Modifier.size(30.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_baseline_language_24),
-                            contentDescription = stringResource(R.string.local_favorite_open_in_browser),
                             modifier = Modifier.size(17.dp),
                         )
                     }

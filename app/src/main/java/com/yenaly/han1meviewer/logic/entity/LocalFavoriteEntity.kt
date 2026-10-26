@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.yenaly.han1meviewer.SiteType
 import kotlinx.serialization.Serializable
+import java.net.URI
 
 /**
  * 本地收藏。與站點的「喜歡」相互獨立，不需要登入，也不區分站點：
@@ -34,6 +35,23 @@ data class LocalFavoriteEntity(
 ) {
     val siteType: SiteType?
         get() = SiteType.entries.firstOrNull { it.name == site }
+
+    /**
+     * 打开收藏时使用的站点：优先用 [site]，缺失或无法识别时按 [videoUrl] 的域名推断，
+     * 这样旧数据/导入的数据也能自动解析到对应站点。
+     */
+    val resolvedSiteType: SiteType?
+        get() = siteType ?: inferSiteType(videoUrl)
+}
+
+private fun inferSiteType(url: String): SiteType? {
+    val host = runCatching { URI(url).host }.getOrNull()?.lowercase() ?: return null
+    return when {
+        "missav" in host -> SiteType.MISSAV
+        "jable" in host -> SiteType.JABLE
+        "hanime" in host -> SiteType.HANIME
+        else -> null
+    }
 }
 
 /** 把解析器可能給出的相對封面地址補成絕對地址，方便列表與離線匯出使用。 */

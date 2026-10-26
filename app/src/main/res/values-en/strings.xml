@@ -966,9 +966,6 @@ Recommendations are as follows:\n
     <string name="export_local_favorites_progress">Exporting %1$d/%2$d…</string>
     <string name="export_local_favorites_success">Offline HTML exported</string>
     <string name="export_local_favorites_failed">Export failed</string>
-    <string name="local_favorite_switching_site">This favorite belongs to %1$s. Switch site and open it?</string>
-    <string name="local_favorite_switch_and_open">Switch and open</string>
-    <string name="local_favorite_open_in_browser">Open in browser</string>
     <string name="filter_all">All</string>
     <string name="local_favorite_export_html_header">Han1meViewer Local Favorites</string>
     <string name="local_favorite_export_html_summary">%1$d favorites · exported %2$s</string>

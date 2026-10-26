@@ -1024,9 +1024,6 @@
     <string name="export_local_favorites_progress">正在匯出 %1$d/%2$d…</string>
     <string name="export_local_favorites_success">離線 HTML 已匯出</string>
     <string name="export_local_favorites_failed">匯出失敗</string>
-    <string name="local_favorite_switching_site">這條收藏屬於 %1$s，切換站點後開啟？</string>
-    <string name="local_favorite_switch_and_open">切換並開啟</string>
-    <string name="local_favorite_open_in_browser">在瀏覽器開啟</string>
     <string name="filter_all">全部</string>
     <string name="local_favorite_export_html_header">Han1meViewer 本地收藏</string>
     <string name="local_favorite_export_html_summary">共 %1$d 條收藏，匯出於 %2$s</string>
