@@ -35,6 +35,7 @@ fun HomeRouteScreen(
     onNavigateToPreview: () -> Unit,
     onNavigateToSearch: (String?) -> Unit,
     onNavigateToSearchAdvanced: (Map<String, String>) -> Unit,
+    onNavigateToListing: (title: String, url: String) -> Unit,
     onNavigateToVideo: (String) -> Unit,
 ) {
     val viewModel = activity.viewModel
@@ -61,6 +62,9 @@ fun HomeRouteScreen(
                     is HomeUiEvent.NavigateToPreview -> onNavigateToPreview()
                     is HomeUiEvent.OpenSearchPage -> onNavigateToSearch(event.query)
                     is HomeUiEvent.NavigateToSearchAdvanced -> onNavigateToSearchAdvanced(event.params)
+                    is HomeUiEvent.NavigateToListing -> onNavigateToListing(event.title, event.url)
+                    is HomeUiEvent.LoadMoreSection ->
+                        viewModel.loadMoreRecommendedSection(event.categoryKey, event.recommId)
                     is HomeUiEvent.OpenVideo -> onNavigateToVideo(event.videoCode)
                     is HomeUiEvent.LongPressVideoCopy -> {
                         copyTextToClipboard(getHanimeShareText(event.videoTitle, event.videoCode))

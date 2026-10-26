@@ -130,6 +130,11 @@ fun MainNavHost(
                         SearchRoute(advancedSearchJson = Json.encodeToString(params))
                     )
                 },
+                // 站點給的「更多」列表頁：走搜尋頁的來源網址模式，分頁交給各站自己的
+                // 列表分頁解析；標題帶上分節名，頁面才不會只顯示一個空白搜尋框。
+                onNavigateToListing = { title, url ->
+                    navController.navigateSafely(SearchRoute(query = title, sourceUrl = url))
+                },
                 onNavigateToVideo = onNavigateToVideo,
             )
         }

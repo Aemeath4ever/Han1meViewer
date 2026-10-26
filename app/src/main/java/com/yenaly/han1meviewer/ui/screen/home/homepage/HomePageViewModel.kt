@@ -15,6 +15,7 @@ import com.yenaly.han1meviewer.logic.entity.HKeyframeEntity
 import com.yenaly.han1meviewer.logic.entity.WatchHistoryEntity
 import com.yenaly.han1meviewer.logic.exception.LoginStateExpiredException
 import com.yenaly.han1meviewer.logic.model.Announcement
+import com.yenaly.han1meviewer.logic.network.MissavRecommender
 import com.yenaly.han1meviewer.logic.state.PageState
 import com.yenaly.han1meviewer.logic.state.WebsiteState
 import com.yenaly.han1meviewer.logout
@@ -43,6 +44,16 @@ class HomePageViewModel: ViewModel() {
 
     private val _homePageFlow = MutableStateFlow<PageState<HomeData>>(PageState.Loading)
     val homePageFlow = _homePageFlow.asStateFlow()
+
+    private val _sectionMoreFlow = MutableStateFlow(SectionMoreState())
+    val sectionMoreFlow = _sectionMoreFlow.asStateFlow()
+
+    /**
+     * 各推薦分類續接後的 recommId（分類 key → 當前推薦 id）。
+     *
+     * Recombee 的下一批要用「上一次續接返回的 recommId」，首頁資料裡的 id 只對第一批有效。
+     */
+    private val sectionRecommIds = mutableMapOf<String, String>()
 
     private val database = FirebaseDatabase.getInstance(FIREBASE_REALTIME_DATABASE)
 
@@ -96,6 +107,9 @@ class HomePageViewModel: ViewModel() {
                         networkState.info.userId.takeIf { it.isNotEmpty() }?.let { userId ->
                             Preferences.savedUserId = userId
                         }
+                        // 新一輪首頁數據的推薦 id 也換了，續接出來的卡片一併作廢
+                        sectionRecommIds.clear()
+                        _sectionMoreFlow.value = SectionMoreState()
                         val homeData = HomeData(page = networkState.info, announcements = currentAnnouncements)
                         _homePageFlow.value = PageState.Success(info = homeData, isRefreshing = false)
                     }
@@ -104,6 +118,35 @@ class HomePageViewModel: ViewModel() {
             }
         }
     }
+
+    /**
+     * 推薦分類的「更多」：續接 Recombee 的下一批，追加到該行尾。
+     *
+     * @param categoryKey 分類 key（`missav_recommended_N`），用於把結果放回同一行
+     * @param recommId 該行當前持有的推薦 id；續接過的行改用 [sectionRecommIds] 裡較新的那個
+     */
+    fun loadMoreRecommendedSection(categoryKey: String, recommId: String) {
+        val current = _sectionMoreFlow.value
+        if (categoryKey in current.loadingKeys) return
+        val activeRecommId = sectionRecommIds[categoryKey] ?: recommId
+        _sectionMoreFlow.value = current.copy(loadingKeys = current.loadingKeys + categoryKey)
+        viewModelScope.launch {
+            val next = MissavRecommender.fetchNext(activeRecommId)
+            val state = _sectionMoreFlow.value
+            if (next == null) {
+                Log.d("homeMore", "load more failed: $categoryKey")
+                _sectionMoreFlow.value = state.copy(loadingKeys = state.loadingKeys - categoryKey)
+                return@launch
+            }
+            sectionRecommIds[categoryKey] = next.recommId
+            _sectionMoreFlow.value = state.copy(
+                extraItems = state.extraItems +
+                        (categoryKey to (state.extraItems[categoryKey].orEmpty() + next.videos)),
+                loadingKeys = state.loadingKeys - categoryKey,
+            )
+        }
+    }
+
     private suspend fun fetchAnnouncementsFromFirebase(): List<Announcement> =
         suspendCancellableCoroutine { continuation ->
             val lastDismissTime = getSpValue("last_dismiss_time", 0L, "setting_pref")

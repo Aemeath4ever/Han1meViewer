@@ -38,9 +38,14 @@ import kotlinx.coroutines.launch
  * 轮播会与右侧内容（公告优先，否则为待播队列）以左右分栏的形式组成 Hero 区域，详见
  * [rememberHomeHeroSpec]。
  *
+ * 「更多」的去处按行数据决定：推荐分行续接下一批（[SectionMoreState]）、
+ * 有站點列表頁的分行打开该列表、其余走高级搜索；三者都没有时不显示「更多」，
+ * 避免点了没反应。
+ *
  * @param data 主页数据
  * @param onEvent 主页事件回调
  * @param onCloseAnnouncement 关闭公告时调用。
+ * @param sectionMore 各分类行续接出来的额外卡片与加载状态。
  * @param modifier 应用于列表根布局的修饰符。
  */
 @Composable
@@ -48,7 +53,8 @@ fun HomePageContent(
     data: HomeData,
     onEvent: (HomeUiEvent) -> Unit,
     onCloseAnnouncement: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sectionMore: SectionMoreState = SectionMoreState(),
 ) {
     val announcements = remember(data.announcements) {
         data.announcements.filter { it.isActive }
@@ -140,15 +146,23 @@ fun HomePageContent(
         }
         categories.forEach { category ->
             item(key = "category_${category.key}") {
+                val title = category.titleText ?: stringResource(category.titleRes)
+                val recommId = category.recommId
+                val moreUrl = category.moreUrl
+                val moreEvent: HomeUiEvent? = when {
+                    // 站點上這些分行的「更多」就是就地續接，不跳頁
+                    recommId != null -> HomeUiEvent.LoadMoreSection(category.key, recommId)
+                    // missav / jable 的服務端分節各自有列表頁（如 無碼影片 → /cn/fc2）
+                    moreUrl != null -> HomeUiEvent.NavigateToListing(title, moreUrl)
+                    else -> category.toAdvancedSearchParams()
+                        .takeIf { it.isNotEmpty() }
+                        ?.let { params -> HomeUiEvent.NavigateToSearchAdvanced(params) }
+                }
                 CategoryRow(
-                    title = category.titleText ?: stringResource(category.titleRes),
-                    videos = category.videos,
-                    onMoreClick = {
-                        val params = category.toAdvancedSearchParams()
-                        if (params.isNotEmpty()) {
-                            onEvent(HomeUiEvent.NavigateToSearchAdvanced(params))
-                        }
-                    },
+                    title = title,
+                    videos = category.videos + sectionMore.extraItems[category.key].orEmpty(),
+                    onMoreClick = moreEvent?.let { event -> ({ onEvent(event) }) },
+                    isLoadingMore = category.key in sectionMore.loadingKeys,
                     onVideoClick = { code ->
                         onEvent(HomeUiEvent.OpenVideo(code))
                     },

@@ -49,6 +49,8 @@ data class HomeHeroItem(
  * @param genre 高级搜索使用的可选类型参数。
  * @param sort 高级搜索使用的可选排序参数。
  * @param tags 高级搜索使用的可选标签参数。
+ * @param moreUrl 站点给该分类准备的「更多」列表页（如 missav 無碼影片 → `/cn/fc2`）。
+ * @param recommId Recombee 推荐分类的推荐 id；非空时「更多」改为就地续接下一批。
  * @param videos 当前分类下展示的视频列表。
  */
 data class HomeCategory(
@@ -58,5 +60,7 @@ data class HomeCategory(
     val genre: String? = null,
     val sort: String? = null,
     val tags: String? = null,
+    val moreUrl: String? = null,
+    val recommId: String? = null,
     val videos: List<HanimeInfo>
 )

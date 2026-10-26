@@ -73,6 +73,7 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
                 key = "$HOME_CATEGORY_JABLE_SECTION_PREFIX$index",
                 titleRes = R.string.latest_av,
                 titleText = section.title,
+                moreUrl = section.moreUrl,
                 videos = section.videos,
             )
         }.filter { it.videos.isNotEmpty() }
@@ -85,12 +86,16 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
             key = HOME_CATEGORY_LATEST_HANIME,
             titleRes = if (isAVSite) R.string.latest_av else R.string.latest_hanime,
             genre = if (isAVSite) "日本AV" else "裏番",
+            // missav 的站內搜尋只認關鍵詞，靠 genre/sort 過去的「更多」在那邊是死路；
+            // 改用分節自己在 header 上提供的列表頁（新作上市 → /cn/release）。
+            moreUrl = homePage.missavReleaseMoreUrl,
             videos = homePage.ecchiAnime
         ),
         HomeCategory(
             key = HOME_CATEGORY_LATEST_RELEASE,
             titleRes = R.string.latest_release,
             sort = "最新上市",
+            moreUrl = homePage.missavUpdateMoreUrl,
             videos = homePage.latestRelease
         ),
         HomeCategory(
@@ -172,6 +177,8 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
                     key = "$HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX$index",
                     titleRes = R.string.missav_recommended,
                     titleText = section.title,
+                    // 推薦分節的「更多」是就地續接，靠 recommId 再要一批
+                    recommId = section.recommId,
                     videos = section.videos
                 )
             }
@@ -181,6 +188,7 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
                     key = "${HOME_CATEGORY_MISSAV_SECTION_PREFIX}$index",
                     titleRes = R.string.latest_av,
                     titleText = section.title,
+                    moreUrl = section.moreUrl,
                     videos = section.videos
                 )
             }

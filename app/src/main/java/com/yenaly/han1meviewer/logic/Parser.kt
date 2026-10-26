@@ -28,6 +28,7 @@ import com.yenaly.han1meviewer.logic.state.PageLoadingState
 import com.yenaly.han1meviewer.logic.state.VideoLoadingState
 import com.yenaly.han1meviewer.logic.state.WebsiteState
 import com.yenaly.han1meviewer.toVideoCode
+import java.net.URI
 import kotlinx.datetime.LocalDate
 import org.json.JSONObject
 import org.jsoup.Jsoup
@@ -1415,6 +1416,58 @@ object Parser {
         return unpacked
     }
 
+    /** 分節標題欄裡「更多」連結的文案（missav「更多」、KVS「更多 / More」、日文「もっと見る」等）。 */
+    private val sectionMoreTexts = setOf(
+        "更多", "查看更多", "更多影片", "查看全部",
+        "more", "view all", "view more", "see all", "see more",
+        "すべて見る", "全て見る", "もっと見る", "続きを読む",
+    )
+
+    /**
+     * 從分節容器裡找「更多」連結。
+     *
+     * 卡片標題連結的文字都是完整片名，不會等於這些短文案，所以直接按文字全等匹配即可，
+     * 不必限定它掛在標題欄的哪一層。
+     *
+     * @return 改寫成目前站點域名的絕對地址；沒有該連結（如 missav「隨機」）時為 null
+     */
+    private fun findSectionMoreUrl(root: Element): String? {
+        val href = root.select("a[href]")
+            .firstOrNull { it.text().trim().lowercase() in sectionMoreTexts }
+            ?.attr("href")
+        return sectionListUrl(href)
+    }
+
+    /**
+     * jable 分節的「更多」目標。
+     *
+     * KVS 模板有時把「更多」單獨放在標題欄外，有時整個標題就是一顆連到列表頁的連結
+     * （如「最近更新」→ `/latest-updates/`），兩種都認。
+     */
+    private fun jableSectionMoreUrl(section: Element, titleBox: Element?): String? {
+        findSectionMoreUrl(section)?.let { return it }
+        val titleLink = titleBox?.selectFirst("h2.h3-md a[href]")?.attr("href")
+        return sectionListUrl(titleLink)
+    }
+
+    /**
+     * 把站點給的分節連結改寫到目前站點域名。
+     *
+     * 頁面裡的連結是 `https://missav.ai/...`、`https://jable.tv/...` 這樣的絕對地址；
+     * 自訂鏡像的使用者點「更多」時不該被帶回原站（原站還可能被牆），所以只取路徑部分。
+     */
+    private fun sectionListUrl(href: String?): String? {
+        val raw = href?.trim().orEmpty()
+        if (raw.isEmpty() || raw == "#" || raw.startsWith("javascript:", ignoreCase = true)) return null
+        val path = if (raw.startsWith("/")) raw else {
+            val uri = runCatching { URI(raw) }.getOrNull() ?: return null
+            if (uri.host.isNullOrEmpty()) return null
+            val query = uri.rawQuery?.let { "?$it" }.orEmpty()
+            (uri.rawPath ?: return null) + query
+        }
+        return Preferences.baseUrl.trimEnd('/') + path
+    }
+
     /**
      * missav 首頁解析：按分節容器（`div.sm:container`，內含 h2 標題 + 卡片 grid）提取卡片。
      *
@@ -1435,6 +1488,8 @@ object Parser {
             ?.trim()?.takeIf { it.isNotEmpty() }
         var latestHanime: MutableList<HanimeInfo> = mutableListOf()
         var latestRelease: MutableList<HanimeInfo> = mutableListOf()
+        var releaseMoreUrl: String? = null
+        var updateMoreUrl: String? = null
         val extraSections = mutableListOf<HomePage.MissavSection>()
         for (heading in parseBody.select("h2")) {
             val sectionTitle = heading.text().trim()
@@ -1452,13 +1507,30 @@ object Parser {
                 it.contains("uncensored") || it.contains("無碼") || it.contains("无码")
             }
             val cards = parseMissavCards(container, uncensored)
+            // 站點在區塊標題右側放了「更多」，指向該分節的列表頁（新作上市 → /cn/release、
+            // 最近更新 → /cn/new、無碼影片 → /cn/fc2；「隨機」沒有這個連結）。
+            val moreUrl = findSectionMoreUrl(container)
             val title = sectionTitle.lowercase()
             when {
                 title.contains("新作") || title.contains("新片") ||
-                    title == "new releases" || title.contains("最新") -> latestHanime = cards
-                title.contains("更新") || title == "recent update" -> latestRelease = cards
+                    title == "new releases" || title.contains("最新") -> {
+                    latestHanime = cards
+                    releaseMoreUrl = moreUrl
+                }
+
+                title.contains("更新") || title == "recent update" -> {
+                    latestRelease = cards
+                    updateMoreUrl = moreUrl
+                }
+
                 else -> if (cards.isNotEmpty()) {
-                    extraSections.add(HomePage.MissavSection(title = sectionTitle, videos = cards))
+                    extraSections.add(
+                        HomePage.MissavSection(
+                            title = sectionTitle,
+                            videos = cards,
+                            moreUrl = moreUrl,
+                        )
+                    )
                 }
             }
         }
@@ -1470,6 +1542,8 @@ object Parser {
                 latestHanime = latestHanime,
                 latestRelease = latestRelease,
                 missavSections = extraSections,
+                missavReleaseMoreUrl = releaseMoreUrl,
+                missavUpdateMoreUrl = updateMoreUrl,
                 ecchiAnime = mutableListOf(), shortEpisodeAnime = mutableListOf(),
                 twoPointFiveDAnime = mutableListOf(), threeDCG = mutableListOf(),
                 motionAnime = mutableListOf(), twoDAnime = mutableListOf(),
@@ -1491,13 +1565,21 @@ object Parser {
         val parseBody = Jsoup.parse(body).body()
         val sections = mutableListOf<HomePage.MissavSection>()
         for (section in parseBody.select("section")) {
+            val titleBox = section.selectFirst("div.title-box")
+                ?: section.selectFirst("div.title-with-avatar")
             val title = section.selectFirst("div.title-box h2.h3-md")?.text()?.trim()
                 ?: section.selectFirst("div.title-with-avatar h2.h3-md")?.text()?.trim()
                 ?: continue
             val cards = parseJableCards(section)
             if (cards.isEmpty()) continue
             if (sections.any { it.title == title }) continue
-            sections.add(HomePage.MissavSection(title = title, videos = cards))
+            sections.add(
+                HomePage.MissavSection(
+                    title = title,
+                    videos = cards,
+                    moreUrl = jableSectionMoreUrl(section, titleBox),
+                )
+            )
         }
         return WebsiteState.Success(
             HomePage(

@@ -27,6 +27,15 @@ data class HomePage(
      * KVS 站的分節都是同構的，這裡按頁面順序原樣展示。
      */
     val jableSections: MutableList<MissavSection> = mutableListOf(),
+    /**
+     * missav「新作上市」分節的「更多」列表頁（站點上指向 `/cn/release`）。
+     *
+     * 這兩個分節在首頁被固定分類（見 `buildCategoryList`）接管，卡片列表捨棄了
+     * [MissavSection]，所以「更多」連結單獨保存，不然首頁第一欄的「更多」會沒有去處。
+     */
+    val missavReleaseMoreUrl: String? = null,
+    /** missav「最近更新」分節的「更多」列表頁（站點上指向 `/cn/new`）。 */
+    val missavUpdateMoreUrl: String? = null,
     val ecchiAnime: MutableList<HanimeInfo>,
     val shortEpisodeAnime: MutableList<HanimeInfo>,
     val twoPointFiveDAnime: MutableList<HanimeInfo>,
@@ -51,13 +60,19 @@ data class HomePage(
     )
 
     /**
-     * missav 首頁的一個內容區塊。
+     * 首頁的一個內容區塊（missav 與 jable 共用）。
      *
      * @param title 區塊標題（站點原文，如「推薦給你」）。
      * @param videos 區塊內的視頻卡片。
+     * @param moreUrl 站點為該分節準備的「更多」列表頁，例如 missav「無碼影片」指向 `/cn/fc2`。
+     * 站點沒有提供列表頁的分節（如「隨機」）為 null，此時不顯示「更多」。
+     * @param recommId Recombee 推薦分節的推薦 id。站點的「載入更多」就是拿它再調一次
+     * `RecommendNextItems` 續接下一批，所以帶著它才能支援載入更多；非推薦分節為 null。
      */
     data class MissavSection(
         val title: String,
         val videos: List<HanimeInfo>,
+        val moreUrl: String? = null,
+        val recommId: String? = null,
     )
 }

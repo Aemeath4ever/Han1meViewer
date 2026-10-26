@@ -55,7 +55,29 @@ object MissavRecommender {
 
     private const val ITEM_CDN = "https://fourhoi.com"
 
+    /**
+     * 站點「載入更多」按鈕的取數方式：`RecommendNextItems(recommId, count)`。
+     *
+     * Recombee 的推薦 id 只在基礎請求（或上一次續接）之後 30 分鐘內可用，
+     * 所以首頁重新整理後必須用新的 recommId，這也是它跟著分節一起回傳的原因。
+     */
+    private const val NEXT_ITEMS_PATH = "/recomms/next/items/"
+
+    /** 站點一次「載入更多」補的數量（`recommendedQuantity * 2`）。 */
+    private const val NEXT_ITEMS_COUNT = ITEMS_PER_SECTION * 2
+
     private val mediaType = "application/json; charset=utf-8".toMediaType()
+
+    /**
+     * 「載入更多」的結果。
+     *
+     * @param recommId 續接後的推薦 id，下一次載入更多要用它（不是原來那個）。
+     * @param videos 新一批影片。
+     */
+    data class NextItems(
+        val recommId: String,
+        val videos: List<HanimeInfo>,
+    )
 
     private val includedProperties = JSONArray(
         listOf(
@@ -85,11 +107,12 @@ object MissavRecommender {
                     add(applicationContext.getString(R.string.missav_recommended))
                     segments.forEach { add(genreMap[it] ?: it) }
                 }
-                blocks.mapIndexedNotNull { index, videos ->
-                    if (videos.isEmpty()) return@mapIndexedNotNull null
+                blocks.mapIndexedNotNull { index, block ->
+                    if (block.videos.isEmpty()) return@mapIndexedNotNull null
                     HomePage.MissavSection(
                         title = titles.getOrElse(index) { titles.last() },
-                        videos = videos,
+                        videos = block.videos,
+                        recommId = block.recommId,
                     )
                 }.also {
                     Log.d(TAG, "sections=${it.map { s -> "${s.title}:${s.videos.size}" }}")
@@ -99,6 +122,37 @@ object MissavRecommender {
                 emptyList()
             }
         }
+
+    /**
+     * 首頁推薦區塊的「更多」：續接同一條推薦。
+     *
+     * 站點的「載入更多」就是 `RecommendNextItems(recommId, count)`，其餘參數（scenario、
+     * filter、返回欄位）由 Recombee 從基礎請求繼承，所以這裡只需要 recommId 和數量。
+     *
+     * @param recommId 分節自帶的推薦 id
+     * @return 新一批影片與續接後的推薦 id；拿不到（token 丟了／超過 30 分鐘）時返回 null，
+     * 呼叫方保持原樣即可
+     */
+    suspend fun fetchNext(
+        recommId: String,
+        count: Int = NEXT_ITEMS_COUNT,
+    ): NextItems? = withContext(Dispatchers.IO) {
+        if (recommId.isBlank()) return@withContext null
+        val token = Preferences.missavRecombeeToken.takeIf { it.isNotBlank() } ?: return@withContext null
+        val body = JSONObject().put("count", count).toString()
+        val json = post("$NEXT_ITEMS_PATH$recommId", token, body) ?: return@withContext null
+        val response = runCatching { JSONObject(json) }.getOrNull() ?: return@withContext null
+        val recomms = response.optJSONArray("recomms") ?: return@withContext null
+        val videos = parseItems(recomms)
+        if (videos.isEmpty()) {
+            Log.d(TAG, "next items for $recommId is empty")
+            return@withContext null
+        }
+        NextItems(
+            recommId = response.optString("recommId").takeIf { it.isNotBlank() } ?: recommId,
+            videos = videos,
+        )
+    }
 
     //<editor-fold desc="Recombee 調用">
 
@@ -123,7 +177,7 @@ object MissavRecommender {
         uuid: String,
         token: String,
         segments: List<String>,
-    ): List<List<HanimeInfo>> {
+    ): List<Block> {
         val requests = JSONArray()
         requests.put(recommendRequest(uuid, SCENARIO_RECOMMENDED, filter = null, withLogic = true))
         segments.forEach { segment ->
@@ -144,12 +198,21 @@ object MissavRecommender {
                 // 下標必須與請求一一對應（標題按位置取），失敗的段補空列表而不是跳過，
                 // 否則後面某段失敗會讓後續區塊全部錯位到別的標題下。
                 val block = blocks.optJSONObject(i)
-                val recomms = block?.takeIf { it.optInt("code") == 200 }
-                    ?.optJSONObject("json")?.optJSONArray("recomms")
-                add(if (recomms == null) emptyList() else parseItems(recomms))
+                val data = block?.takeIf { it.optInt("code") == 200 }?.optJSONObject("json")
+                val recomms = data?.optJSONArray("recomms")
+                add(
+                    Block(
+                        // recommId 是「載入更多」的憑證，跟著分節一起帶給 UI
+                        recommId = data?.optString("recommId")?.takeIf { it.isNotBlank() },
+                        videos = if (recomms == null) emptyList() else parseItems(recomms),
+                    )
+                )
             }
         }
     }
+
+    /** 批次裡的一個推薦區塊。 */
+    private data class Block(val recommId: String?, val videos: List<HanimeInfo>)
 
     private fun recommendRequest(
         uuid: String,

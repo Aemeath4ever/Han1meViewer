@@ -59,6 +59,7 @@ fun HomePageScreen(
 ) {
     val context = LocalContext.current
     val pageState by viewModel.homePageFlow.collectAsStateWithLifecycle()
+    val sectionMore by viewModel.sectionMoreFlow.collectAsStateWithLifecycle()
     val refreshState = rememberPullToRefreshState()
     var wasRefreshing by remember { mutableStateOf(false) }
     val loadingHint = rememberRandomLoadingHint()
@@ -129,6 +130,7 @@ fun HomePageScreen(
                                 data = data,
                                 onEvent = onEvent,
                                 onCloseAnnouncement = viewModel::dismissAnnouncements,
+                                sectionMore = sectionMore,
                             )
                         }
                     }
