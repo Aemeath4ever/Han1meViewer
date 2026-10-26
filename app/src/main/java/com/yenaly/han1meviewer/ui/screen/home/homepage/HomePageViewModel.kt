@@ -133,6 +133,8 @@ class HomePageViewModel: ViewModel() {
         viewModelScope.launch {
             val next = MissavRecommender.fetchNext(activeRecommId)
             val state = _sectionMoreFlow.value
+            // 请求期间首页刷新过（加载状态被清空）：这一批属于旧的首頁數據，直接丢弃
+            if (categoryKey !in state.loadingKeys) return@launch
             if (next == null) {
                 Log.d("homeMore", "load more failed: $categoryKey")
                 _sectionMoreFlow.value = state.copy(loadingKeys = state.loadingKeys - categoryKey)
