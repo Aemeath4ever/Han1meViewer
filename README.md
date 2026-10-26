@@ -6,9 +6,21 @@
 
 🔞 R18 警告：未满 18 岁禁止下载和使用。
 
-Han1meViewer 是一个使用 Kotlin 开发的 Android 客户端，用于浏览、搜索、播放和管理 hanime | missav | jable 相关公开视频页面内容。当前项目以 Jetpack Compose、Navigation Compose、ViewModel、StateFlow、Retrofit、Jsoup、Room、WorkManager、Media3/JZVD/MPV 为主要技术栈，围绕视频浏览、详情播放、搜索、用户列表、下载管理、评论、订阅、设置和隐私保护等功能组织。
+Han1meViewer（Hanime Viewer）是一个使用 Kotlin 开发的 Android 客户端，支持 **hanime1.me**、**missav.ai** 与 **jable.tv** 三个站点的公开视频页面：浏览首页推荐、关键词与高级搜索、在线播放、下载管理、收藏与历史、评论与订阅。项目以 Jetpack Compose、Navigation Compose、ViewModel、StateFlow、Retrofit、Jsoup、Room、WorkManager、Media3/JZVD/MPV 为主要技术栈。
 
-本应用没有任何官方网站。GitHub Release 与 CI 构建产物是唯一下载及更新渠道。
+本应用没有任何官方网站，也没有在应用商店上架。GitHub Release 与 CI 构建产物是唯一下载及更新渠道：[Aemeath4ever/Han1meViewer Releases](https://github.com/Aemeath4ever/Han1meViewer/releases)。
+
+## 🌐 支持的站点
+
+一个安装包同时支持三个站点，在「设置 → 切换站点」里选择即可，不需要为 missav 或 jable.tv 单独安装客户端。切换后首页、搜索、详情、播放、收藏和历史都按该站点的页面结构解析。
+
+| 站点 | 支持情况 |
+|---|---|
+| **hanime1.me** | 功能最全：首页、搜索、播放、下载、收藏、评论、订阅、用户列表。 |
+| **missav.ai** | 首页（含个性化推荐分节）、搜索（关键词 / 演员 / 标签）、详情、播放、收藏、历史、下载。无码有码按番号识别。 |
+| **jable.tv** | 浏览、搜索、详情、播放、收藏、稍后观看。播放源为签名 m3u8，**不支持内置下载**，也不支持评分。 |
+
+登录状态与站点数据仍属于各自站点，不同站点之间不互通；本地收藏、历史、下载记录则保存在本机。
 
 ## 📜 项目来源与许可
 
@@ -73,6 +85,26 @@ Telegram 群组：[https://t.me/Han1meViewer](https://t.me/Han1meViewer)
 - 📅 健康打卡：内置冲了么打卡页面和桌面小组件。
 - 🎯 共享关键 H 帧：支持内置关键帧数据读取、设置和共享数据展示。
 - 🗞️ 公告系统：支持首页公告展示、公告详情弹窗，并配套 `HanimeAnnouncementManagerWebUI` 维护 Firebase Realtime Database 中的 `announcements` 节点。
+
+## ❓ 常见问题
+
+**支持 missav 吗？**
+支持。在设置里切到 missav.ai 后，首页推荐分节、搜索（关键词 / 演员 / 标签）、详情、播放、收藏、历史和下载都可以用；无码、有码分节按番号自动识别。
+
+**支持 jable.tv 吗？**
+支持。切到 jable 后可以浏览、搜索、播放、收藏和稍后观看。jable 的播放源是签名 m3u8，内置下载器只处理直链，所以下载不可用；评分也不支持。
+
+**需要装两个客户端吗？要不要单独下 missav app 或 jable app？**
+不用。同一个安装包，在「设置 → 切换站点」里切换即可。收藏里保存的是原始链接，点开时会自动识别并切到对应站点播放。
+
+**为什么点了提示「当前站点暂不支持此功能」？**
+三个站点的页面结构和可用接口不同，个别功能（例如 jable 的下载、评分）只在支持的站点开放。
+
+**更新从哪里下载？**
+只从公开仓的 Releases 下载：<https://github.com/Aemeath4ever/Han1meViewer/releases>。应用内「检查更新」也读这里；想更早拿到构建，可以在设置里打开 CI 更新通道，它读滚动预发布 `debug-latest`。
+
+**支持哪些 Android 版本？**
+Android 8.1（API 27）及以上。
 
 ## 🗞️ 公告系统使用须知
 
