@@ -92,6 +92,8 @@ fun MainActivityScaffold(
                         // missav 沒有「稍後觀看 / 訂閱 / 創作者中心」這些頁面，
                         // 留着只會點進去 404。
                         items = buildList {
+                            // 本地收藏跨站點且不需要登入，任何站點都顯示。
+                            add(MainDrawerDestination.LocalFavorites)
                             if (!Preferences.isMissavSite) add(MainDrawerDestination.WatchLater)
                             add(MainDrawerDestination.FavVideo)
                             add(MainDrawerDestination.Playlist)

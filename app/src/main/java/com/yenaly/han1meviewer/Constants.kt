@@ -92,6 +92,24 @@ enum class SiteType {
     }
 }
 
+/** 站點名稱的資源 id（抽屜、本地收藏等跨站點列表共用）。 */
+val SiteType.labelRes: Int
+    get() = when (this) {
+        SiteType.HANIME -> R.string.site_hanime
+        SiteType.MISSAV -> R.string.site_missav
+        SiteType.JABLE -> R.string.site_jable
+    }
+
+/** 切換到該站點時使用的標準首頁地址；Hanime 優先沿用上次選的鏡像站。 */
+val SiteType.defaultBaseUrl: String
+    get() = when (this) {
+        SiteType.HANIME -> Preferences.selectedBaseUrl
+            .takeIf { it in HanimeConstants.ANIME_URL }
+            ?: HanimeConstants.ANIME_URL[0]
+        SiteType.MISSAV -> HanimeConstants.HANIME_URL[3]
+        SiteType.JABLE -> HanimeConstants.JABLE_URL
+    }
+
 val HANIME_LOGIN_URL: String
     get() = when (Preferences.siteType) {
         SiteType.MISSAV -> {

@@ -953,4 +953,33 @@
         <item>搓手手期待ing……</item>
         <item>◝(⑅•ᴗ•⑅)◜..°♡ 传送中……</item>
     </string-array>
+
+    <!-- 本地收藏 -->
+    <string name="local_favorites">本地收藏</string>
+    <string name="add_to_local_favorites">加入本地收藏</string>
+    <string name="local_favorited">已加入本地收藏</string>
+    <string name="edit_local_favorite">编辑本地收藏</string>
+    <string name="local_favorite_rating">评分</string>
+    <string name="local_favorite_comment">评价</string>
+    <string name="local_favorite_comment_hint">写点评价或备注（可选）</string>
+    <string name="local_favorite_saved">已加入本地收藏</string>
+    <string name="local_favorite_updated">本地收藏已更新</string>
+    <string name="local_favorite_deleted">已从本地收藏移除</string>
+    <string name="local_favorite_unrated">未评分</string>
+    <string name="local_favorite_delete_title">移除本地收藏</string>
+    <string name="local_favorite_delete_message">确定要移除“%s”吗？</string>
+    <string name="local_favorites_empty">还没有本地收藏，可在影片页加入</string>
+    <string name="local_favorite_count">%d 条收藏</string>
+    <string name="export_local_favorites">导出离线 HTML</string>
+    <string name="export_local_favorites_exporting">正在导出离线 HTML…</string>
+    <string name="export_local_favorites_progress">正在导出 %1$d/%2$d…</string>
+    <string name="export_local_favorites_success">离线 HTML 已导出</string>
+    <string name="export_local_favorites_failed">导出失败</string>
+    <string name="local_favorite_switching_site">这条收藏属于 %1$s，切换站点后打开？</string>
+    <string name="local_favorite_switch_and_open">切换并打开</string>
+    <string name="local_favorite_open_in_browser">在浏览器打开</string>
+    <string name="filter_all">全部</string>
+    <string name="local_favorite_export_html_header">Han1meViewer 本地收藏</string>
+    <string name="local_favorite_export_html_summary">共 %1$d 条收藏，导出时间 %2$s</string>
+    <string name="local_favorite_export_html_open">前往影片页</string>
 </resources>

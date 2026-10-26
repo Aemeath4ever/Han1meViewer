@@ -11,25 +11,35 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.Preferences.isAlreadyLogin
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.VIDEO_COMMENT_PREFIX
 import com.yenaly.han1meviewer.getHanimeShareText
+import com.yenaly.han1meviewer.getHanimeVideoLink
+import com.yenaly.han1meviewer.logic.DatabaseRepo
 import com.yenaly.han1meviewer.logic.entity.CheckInRecordEntity
+import com.yenaly.han1meviewer.logic.entity.LocalFavoriteEntity
+import com.yenaly.han1meviewer.logic.entity.toAbsoluteMediaUrl
 import com.yenaly.han1meviewer.logic.model.HanimeInfo
 import com.yenaly.han1meviewer.logic.model.HanimeVideo
 import com.yenaly.han1meviewer.logic.state.WebsiteState
 import com.yenaly.han1meviewer.ui.bridge.VideoPageHost
 import com.yenaly.han1meviewer.ui.component.BottomSheetHandler
+import com.yenaly.han1meviewer.ui.component.GlobalToasts
+import com.yenaly.han1meviewer.ui.component.LocalFavoriteEditorDialog
 import com.yenaly.han1meviewer.ui.theme.HanimeTheme
 import com.yenaly.han1meviewer.ui.viewmodel.CommentViewModel
 import com.yenaly.han1meviewer.ui.viewmodel.VideoViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun RenderVideoIntroductionContent(
@@ -64,6 +74,22 @@ fun RenderVideoIntroductionContent(
     }.orEmpty()
     val introScrollState = viewModel.getIntroScrollState(videoCode)
 
+    val siteType = Preferences.siteType
+    val localFavoriteFlow = remember(videoCode, siteType, viewModel.fromDownload) {
+        if (viewModel.fromDownload || videoCode == "-1") {
+            flowOf<LocalFavoriteEntity?>(null)
+        } else {
+            DatabaseRepo.LocalFavorite.observe(siteType.name, videoCode)
+        }
+    }
+    val localFavorite by localFavoriteFlow.collectAsStateWithLifecycle(initialValue = null)
+    var showLocalFavoriteDialog by remember(videoCode) { mutableStateOf(false) }
+    val localFavoriteScope = rememberCoroutineScope()
+    val localFavoriteSavedText = stringResource(R.string.local_favorite_saved)
+    val localFavoriteUpdatedText = stringResource(R.string.local_favorite_updated)
+    val localFavoriteDeletedText = stringResource(R.string.local_favorite_deleted)
+    val localFavoriteFailedText = stringResource(R.string.fault_prompt)
+
     HanimeTheme {
         VideoIntroductionScreen(
             video = video,
@@ -83,6 +109,8 @@ fun RenderVideoIntroductionContent(
             },
             onToggleSubscribe = onToggleSubscribe,
             onToggleFavorite = { video?.let(onToggleFavorite) },
+            isLocalFavorite = localFavorite != null,
+            onOpenLocalFavorite = { showLocalFavoriteDialog = true },
             onToggleWatchLater = { video?.let(onToggleWatchLater) },
             onRateVideo = { isPositive ->
                 video?.let { onRateVideo(it, isPositive) }
@@ -130,6 +158,74 @@ fun RenderVideoIntroductionContent(
             downloadGroups = viewModel.downloadGroups.collectAsStateWithLifecycle().value,
             recommendedGroupId = viewModel.recommendedGroupId.collectAsStateWithLifecycle().value,
         )
+
+        if (showLocalFavoriteDialog) {
+            video?.let { currentVideo ->
+                LocalFavoriteEditorDialog(
+                    visible = true,
+                    videoTitle = currentVideo.title,
+                    initialRating = localFavorite?.rating ?: 0,
+                    initialComment = localFavorite?.comment.orEmpty(),
+                    isExisting = localFavorite != null,
+                    onDismiss = { showLocalFavoriteDialog = false },
+                    onSave = { rating, comment ->
+                        showLocalFavoriteDialog = false
+                        val wasExisting = localFavorite != null
+                        val entity = LocalFavoriteEntity(
+                            site = siteType.name,
+                            videoCode = videoCode,
+                            title = currentVideo.title,
+                            coverUrl = currentVideo.coverUrl.toAbsoluteMediaUrl(
+                                Preferences.baseUrl
+                            ),
+                            videoUrl = getHanimeVideoLink(videoCode),
+                            rating = rating,
+                            comment = comment,
+                        )
+                        localFavoriteScope.launch {
+                            val success = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    DatabaseRepo.LocalFavorite.upsert(entity)
+                                }
+                            }.isSuccess
+                            GlobalToasts.show(
+                                when {
+                                    !success -> localFavoriteFailedText
+                                    wasExisting -> localFavoriteUpdatedText
+                                    else -> localFavoriteSavedText
+                                },
+                                level = if (success) {
+                                    GlobalToasts.ToastLevel.SUCCESS
+                                } else {
+                                    GlobalToasts.ToastLevel.ERROR
+                                },
+                            )
+                        }
+                    },
+                    onDelete = localFavorite?.let { existing ->
+                        {
+                            showLocalFavoriteDialog = false
+                            localFavoriteScope.launch {
+                                val success = runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        DatabaseRepo.LocalFavorite.delete(existing)
+                                    }
+                                }.isSuccess
+                                GlobalToasts.show(
+                                    if (success) localFavoriteDeletedText
+                                    else localFavoriteFailedText,
+                                    level = if (success) {
+                                        GlobalToasts.ToastLevel.SUCCESS
+                                    } else {
+                                        GlobalToasts.ToastLevel.ERROR
+                                    },
+                                )
+                            }
+                        }
+                    },
+                )
+            }
+        }
     }
 }
 

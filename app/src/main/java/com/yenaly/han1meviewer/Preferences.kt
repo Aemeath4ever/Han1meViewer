@@ -33,6 +33,12 @@ object Preferences {
     private const val LOGIN_STATE_SCOPED_V1 = "login_state_scoped_v1"
 
     /**
+     * 從本地收藏打開其他站點的影片時，切站會重啟進程；
+     * 這裡暫存重啟後要導航到的影片碼，由 MainNavHost 消費一次。
+     */
+    private const val PENDING_LOCAL_FAVORITE_VIDEO = "pending_local_favorite_video"
+
+    /**
      * [Preference][androidx.preference.PreferenceFragmentCompat]自帶的SP
      */
     val preferenceSp: SharedPreferences
@@ -388,6 +394,14 @@ object Preferences {
     val selectedBaseUrl: String
         get() = preferenceSp.getString(SettingsPreferenceKeys.SELECTED_BASE_URL, HANIME_URL[0])
             ?: HANIME_URL[0]
+
+    /** 切站重啟後待打開的本地收藏影片碼；沒有時為 null。 */
+    var pendingLocalFavoriteVideoCode: String?
+        get() = preferenceSp.getString(PENDING_LOCAL_FAVORITE_VIDEO, null)
+        set(value) = preferenceSp.edit {
+            if (value.isNullOrBlank()) remove(PENDING_LOCAL_FAVORITE_VIDEO)
+            else putString(PENDING_LOCAL_FAVORITE_VIDEO, value)
+        }
 
     val useBuiltInHosts: Boolean
         get() = preferenceSp.getBoolean(SettingsPreferenceKeys.USE_BUILT_IN_HOSTS, false)

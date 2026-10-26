@@ -948,4 +948,33 @@ hanime1.me以外のドメインは、特定の時間帯にhanime1.meにリダイ
     <string name="download_auto_group_reuse">既存のグループを使用します：%s</string>
     <string name="download_auto_group_create">新しいグループを作成します：%s</string>
     <string name="download_group_script_simplified">簡体字</string>
+
+    <!-- ローカルお気に入り -->
+    <string name="local_favorites">ローカルお気に入り</string>
+    <string name="add_to_local_favorites">ローカルお気に入りに追加</string>
+    <string name="local_favorited">ローカルお気に入りに追加済み</string>
+    <string name="edit_local_favorite">ローカルお気に入りを編集</string>
+    <string name="local_favorite_rating">評価</string>
+    <string name="local_favorite_comment">レビュー</string>
+    <string name="local_favorite_comment_hint">レビューやメモを書く（任意）</string>
+    <string name="local_favorite_saved">ローカルお気に入りに追加しました</string>
+    <string name="local_favorite_updated">ローカルお気に入りを更新しました</string>
+    <string name="local_favorite_deleted">ローカルお気に入りから削除しました</string>
+    <string name="local_favorite_unrated">未評価</string>
+    <string name="local_favorite_delete_title">ローカルお気に入りを削除</string>
+    <string name="local_favorite_delete_message">「%s」を削除しますか？</string>
+    <string name="local_favorites_empty">ローカルお気に入りはまだありません。動画ページから追加できます。</string>
+    <string name="local_favorite_count">%d 件のお気に入り</string>
+    <string name="export_local_favorites">オフライン HTML を書き出す</string>
+    <string name="export_local_favorites_exporting">オフライン HTML を書き出し中…</string>
+    <string name="export_local_favorites_progress">書き出し中 %1$d/%2$d…</string>
+    <string name="export_local_favorites_success">オフライン HTML を書き出しました</string>
+    <string name="export_local_favorites_failed">書き出しに失敗しました</string>
+    <string name="local_favorite_switching_site">このお気に入りは %1$s のものです。サイトを切り替えて開きますか？</string>
+    <string name="local_favorite_switch_and_open">切り替えて開く</string>
+    <string name="local_favorite_open_in_browser">ブラウザで開く</string>
+    <string name="filter_all">すべて</string>
+    <string name="local_favorite_export_html_header">Han1meViewer ローカルお気に入り</string>
+    <string name="local_favorite_export_html_summary">%1$d 件・%2$s に書き出し</string>
+    <string name="local_favorite_export_html_open">動画ページを開く</string>
 </resources>

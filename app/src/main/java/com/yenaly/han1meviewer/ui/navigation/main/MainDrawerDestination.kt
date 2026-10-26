@@ -31,6 +31,10 @@ enum class MainDrawerDestination(
         titleRes = R.string.fav_video,
         requiresLogin = true,
     ),
+    LocalFavorites(
+        iconRes = R.drawable.ic_baseline_star_24,
+        titleRes = R.string.local_favorites,
+    ),
     Playlist(
         iconRes = R.drawable.ic_baseline_list_24,
         titleRes = R.string.play_list,

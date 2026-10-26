@@ -20,6 +20,9 @@ object HomeRoute
 object WatchHistoryRoute
 
 @Serializable
+object LocalFavoritesRoute
+
+@Serializable
 object MyFavVideoRoute
 
 @Serializable
@@ -93,6 +96,11 @@ enum class MainDestinationSpec(
     WatchHistory(
         drawerDestination = MainDrawerDestination.WatchHistory,
         routeClass = WatchHistoryRoute::class,
+        drawerEnabled = false,
+    ),
+    LocalFavorites(
+        drawerDestination = MainDrawerDestination.LocalFavorites,
+        routeClass = LocalFavoritesRoute::class,
         drawerEnabled = false,
     ),
     MyFavVideo(

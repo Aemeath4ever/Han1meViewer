@@ -8,9 +8,11 @@ import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.logic.dao.CheckInRecordDatabase
 import com.yenaly.han1meviewer.logic.dao.DownloadDatabase
 import com.yenaly.han1meviewer.logic.dao.HistoryDatabase
+import com.yenaly.han1meviewer.logic.dao.LocalFavoriteDatabase
 import com.yenaly.han1meviewer.logic.dao.MiscellanyDatabase
 import com.yenaly.han1meviewer.logic.entity.CheckInRecordEntity
 import com.yenaly.han1meviewer.logic.entity.HKeyframeEntity
+import com.yenaly.han1meviewer.logic.entity.LocalFavoriteEntity
 import com.yenaly.han1meviewer.logic.entity.SideDishEntity
 import com.yenaly.han1meviewer.logic.entity.WatchHistoryEntity
 import com.yenaly.han1meviewer.logic.entity.download.DownloadCategoryEntity
@@ -41,6 +43,7 @@ object BackupManager {
         val checkInRecords: List<CheckInRecordEntity>? = null,
         val sideDishes: List<SideDishEntity>? = null,
         val watchHistories: List<WatchHistoryEntity>? = null,
+        val localFavorites: List<LocalFavoriteEntity>? = null,
         val downloadGroups: List<DownloadGroupEntity>? = null,
         val downloads: List<HanimeDownloadEntity>? = null,
         val downloadCategories: List<DownloadCategoryEntity>? = null,
@@ -107,6 +110,13 @@ object BackupManager {
             }
         }
 
+        backup.localFavorites?.let { localFavorites ->
+            LocalFavoriteDatabase.instance.localFavoriteDao.apply {
+                deleteAll()
+                insertAll(localFavorites)
+            }
+        }
+
         if (backup.downloadGroups != null || backup.downloads != null ||
             backup.downloadCategories != null || backup.downloadCategoryCrossRefs != null
         ) {
@@ -165,6 +175,7 @@ object BackupManager {
             checkInRecords = CheckInRecordDatabase.getDatabase(context).checkInDao().getAllRecords(),
             sideDishes = CheckInRecordDatabase.getDatabase(context).sideDishDao().getAll(),
             watchHistories = HistoryDatabase.instance.watchHistory.getAll(),
+            localFavorites = LocalFavoriteDatabase.instance.localFavoriteDao.getAll(),
             downloadGroups = DownloadDatabase.instance.downloadGroupDao.getAllGroupsOnce(),
             downloads = DownloadDatabase.instance.hanimeDownloadDao.getAll(),
             downloadCategories = DownloadDatabase.instance.downloadCategoryDao.getAllCategoriesOnce(),

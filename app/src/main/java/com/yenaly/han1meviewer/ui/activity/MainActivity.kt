@@ -37,6 +37,8 @@ import com.yenaly.han1meviewer.HanimeConstants.HANIME_URL
 import com.yenaly.han1meviewer.PermissionRequester
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.R
+import com.yenaly.han1meviewer.SiteType
+import com.yenaly.han1meviewer.defaultBaseUrl
 import com.yenaly.han1meviewer.logout
 import com.yenaly.han1meviewer.ui.bridge.VideoPageHost
 import com.yenaly.han1meviewer.ui.navigation.main.AccountRoute
@@ -324,6 +326,19 @@ class MainActivity : FrameActivity(), PermissionRequester {
         Handler(Looper.getMainLooper()).postDelayed({
             ActivityManager.restart(killProcess = true)
         }, 500)
+    }
+
+    /**
+     * 從本地收藏打開其他站點的影片：先記住影片碼，切站重啟後由 MainNavHost 導航。
+     */
+    fun switchSiteForVideo(targetSite: SiteType, videoCode: String) {
+        // 以站點類型而不是實際網址比較：同一站點可能用了自訂鏡像位址。
+        if (Preferences.siteType == targetSite) {
+            navController.navigateSafely(VideoRoute(videoCode))
+            return
+        }
+        Preferences.pendingLocalFavoriteVideoCode = videoCode
+        switchSite(targetSite.defaultBaseUrl)
     }
 
     fun gotoLoginActivity() {

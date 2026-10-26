@@ -164,6 +164,8 @@ fun VideoIntroductionScreen(
     onNavigateToSearch: (String) -> Unit,
     onToggleSubscribe: (HanimeVideo.Artist) -> Unit,
     onToggleFavorite: () -> Unit,
+    isLocalFavorite: Boolean = false,
+    onOpenLocalFavorite: () -> Unit = {},
     onRateVideo: (Boolean) -> Unit,
     onManageMyList: (List<String>, List<Boolean>) -> Unit,
     onToggleWatchLater: () -> Unit = {},
@@ -215,6 +217,8 @@ fun VideoIntroductionScreen(
                 onNavigateToSearch = onNavigateToSearch,
                 onToggleSubscribe = onToggleSubscribe,
                 onToggleFavorite = onToggleFavorite,
+                isLocalFavorite = isLocalFavorite,
+                onOpenLocalFavorite = onOpenLocalFavorite,
                 onRateVideo = onRateVideo,
                 onManageMyList = onManageMyList,
                 onToggleWatchLater = onToggleWatchLater,
@@ -272,6 +276,8 @@ private fun VideoIntroductionContent(
     onNavigateToSearch: (String) -> Unit,
     onToggleSubscribe: (HanimeVideo.Artist) -> Unit,
     onToggleFavorite: () -> Unit,
+    isLocalFavorite: Boolean,
+    onOpenLocalFavorite: () -> Unit,
     onRateVideo: (Boolean) -> Unit,
     onManageMyList: (List<String>, List<Boolean>) -> Unit,
     onToggleWatchLater: () -> Unit,
@@ -452,6 +458,8 @@ private fun VideoIntroductionContent(
                     onQuickCheckIn = { showQuickCheckInDialog = true },
                     onOpenOriginalComic = onOpenOriginalComic,
                     onToggleFavorite = onToggleFavorite,
+                    isLocalFavorite = isLocalFavorite,
+                    onOpenLocalFavorite = onOpenLocalFavorite,
                     onManageMyList = {
                         if (isJable) {
                             // jable 的片單寫接口（含 CSRF）未接入；
@@ -1523,6 +1531,8 @@ private fun ActionSection(
     onQuickCheckIn: () -> Unit,
     onOpenOriginalComic: (() -> Unit)?,
     onToggleFavorite: () -> Unit,
+    isLocalFavorite: Boolean,
+    onOpenLocalFavorite: () -> Unit,
     onManageMyList: () -> Unit,
     onDownload: () -> Unit,
     onShare: () -> Unit,
@@ -1552,6 +1562,19 @@ private fun ActionSection(
             iconRes = if (isFav) R.drawable.ic_baseline_favorite_24 else R.drawable.ic_baseline_favorite_border_24,
             label = if (isFav) stringResource(R.string.liked) else stringResource(R.string.add_to_fav),
             onClick = onToggleFavorite,
+        )
+        VideoActionButton(
+            iconRes = if (isLocalFavorite) {
+                R.drawable.ic_baseline_star_24
+            } else {
+                R.drawable.ic_baseline_star_border_24
+            },
+            label = if (isLocalFavorite) {
+                stringResource(R.string.local_favorited)
+            } else {
+                stringResource(R.string.add_to_local_favorites)
+            },
+            onClick = onOpenLocalFavorite,
         )
         VideoActionButton(
             iconRes = manageListIconRes,

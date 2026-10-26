@@ -23,10 +23,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.ui.activity.MainActivity
 import com.yenaly.han1meviewer.ui.navigation.navigateSafely
 import com.yenaly.han1meviewer.ui.screen.account.AvatarCropScreen
 import com.yenaly.han1meviewer.ui.screen.home.CreatorCenterScreen
+import com.yenaly.han1meviewer.ui.screen.home.LocalFavoritesScreen
 import com.yenaly.han1meviewer.ui.navigation.settings.DownloadSettingsRoute
 import com.yenaly.han1meviewer.ui.navigation.settings.DownloadSettingsRouteScreen
 import com.yenaly.han1meviewer.ui.navigation.settings.HKeyframeSettingsRoute
@@ -69,6 +71,15 @@ fun MainNavHost(
 
     LaunchedEffect(destinationSpec) {
         destinationSpec?.let(onDestinationChanged)
+    }
+
+    // 從本地收藏打開他站影片時，switchSite 會重啟進程；重啟後在這裡消費一次。
+    LaunchedEffect(Unit) {
+        val pendingCode = Preferences.pendingLocalFavoriteVideoCode
+        if (!pendingCode.isNullOrBlank()) {
+            Preferences.pendingLocalFavoriteVideoCode = null
+            navController.navigateSafely(VideoRoute(pendingCode))
+        }
     }
 
     NavHost(
@@ -126,6 +137,17 @@ fun MainNavHost(
             WatchHistoryRouteScreen(
                 onBack = onBack,
                 onNavigateToVideo = onNavigateToVideo,
+            )
+        }
+        composable<LocalFavoritesRoute> {
+            LocalFavoritesScreen(
+                onBack = onBack,
+                onOpenVideo = { item -> onNavigateToVideo(item.videoCode) },
+                onSwitchSiteAndOpen = { item ->
+                    item.siteType?.let { site ->
+                        activity.switchSiteForVideo(site, item.videoCode)
+                    }
+                },
             )
         }
         composable<MyFavVideoRoute> {

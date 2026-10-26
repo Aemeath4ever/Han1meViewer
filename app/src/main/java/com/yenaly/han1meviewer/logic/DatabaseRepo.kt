@@ -4,11 +4,13 @@ import android.util.Log
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.logic.dao.DownloadDatabase
 import com.yenaly.han1meviewer.logic.dao.HistoryDatabase
+import com.yenaly.han1meviewer.logic.dao.LocalFavoriteDatabase
 import com.yenaly.han1meviewer.logic.dao.MiscellanyDatabase
 import com.yenaly.han1meviewer.logic.entity.HKeyframeEntity
 import com.yenaly.han1meviewer.logic.entity.HKeyframeHeader
 import com.yenaly.han1meviewer.logic.entity.HKeyframeType
 import com.yenaly.han1meviewer.logic.entity.HanimeAdvancedSearchHistoryEntity
+import com.yenaly.han1meviewer.logic.entity.LocalFavoriteEntity
 import com.yenaly.han1meviewer.logic.entity.SearchHistoryEntity
 import com.yenaly.han1meviewer.logic.entity.WatchHistoryEntity
 import com.yenaly.han1meviewer.logic.entity.download.DownloadGroupEntity
@@ -287,5 +289,55 @@ object DatabaseRepo {
 
         suspend fun updateGroup(group: DownloadGroupEntity)=
             downloadGroupDao.update(group)
+    }
+
+    /**
+     * 本地收藏（跨站點，不需要登入）。
+     *
+     * 以 `site + videoCode` 為唯一鍵；再次收藏同一部影片時保留原 `createdAt`，
+     * 只更新評分、評價與時間，避免列表順序被莫名重置。
+     */
+    object LocalFavorite {
+        private val dao = LocalFavoriteDatabase.instance.localFavoriteDao
+
+        fun observeAll() = dao.observeAll()
+
+        fun observe(site: String, videoCode: String) = dao.observe(site, videoCode)
+
+        suspend fun find(site: String, videoCode: String) = dao.find(site, videoCode)
+
+        suspend fun getAll() = dao.getAll()
+
+        suspend fun upsert(entity: LocalFavoriteEntity): LocalFavoriteEntity {
+            val now = System.currentTimeMillis()
+            val existing = dao.find(entity.site, entity.videoCode)
+            return if (existing == null) {
+                val inserted = entity.copy(id = 0L, createdAt = now, updatedAt = now)
+                inserted.copy(id = dao.insert(inserted))
+            } else {
+                val updated = entity.copy(
+                    id = existing.id,
+                    createdAt = existing.createdAt,
+                    updatedAt = now,
+                )
+                dao.update(updated)
+                updated
+            }
+        }
+
+        suspend fun updateRating(entity: LocalFavoriteEntity, rating: Int, comment: String) {
+            dao.updateRating(
+                id = entity.id,
+                rating = rating.coerceIn(0, 5),
+                comment = comment,
+                updatedAt = System.currentTimeMillis(),
+            )
+        }
+
+        suspend fun delete(entity: LocalFavoriteEntity) = dao.delete(entity)
+
+        suspend fun deleteAll() = dao.deleteAll()
+
+        suspend fun insertAll(entities: List<LocalFavoriteEntity>) = dao.insertAll(entities)
     }
 }

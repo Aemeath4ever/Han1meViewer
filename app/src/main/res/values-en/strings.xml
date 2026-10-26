@@ -944,4 +944,33 @@ Recommendations are as follows:\n
         <item>Excitedly rubbing hands together in anticipation…</item>
         <item>◝(⑅•ᴗ•⑅)◜..°♡ Teleporting…</item>
     </string-array>
+
+    <!-- Local favorites -->
+    <string name="local_favorites">Local Favorites</string>
+    <string name="add_to_local_favorites">Add to local favorites</string>
+    <string name="local_favorited">Added to local favorites</string>
+    <string name="edit_local_favorite">Edit local favorite</string>
+    <string name="local_favorite_rating">Rating</string>
+    <string name="local_favorite_comment">Review</string>
+    <string name="local_favorite_comment_hint">Write a review or note (optional)</string>
+    <string name="local_favorite_saved">Added to local favorites</string>
+    <string name="local_favorite_updated">Local favorite updated</string>
+    <string name="local_favorite_deleted">Removed from local favorites</string>
+    <string name="local_favorite_unrated">Unrated</string>
+    <string name="local_favorite_delete_title">Remove local favorite</string>
+    <string name="local_favorite_delete_message">Remove %s from local favorites?</string>
+    <string name="local_favorites_empty">No local favorites yet. Add one from a video page.</string>
+    <string name="local_favorite_count">%d favorites</string>
+    <string name="export_local_favorites">Export offline HTML</string>
+    <string name="export_local_favorites_exporting">Exporting offline HTML…</string>
+    <string name="export_local_favorites_progress">Exporting %1$d/%2$d…</string>
+    <string name="export_local_favorites_success">Offline HTML exported</string>
+    <string name="export_local_favorites_failed">Export failed</string>
+    <string name="local_favorite_switching_site">This favorite belongs to %1$s. Switch site and open it?</string>
+    <string name="local_favorite_switch_and_open">Switch and open</string>
+    <string name="local_favorite_open_in_browser">Open in browser</string>
+    <string name="filter_all">All</string>
+    <string name="local_favorite_export_html_header">Han1meViewer Local Favorites</string>
+    <string name="local_favorite_export_html_summary">%1$d favorites · exported %2$s</string>
+    <string name="local_favorite_export_html_open">Open video page</string>
 </resources>
