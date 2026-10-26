@@ -15,8 +15,6 @@
 # 行为:
 #   - tag 对应的 release 已存在：更新标题/说明，并用 --clobber 覆盖同名资产
 #     （debug 构建的产物文件名固定，靠这一条实现“滚动更新”）。
-#   - 指定 --repo owner/name 时，所有操作都打到那个仓库（镜像到公开仓用）；
-#     此时新建 release 的 tag 默认落在该仓的默认分支上，因为镜像仓里没有本次构建的 commit。
 #   - notes 文件为空：新建时用 --generate-notes；已有 release 保留原说明。
 #   - --target 只在新建 release（顺带创建 tag）时生效，默认 $GITHUB_SHA / 当前 HEAD。
 set -euo pipefail
@@ -26,12 +24,10 @@ TITLE=""
 NOTES_FILE=""
 PRERELEASE=0
 TARGET="${GITHUB_SHA:-}"
-TARGET_GIVEN=0
-REPO=""
 FILES=()
 
 usage() {
-    sed -n '2,/^set -euo pipefail$/p' "$0" | sed -e '$d' -e 's/^# \{0,1\}//'
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -40,8 +36,7 @@ while [ $# -gt 0 ]; do
         --title) TITLE="${2:?--title 需要参数}"; shift 2 ;;
         --notes-file) NOTES_FILE="${2:?--notes-file 需要参数}"; shift 2 ;;
         --prerelease) PRERELEASE=1; shift ;;
-        --target) TARGET="${2:?--target 需要参数}"; TARGET_GIVEN=1; shift 2 ;;
-        --repo) REPO="${2:?--repo 需要参数}"; shift 2 ;;
+        --target) TARGET="${2:?--target 需要参数}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         --) shift; while [ $# -gt 0 ]; do FILES+=("$1"); shift; done ;;
         -*) echo "[publish] 未知参数: $1" >&2; exit 2 ;;
@@ -56,16 +51,6 @@ for f in "${FILES[@]}"; do
 done
 command -v gh >/dev/null 2>&1 || { echo "[publish] 未找到 gh CLI" >&2; exit 2; }
 : "${GH_TOKEN:?请设置 GH_TOKEN（或 GH_ENTERPRISE_TOKEN）}"
-
-if [ -n "$REPO" ]; then
-    export GH_REPO="$REPO"
-    if [ "$TARGET_GIVEN" -eq 0 ]; then
-        # 镜像仓里没有本次构建的 commit，tag 只能打在该仓默认分支上
-        TARGET="$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || true)"
-        TARGET="${TARGET:-main}"
-    fi
-    echo "[publish] 目标仓库: $REPO（tag 起点: $TARGET）"
-fi
 
 NOTES_ARGS=()
 if [ -n "$NOTES_FILE" ] && [ -s "$NOTES_FILE" ]; then

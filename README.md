@@ -10,8 +10,6 @@ Han1meViewer 是一个使用 Kotlin 开发的 Android 客户端，用于浏览�
 
 本应用没有任何官方网站。GitHub Release 与 CI 构建产物是唯一下载及更新渠道。
 
-📦 下载与更新通道：[RinggaV/Han1meViewer-public](https://github.com/RinggaV/Han1meViewer-public)。该仓库是公开的发布镜像，应用内更新检查也指向这里；源码开发在私有仓库进行，每次发版由 CI 把同一批产物同步过去。
-
 ## 📜 项目来源与许可
 
 本项目衍生自 [misaka10032w/Han1meViewer](https://github.com/misaka10032w/Han1meViewer)，更早的上游是原作者 [YenalyLiew/Han1meViewer](https://github.com/YenalyLiew/Han1meViewer)。原项目采用 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)，许可证副本见 [LICENSE](LICENSE)。
