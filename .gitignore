@@ -34,6 +34,12 @@ gradle-app.setting
 **/google-services.json
 **/app/google-services.json
 
+# 签名文件：只经 CI secret 提供，绝不入库
+/app/keystore/
+**/*.jks
+**/*.p12
+**/*.pfx
+
 # 系统文件
 Thumbs.db
 
