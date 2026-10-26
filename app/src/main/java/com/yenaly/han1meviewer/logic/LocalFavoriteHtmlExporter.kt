@@ -53,7 +53,9 @@ object LocalFavoriteHtmlExporter {
             covers += fetchCoverDataUri(item)
             withContext(Dispatchers.Main) { onProgress(index + 1, ordered.size) }
         }
-        render(context, ordered, covers)
+        // 前置 UTF-8 BOM：有些轻量 HTML 查看器不看 <meta charset>，只靠 BOM 判断编码，
+        // 否则中文会显示成乱码。浏览器会忽略 doctype 前的 BOM。
+        "﻿" + render(context, ordered, covers)
     }
 
     private suspend fun fetchCoverDataUri(item: LocalFavoriteEntity): String? =
@@ -147,20 +149,24 @@ object LocalFavoriteHtmlExporter {
 <style>
 :root{color-scheme:light dark;--bg:#f6f6f8;--card:#fff;--text:#1b1b1f;--muted:#6b6b76;--line:#e3e3ea;--accent:#c62b45}
 @media (prefers-color-scheme:dark){:root{--bg:#121214;--card:#1d1d21;--text:#f2f2f5;--muted:#a6a6b0;--line:#303038;--accent:#ff6b81}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-header{padding:24px 18px 8px}h1{margin:0;font-size:22px}p.sub{margin:6px 0 0;color:var(--muted);font-size:13px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg,#f6f6f8);color:var(--text,#1b1b1f);font-family:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+header{padding:24px 18px 8px}h1{margin:0;font-size:22px}p.sub{margin:6px 0 0;color:var(--muted,#6b6b76);font-size:13px}
 main{padding:12px 18px 32px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
-.cover{aspect-ratio:16/9;background:linear-gradient(135deg,#3a3a44,#202027);position:relative}
-.cover img{width:100%;height:100%;object-fit:cover;display:block}
-.cover .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;letter-spacing:.06em}
+.card{background:var(--card,#fff);border:1px solid var(--line,#e3e3ea);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;color:inherit;text-decoration:none}
+a.card:active,a.card:hover{border-color:var(--accent,#c62b45)}
+.cover{position:relative;padding-top:56.25%;background:linear-gradient(135deg,#3a3a44,#202027)}
+.cover img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block}
+.cover .ph{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;letter-spacing:.06em}
 .badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11px;padding:2px 7px;border-radius:999px}
 .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
-.title{font-size:14px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.stars{color:var(--accent);font-size:14px;letter-spacing:1px}.unrated{color:var(--muted);font-size:12px;margin-left:4px}
-.comment{color:var(--muted);font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
-a.link{margin-top:auto;color:var(--accent);font-size:12px;text-decoration:none;overflow-wrap:anywhere}
-footer{padding:0 18px 28px;color:var(--muted);font-size:11px}
+.title{font-size:14px;font-weight:600;line-height:1.45;overflow-wrap:anywhere}
+.meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stars{color:var(--accent,#c62b45);font-size:14px;letter-spacing:1px}
+.score{color:var(--muted,#6b6b76);font-size:12px}
+.comment{color:var(--muted,#6b6b76);font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.url{margin-top:auto;padding-top:4px;color:var(--accent,#c62b45);font-size:11px;line-height:1.4;word-break:break-all}
+footer{padding:0 18px 28px;color:var(--muted,#6b6b76);font-size:11px}
 </style>
 </head>
 <body>
@@ -180,11 +186,9 @@ footer{padding:0 18px 28px;color:var(--muted);font-size:11px}
                 }
                 val rating = item.rating.coerceIn(0, 5)
                 val starText = "★".repeat(rating) + "☆".repeat(5 - rating)
-                val ratingHtml = if (rating > 0) {
-                    """<div class="stars">$starText</div>"""
-                } else {
-                    """<div class="stars">$starText<span class="unrated">${unratedText.escapeHtml()}</span></div>"""
-                }
+                val scoreText = if (rating > 0) "$rating / 5" else unratedText
+                // 星数与数字评分同时给出：个别字体缺 ★／☆ 时文本信息仍然完整。
+                val metaHtml = """<div class="meta"><span class="stars">$starText</span><span class="score">${scoreText.escapeHtml()}</span></div>"""
                 val commentHtml = item.comment.trim()
                     .takeIf { it.isNotEmpty() }
                     ?.let { """<div class="comment">${it.escapeHtml()}</div>""" }
@@ -192,22 +196,27 @@ footer{padding:0 18px 28px;color:var(--muted);font-size:11px}
                 val safeLink = item.videoUrl.trim().takeIf {
                     it.startsWith("http://", true) || it.startsWith("https://", true)
                 }
-                val linkHtml = if (safeLink != null) {
-                    """<a class="link" href="${safeLink.escapeHtml()}" target="_blank" rel="noopener noreferrer">${openText.escapeHtml()}</a>"""
+                // 卡片底部始终显示原始地址本身（而不是「前往影片页」这种泛化文字），
+                // 避免离线后不知道这张卡究竟指向哪里。
+                val urlText = (safeLink ?: item.videoCode).escapeHtml()
+                // 整张卡片就是原始链接：封面、标题、评价、空白处都能点开原站影片页。
+                val cardOpen = if (safeLink != null) {
+                    """<a class="card" href="${safeLink.escapeHtml()}" title="${openText.escapeHtml()}" target="_blank" rel="noopener noreferrer">"""
                 } else {
-                    """<span class="unrated">${item.videoCode.escapeHtml()}</span>"""
+                    """<article class="card">"""
                 }
+                val cardClose = if (safeLink != null) "</a>" else "</article>"
 
                 append(
-                    """<article class="card">
+                    """$cardOpen
 <div class="cover">$coverHtml<span class="badge">${siteLabel.escapeHtml()}</span></div>
 <div class="body">
 <div class="title">$title</div>
-$ratingHtml
+$metaHtml
 $commentHtml
-$linkHtml
+<div class="url">$urlText</div>
 </div>
-</article>
+$cardClose
 """
                 )
             }
