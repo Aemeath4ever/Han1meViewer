@@ -98,9 +98,13 @@ jobs:
       # ---------- 发布 ----------
       # 一个 step 统一处理三种模式：both 时把两个 APK 交给同一次 publish-release 调用，
       # 这样只创建/更新一个 Release，避免两次调用各自建 tag。
+      # 配了 PUBLIC_REPO_TOKEN 时，同一批产物再镜像到公开仓：应用内的更新检查读的就是公开仓
+      # （私有仓的 Releases 只有维护者可见），所以两边必须一起发，否则更新检查会 404。
       - name: Publish to GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLIC_REPO: Aemeath4ever/Han1meViewer
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
           BUILD_TYPE: ${{ inputs.build_type }}
           INPUT_TAG: ${{ inputs.tag }}
           PRERELEASE: ${{ inputs.prerelease }}
@@ -117,41 +121,35 @@ jobs:
             basename "$1" .apk | sed -E 's/^Han1meViewer-v//; s/-arm64-v8a$//'
           }
 
+          files=()
+          prerel=()
           case "$BUILD_TYPE" in
             both)
               rel=$(release_apk)
               dbg=$(debug_apk)
               version=$(version_of "$rel")
               tag="${INPUT_TAG:-v$version}"
-              args=()
-              [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
-              ./scripts/publish-release.sh \
-                --tag "$tag" --title "$version" \
-                --notes-file "$RUNNER_TEMP/release-notes.md" \
-                "${args[@]}" -- "$rel" "$dbg"
+              title="$version"
+              files=("$rel" "$dbg")
+              if [ "$PRERELEASE" = "true" ]; then prerel=(--prerelease); fi
               ;;
 
             release)
               rel=$(release_apk)
               version=$(version_of "$rel")
               tag="${INPUT_TAG:-v$version}"
-              args=()
-              [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
-              ./scripts/publish-release.sh \
-                --tag "$tag" --title "$version" \
-                --notes-file "$RUNNER_TEMP/release-notes.md" \
-                "${args[@]}" -- "$rel"
+              title="$version"
+              files=("$rel")
+              if [ "$PRERELEASE" = "true" ]; then prerel=(--prerelease); fi
               ;;
 
             debug)
               dbg=$(debug_apk)
               version=$(version_of "$dbg")
-              sha=${GITHUB_SHA::7}
               tag="${INPUT_TAG:-debug-latest}"
-              ./scripts/publish-release.sh \
-                --tag "$tag" --title "Debug build $version ($sha)" \
-                --notes-file "$RUNNER_TEMP/release-notes.md" \
-                --prerelease -- "$dbg"
+              title="Debug build $version (${GITHUB_SHA::7})"
+              files=("$dbg")
+              prerel=(--prerelease)
               ;;
 
             *)
@@ -159,3 +157,21 @@ jobs:
               exit 2
               ;;
           esac
+
+          # $1 = 该仓库可用的 token，其余参数原样传给脚本（如 --repo）
+          publish() {
+            local token="$1"
+            shift
+            GH_TOKEN="$token" ./scripts/publish-release.sh \
+              --tag "$tag" --title "$title" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              "${prerel[@]}" "$@" -- "${files[@]}"
+          }
+
+          publish "$GH_TOKEN"
+
+          if [ -z "${PUBLIC_REPO_TOKEN:-}" ] || [ -z "${PUBLIC_REPO:-}" ]; then
+            echo "[publish] 未配置 PUBLIC_REPO_TOKEN，跳过公开仓镜像"
+          else
+            publish "$PUBLIC_REPO_TOKEN" --repo "$PUBLIC_REPO"
+          fi
