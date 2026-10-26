@@ -23,7 +23,14 @@ plugins {
 android {
     compileSdk = property("compile.sdk")?.toString()?.toIntOrNull()
 
-    val commitSha = if (isRelease) lastCommitSha else "b8eace8" // 方便调试
+    // CI 构建（release 与 debug 变体都一样）写入真实 commit：
+    // CI 更新通道靠 BuildConfig.COMMIT_SHA 判断新旧，写死占位值会导致每次检查都提示有更新。
+    // 本地 debug 仍保留固定值，方便调试时对比。
+    val commitSha = if (isRelease || System.getenv("HA1_VERSION_SOURCE") != null) {
+        lastCommitSha
+    } else {
+        "b8eace8"
+    }
 
     // 先 Github Secrets 再读取环境变量，若没有则读取本地文件
 

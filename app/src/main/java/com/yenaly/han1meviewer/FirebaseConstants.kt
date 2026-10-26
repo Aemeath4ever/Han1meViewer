@@ -38,20 +38,4 @@ object FirebaseConstants {
     const val RUNNING_DOWNLOAD_WORK_COUNT = "running_download_work_count"
 
     // </editor-fold>
-
-    // <editor-fold desc="Remote Config">
-
-    /**
-     * 是否启用 CI 更新。
-     *
-     * 由于当前使用了 Firebase，所以希望正式版更新时，减少 CI 更新的概率。
-     * 方便更好地控制更新以及崩溃数据统计。
-     */
-    const val ENABLE_CI_UPDATE = "enable_ci_update"
-
-    val remoteConfigDefaults: Map<String, Any> = mapOf(
-        ENABLE_CI_UPDATE to true
-    )
-
-    // </editor-fold>
 }

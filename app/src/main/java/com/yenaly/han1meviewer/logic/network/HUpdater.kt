@@ -1,10 +1,7 @@
 package com.yenaly.han1meviewer.logic.network
 
 import android.util.Log
-import com.google.firebase.Firebase
-import com.google.firebase.remoteconfig.remoteConfig
 import com.yenaly.han1meviewer.BuildConfig
-import com.yenaly.han1meviewer.FirebaseConstants
 import com.yenaly.han1meviewer.Preferences
 import com.yenaly.han1meviewer.logic.exception.HUpdaterException
 import com.yenaly.han1meviewer.logic.model.github.CommitComparison
@@ -26,7 +23,16 @@ object HUpdater {
 
     const val TAG = "HUpdater"
 
-    const val DEFAULT_BRANCH = "main"
+    /**
+     * CI 更新通道对应的滚动预发布 tag。
+     *
+     * 工作流（`.github/workflows/build.yml`）在 `build_type=debug/both` 时把 debug 包发布到
+     * 这个 tag，并用 `--clobber` 覆盖旧 asset，所以它始终是最近一次 CI 构建。
+     */
+    private const val CI_RELEASE_TAG = "debug-latest"
+
+    /** 从 Release 标题（`Debug build debug+1 (77d0790)`）或正文里取 commit。 */
+    private val ciCommitRegex = Regex("\\(([0-9a-fA-F]{7,40})\\)")
 
     /**
      * 展示文案里附带细节（具体网络错误、HTTP 状态码）时的长度上限，
@@ -43,8 +49,8 @@ object HUpdater {
      * 检查更新的数据来源。
      */
     enum class Channel(val logName: String) {
-        /** GitHub Actions 的构建产物（CI 频道，比 Release 更脆弱） */
-        CI("CI Artifact"),
+        /** CI 滚动预发布（`debug-latest`，每次 CI 构建的 debug 包） */
+        CI("CI debug-latest"),
 
         /** GitHub Release */
         RELEASE("Release"),
@@ -76,80 +82,51 @@ object HUpdater {
     /**
      * 用户当前选择的更新渠道。
      *
-     * 渠道只由用户设置决定。CI 开关（Remote Config 的 `enable_ci_update`）只用于让作者
-     * 在 CI 出故障时临时下线 CI 频道，默认开启；用户主动勾选 CI 频道时也始终以 CI 为准。
+     * 渠道只由用户设置决定（上游那个由作者用 Remote Config 远程关停 CI 频道的开关，在本仓库
+     * 里没有意义，已移除）。CI 频道读取 [CI_RELEASE_TAG] 这个滚动预发布。
      */
-    private fun currentChannel(): Channel {
-        if (!Preferences.useCIUpdateChannel) return Channel.RELEASE
-        // Remote Config 未初始化完成时读取会抛异常，这里不再吞掉并回落到 Release，
-        // 而是作为一次明确的失败上报（界面提示具体原因，用户可手动重试）
-        val ciEnabled = try {
-            Firebase.remoteConfig.getBoolean(FirebaseConstants.ENABLE_CI_UPDATE)
-        } catch (e: Exception) {
-            Log.w(TAG, "读取 Remote Config 的 ${FirebaseConstants.ENABLE_CI_UPDATE} 失败：${e.message}")
-            throw HUpdaterException.VersionCheck(
-                message = "无法读取远端配置（${FirebaseConstants.ENABLE_CI_UPDATE}）：${e.message}",
-                cause = e,
-                reason = HUpdaterException.VersionCheck.Reason.NETWORK,
-            )
-        }
-        if (!ciEnabled) {
-            Log.w(TAG, "CI 频道已被 Remote Config（${FirebaseConstants.ENABLE_CI_UPDATE}）下线")
-            throw HUpdaterException.VersionCheck(
-                message = "CI 更新频道已被远端开关（${FirebaseConstants.ENABLE_CI_UPDATE}）下线",
-                reason = HUpdaterException.VersionCheck.Reason.NO_RELEASE,
-            )
-        }
-        return Channel.CI
-    }
+    private fun currentChannel(): Channel =
+        if (Preferences.useCIUpdateChannel) Channel.CI else Channel.RELEASE
 
     /**
-     * 走 GitHub Actions 构建产物（CI 频道）。
+     * 走 CI 预发布（[CI_RELEASE_TAG]）里的 debug 包。
      *
-     * 相比 Release 频道，这里多了「工作流被清理 / Artifact 过期（90 天）」两种失败可能，
-     * 因此按步骤分别做错误分类。
+     * 新版 CI 不再上传 Actions Artifacts，而是把 APK 直接发到滚动预发布，所以这里只需要
+     * 读一次 `releases/tags/<tag>`。版本判断用 Release 标题里带的 commit：
+     * 与本机 `BuildConfig.COMMIT_SHA` 相同即视为已是最新。
      */
     private suspend fun checkCiChannel(): Latest? {
-        val curSha = BuildConfig.COMMIT_SHA
-        // 特殊情况下才用注释部分，一般情况下 branch 都是固定的，要不然多一次
-        // request 会对我的 API Token 造成负担。
-        // val apiReq = request(HA1_GITHUB_API_URL)
-        // val branch = apiReq.body?.string()?.let(::JSONObject)?.getString("default_branch")
-        //     ?: return null
-
-        val runs = requestWorkflowRuns()
-        val workflowRun = runs.workflowRuns.firstOrNull()
-        if (workflowRun == null) {
-            // 没有任何成功的构建：可能是 CI 全挂了，但对用户来说就是「暂时没有新版本」
-            Log.w(TAG, "CI 频道没有可用的工作流运行记录")
-            return null
-        }
-
-        val shortSha = workflowRun.headSha.take(7)
-        if (shortSha == curSha) {
-            Log.d(TAG, "已是最新的 CI 构建：$shortSha")
-            return null
-        }
-
-        val artifacts = requestArtifacts(workflowRun.artifactsUrl)
-        val artifact = artifacts.artifacts.firstOrNull()
-        val archiveUrl = artifact?.downloadLink
-        val nodeId = artifact?.nodeId.orEmpty()
-        if (archiveUrl.isNullOrBlank()) {
-            // 有新的 commit 但产物被清理或构建失败，没有包可以下载
-            Log.w(TAG, "工作流运行 ${workflowRun.headSha} 没有可下载的构建产物")
+        val release = requestCiRelease()
+        val asset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+        if (asset == null) {
+            Log.w(TAG, "CI 预发布 ${release.tagName} 没有可下载的安装包")
             throw HUpdaterException.VersionCheck(
-                message = "CI 工作流（$shortSha）没有可下载的构建产物",
+                message = "CI 预发布（${release.tagName}）没有可下载的安装包",
                 cause = null,
                 reason = HUpdaterException.VersionCheck.Reason.NO_RELEASE,
             )
         }
 
-        // 变更日志属于「锦上添花」，拿不到就退回工作流标题，不影响更新本身
+        val latestSha = ciCommitRegex.find(release.name)?.groupValues?.get(1)?.lowercase()
+            ?: ciCommitRegex.find(release.body)?.groupValues?.get(1)?.lowercase()
+        if (latestSha == null) {
+            // 没有 commit 就没法判断新旧；当作「没有新版本」，避免每次检查都弹同一个包
+            Log.w(TAG, "CI 预发布标题里没有 commit，跳过：${release.name}")
+            return null
+        }
+        val curSha = BuildConfig.COMMIT_SHA.lowercase()
+        if (latestSha.startsWith(curSha) || curSha.startsWith(latestSha)) {
+            Log.d(TAG, "已是最新的 CI 构建：$latestSha")
+            return null
+        }
+
+        // 变更日志属于「锦上添花」，拿不到就退回 Release 正文
         val changelog = runSuspendCatching {
-            requestCommitComparison(curSha, shortSha).commits.toChangelogPrettyString()
-        }.getOrNull() ?: workflowRun.title
-        return Latest("$shortSha (CI)", changelog, archiveUrl, nodeId)
+            requestCommitComparison(curSha, latestSha).commits.toChangelogPrettyString()
+        }.getOrNull()
+            ?: release.body.takeIf { it.isNotBlank() }
+            ?: "CI build $latestSha"
+        return Latest("$latestSha (CI)", changelog, asset.browserDownloadURL, asset.nodeID)
     }
 
     /**
@@ -158,7 +135,12 @@ object HUpdater {
     private suspend fun checkReleaseChannel(): Latest? {
         val ver = requestLatestRelease()
         if (!checkNeedUpdate(ver.tagName)) return null
-        val asset = ver.assets.firstOrNull()
+        // both 模式下同一个 Release 会同时挂 release 与 debug 两个 APK，
+        // 这里要挑正式包，否则会把 debug 包当成更新（applicationId 不同，装不上/装成另一个应用）。
+        val asset = ver.assets.firstOrNull {
+            it.name.endsWith(".apk", ignoreCase = true) &&
+                    !it.name.contains("debug", ignoreCase = true)
+        }
         if (asset == null) {
             // Release 存在但没有上传安装包
             Log.w(TAG, "Release ${ver.tagName} 没有任何可下载的 asset")
@@ -181,22 +163,13 @@ object HUpdater {
         throw e.toVersionCheckException("GET releases/latest")
     }
 
-    private suspend fun requestWorkflowRuns() = try {
-        HanimeNetwork.githubService.getWorkflowRuns()
-            .orThrowVersionCheck("GET actions/workflows/ci.yml/runs")
+    private suspend fun requestCiRelease() = try {
+        HanimeNetwork.githubService.getReleaseByTag(CI_RELEASE_TAG)
+            .orThrowVersionCheck("GET releases/tags/$CI_RELEASE_TAG")
     } catch (e: HUpdaterException) {
         throw e
     } catch (e: Exception) {
-        throw e.toVersionCheckException("GET actions/workflows/ci.yml/runs")
-    }
-
-    private suspend fun requestArtifacts(url: String) = try {
-        HanimeNetwork.githubService.getArtifacts(url)
-            .orThrowVersionCheck("GET workflow run artifacts")
-    } catch (e: HUpdaterException) {
-        throw e
-    } catch (e: Exception) {
-        throw e.toVersionCheckException("GET workflow run artifacts")
+        throw e.toVersionCheckException("GET releases/tags/$CI_RELEASE_TAG")
     }
 
     private suspend fun requestCommitComparison(curSha: String, latestSha: String) =
@@ -222,7 +195,7 @@ object HUpdater {
      */
     suspend fun File.injectUpdate(url: String, progress: (suspend (Int, Long, Long) -> Unit)? = null) {
         val isZip = url.endsWith("zip")
-        Log.d(TAG, "开始下载更新包（${if (isZip) "CI zip" else "release"}）：$url")
+        Log.d(TAG, "开始下载更新包（${if (isZip) "zip" else "apk"}）：$url")
         downloadTo(url, isZip, progress)
     }
 
@@ -264,7 +237,7 @@ object HUpdater {
                 }
             }
         } else {
-            Log.d(TAG, "Injecting update from release ($url)")
+            Log.d(TAG, "Injecting update from apk ($url)")
             outputStream().use { out ->
                 body.use {
                     Log.i(TAG, "content length: ${it.contentLength()}")

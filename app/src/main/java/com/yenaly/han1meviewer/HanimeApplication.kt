@@ -118,13 +118,13 @@ class HanimeApplication : YenalyApplication() {
                 )
             }
         }
-        // 用于处理 Firebase Remote Config 初始化
+        // 用于处理 Firebase Remote Config 初始化。
+        // 目前没有远端开关需要读取，保留初始化只是为了在拉取完成后触发一次更新检查。
         Firebase.remoteConfig.apply {
             setConfigSettingsAsync(remoteConfigSettings {
                 minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 0 else 3 * 60 * 60
                 fetchTimeoutInSeconds = 10
             })
-            setDefaultsAsync(FirebaseConstants.remoteConfigDefaults)
             fetchAndActivate().addOnCompleteListener {
                 AppViewModel.getLatestVersion(delayMillis = 200)
             }

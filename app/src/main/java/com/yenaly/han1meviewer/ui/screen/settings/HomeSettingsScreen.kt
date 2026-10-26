@@ -455,6 +455,7 @@ fun HomeSettingsScreen(
         item {
             SettingSwitchItem(
                 title = stringResource(R.string.use_ci_update_channel),
+                summary = stringResource(R.string.use_ci_update_channel_summary),
                 checked = state.useCIUpdateChannel,
                 iconRes = R.drawable.ic_setting_ci,
                 onCheckedChange = onUseCIUpdateChannelChange,

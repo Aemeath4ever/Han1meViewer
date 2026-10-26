@@ -1,15 +1,11 @@
 package com.yenaly.han1meviewer.logic.network.service
 
-import com.yenaly.han1meviewer.logic.model.github.Artifacts
 import com.yenaly.han1meviewer.logic.model.github.CommitComparison
 import com.yenaly.han1meviewer.logic.model.github.Release
-import com.yenaly.han1meviewer.logic.model.github.WorkflowRuns
-import com.yenaly.han1meviewer.logic.network.HUpdater
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
-import retrofit2.http.Query
 import retrofit2.http.Streaming
 import retrofit2.http.Url
 
@@ -30,16 +26,15 @@ interface HGitHubService {
     suspend fun getLatestVersion(): Response<Release>
 
     /**
-     * What is Workflow Runs?
+     * 指定 tag 的 Release。
      *
-     * List all workflow runs for a repository. You can use parameters to filter the list of results. For example, you
-     * can get a list of workflow runs for a specific branch, or you can get a list of workflow runs that used a specific
-     * workflow file.
+     * CI 更新通道读取滚动预发布 tag（`debug-latest`）：每次工作流都用 `--clobber` 覆盖同名
+     * asset，因此这里拿到的永远是最近一次 CI 构建的安装包。
      */
-    @GET("actions/workflows/ci.yml/runs?event=push&status=success&per_page=1")
-    suspend fun getWorkflowRuns(
-        @Query("branch") branch: String = HUpdater.DEFAULT_BRANCH,
-    ): Response<WorkflowRuns>
+    @GET("releases/tags/{tag}")
+    suspend fun getReleaseByTag(
+        @Path("tag") tag: String,
+    ): Response<Release>
 
     /**
      * What is Commit Comparison?
@@ -52,17 +47,6 @@ interface HGitHubService {
         @Path("curSha") curSha: String,
         @Path("latestSha") latestSha: String,
     ): Response<CommitComparison>
-
-    /**
-     * What is Artifacts?
-     *
-     * Artifacts are the files produced by a workflow run. They are associated with the run during the execution of the
-     * job that produces them. Artifacts are available for 90 days after the run is completed.
-     */
-    @GET
-    suspend fun getArtifacts(
-        @Url url: String,
-    ): Response<Artifacts>
 
     /**
      * Typical request
