@@ -30,7 +30,7 @@ Han1meViewer（Hanime Viewer）是一个使用 Kotlin 开发的 Android 客户�
 
 - 保留原版权声明。
 - 包含许可证文件副本。
-- 说明修改内容：本仓库针对 missav.ai 与 jable.tv 做了站点适配与功能扩展，技术记录见 [docs/missav-adaptation.md](docs/missav-adaptation.md)。
+- 说明修改内容：本仓库针对 missav.ai 与 jable.tv 做了站点适配与功能扩展。
 
 ## ⚠️ 免责声明
 
