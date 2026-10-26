@@ -147,8 +147,13 @@ fun String.replaceBackupMediaCdnHost(): String {
 
 // github url
 
-/** 当前仓库：更新检查、发布页都指向这里。 */
-const val HA1_GITHUB_URL = "https://github.com/RinggaV/Han1meViewer"
+/**
+ * 对外发布仓：更新检查、发布页都指向这里。
+ *
+ * 源码开发在私有仓进行，发版的产物挂到这个公开仓的 Releases 上；私有仓的 Releases
+ * 对外不可见，应用内更新检查若指向私有仓，其他使用者拿到的只会是 404。
+ */
+const val HA1_GITHUB_URL = "https://github.com/Aemeath4ever/Han1meViewer"
 
 /** 上游仓库：issue / discussions 仍指向原作者那边，社区都在那里。 */
 const val HA1_UPSTREAM_GITHUB_URL = "https://github.com/misaka10032w/Han1meViewer"
@@ -159,7 +164,7 @@ const val HA1_GITHUB_FORUM_URL = "$HA1_UPSTREAM_GITHUB_URL/discussions"
 
 const val HA1_GITHUB_RELEASES_URL = "$HA1_GITHUB_URL/releases"
 
-const val HA1_GITHUB_API_URL = "https://api.github.com/repos/RinggaV/Han1meViewer/"
+const val HA1_GITHUB_API_URL = "https://api.github.com/repos/Aemeath4ever/Han1meViewer/"
 const val FIREBASE_REALTIME_DATABASE = "https://han1meviewer-86e5f-default-rtdb.asia-southeast1.firebasedatabase.app/"
 // for Shared Preference
 
