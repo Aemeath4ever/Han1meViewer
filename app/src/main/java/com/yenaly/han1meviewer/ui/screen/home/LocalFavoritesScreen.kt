@@ -76,7 +76,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 本地收藏列表：三站共用、無需登入，可評分／寫評價，並導出單檔離線 HTML。
+ * 本地收藏列表：三站共用、无需登入，可评分／写评价，并导出单档离线 HTML。
  */
 @Composable
 fun LocalFavoritesScreen(
@@ -109,8 +109,8 @@ fun LocalFavoritesScreen(
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/html")
     ) { uri ->
-        // 回呼用的是最新一次重組的 lambda，因此直接取當前列表：
-        // 即使在選檔期間轉屏（remember 狀態被清掉）也能正常匯出。
+        // 回呼用的是最新一次重组的 lambda，因此直接取当前列表：
+        // 即使在选档期间转屏（remember 状态被清掉）也能正常汇出。
         val snapshot = favorites
         if (uri == null || snapshot.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {

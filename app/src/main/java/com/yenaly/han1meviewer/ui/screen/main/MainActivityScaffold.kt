@@ -89,10 +89,10 @@ fun MainActivityScaffold(
                     MainDrawerPrimaryItems(selectedDestination, onDrawerItemSelected)
                     MainDrawerSection(
                         titleRes = R.string.my_list,
-                        // missav 沒有「稍後觀看 / 訂閱 / 創作者中心」這些頁面，
-                        // 留着只會點進去 404。
+                        // missav 没有「稍后观看 / 订阅 / 创作者中心」这些页面，
+                        // 留着只会点进去 404。
                         items = buildList {
-                            // 本地收藏跨站點且不需要登入，任何站點都顯示。
+                            // 本地收藏跨站点且不需要登入，任何站点都显示。
                             add(MainDrawerDestination.LocalFavorites)
                             if (!Preferences.isMissavSite) add(MainDrawerDestination.WatchLater)
                             add(MainDrawerDestination.FavVideo)

@@ -8,7 +8,7 @@ import okhttp3.Cookie
 value class CookieString(val cookie: String)
 
 /**
- * 主要用於 [HCookieJar][com.yenaly.han1meviewer.logic.network.HCookieJar]，最好不要用到其他地方。
+ * 主要用于 [HCookieJar][com.yenaly.han1meviewer.logic.network.HCookieJar]，最好不要用到其他地方。
  */
 fun CookieString.toLoginCookieList(domain: String): List<Cookie> {
     val cookieList = mutableListOf<Cookie>().also {
@@ -44,9 +44,9 @@ fun CookieString.toLoginCookieList(domain: String): List<Cookie> {
 }
 
 /**
- * 每次退出登入後都會清除cookie，但是這樣可能會清除掉很多保存在cookie中的偏好，比如影片語言之類。
+ * 每次退出登入后都会清除cookie，但是这样可能会清除掉很多保存在cookie中的偏好，比如影片语言之类。
  *
- * 讓[preferencesCookieList]成爲 存在偏好設置 但不存在個人信息 的[emptyList]
+ * 让[preferencesCookieList]成为 存在偏好设置 但不存在个人信息 的[emptyList]
  */
 private fun preferencesCookieList(domain: String): List<Cookie> {
     val videoLanguage = Preferences.videoLanguage

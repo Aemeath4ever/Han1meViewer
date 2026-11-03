@@ -3,8 +3,8 @@ package com.yenaly.han1meviewer.util
 /**
  * @author misaka10032w
  * @Time 2025.9.4
- * @param timeStr 类似 "2個月前"、"5天前"、"45分鐘前" 的时间字符串
- * 将类似 "2個月前"、"5天前"、"45分鐘前" 的时间字符串解析为分钟数
+ * @param timeStr 类似 "2个月前"、"5天前"、"45分钟前" 的时间字符串
+ * 将类似 "2个月前"、"5天前"、"45分钟前" 的时间字符串解析为分钟数
  */
 fun parseTimeStrToMinutes(timeStr: String): Int {
     return when {

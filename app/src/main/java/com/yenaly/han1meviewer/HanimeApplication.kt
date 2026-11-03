@@ -37,7 +37,7 @@ class HanimeApplication : YenalyApplication() {
     }
 
     /**
-     * 已在 [initCrashX] 中透過 CrashX 處理
+     * 已在 [initCrashX] 中透过 CrashX 处理
      */
     override val isDefaultCrashHandlerEnabled: Boolean = false
 

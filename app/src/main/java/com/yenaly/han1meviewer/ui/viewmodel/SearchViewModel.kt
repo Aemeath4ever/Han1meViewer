@@ -82,7 +82,7 @@ class SearchViewModel(
         set(value) { state["duration"] = value }
 
     /**
-     * 女優／模特主页地址。非空时列表来自该主页而不是关键词搜索；
+     * 女优／模特主页地址。非空时列表来自该主页而不是关键词搜索；
      * 用户重新输入关键词或应用高级筛选时清空。
      */
     var sourceUrl: String?
@@ -179,7 +179,7 @@ class SearchViewModel(
         }
     }
 
-    /** 女優／模特主頁的作品列表，複用搜索結果的狀態與增量合併邏輯。 */
+    /** 女优／模特主页的作品列表，复用搜索结果的状态与增量合并逻辑。 */
     fun getArtistVideos(sourceUrl: String, page: Int) {
         viewModelScope.launch {
             NetworkRepo.getArtistVideos(sourceUrl, page).collect(::applySearchState)
@@ -288,7 +288,7 @@ class SearchViewModel(
     val refreshTriggerFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     fun triggerNewSearch() {
         page = 1
-        // 高級搜索的條件生效時，退出女優主頁模式
+        // 高级搜索的条件生效时，退出女优主页模式
         sourceUrl = null
         clearHanimeSearchResult()
         refreshTriggerFlow.tryEmit(Unit)

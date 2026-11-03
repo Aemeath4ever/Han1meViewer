@@ -10,6 +10,6 @@ interface VideoItemType {
     val currentArtist: String?
     val uploadTime: String?
 
-    /** 內容是否為無碼（uncensored），卡片封面會顯示「無碼」角標。 */
+    /** 内容是否为无码（uncensored），卡片封面会显示「无码」角标。 */
     val isUncensored: Boolean get() = false
 }

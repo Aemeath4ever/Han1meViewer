@@ -1,7 +1,7 @@
 package com.yenaly.han1meviewer.logic.exception
 
 /**
- * IP被封鎖
+ * IP被封锁
  *
  * @project Han1meViewer
  * @author Yenaly Liew

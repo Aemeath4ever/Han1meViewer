@@ -11,13 +11,13 @@ const val HOME_CATEGORY_LATEST_RELEASE = "latest_release"
 const val HOME_CATEGORY_LATEST_UPLOAD = "latest_upload"
 const val HOME_CATEGORY_WATCHING_NOW = "watching_now"
 
-/** missav 首頁動態區塊（無碼影片、隨機等）的分類 key 前綴，後跟區塊序號。 */
+/** missav 首页动态区块（无码影片、随机等）的分类 key 前缀，后跟区块序号。 */
 const val HOME_CATEGORY_MISSAV_SECTION_PREFIX = "missav_section_"
 
-/** missav 登入後 Recombee 推薦區塊（推薦給你、中出…）的 key 前綴；展示時固定排最前。 */
+/** missav 登入后 Recombee 推荐区块（推荐给你、中出…）的 key 前缀；展示时固定排最前。 */
 const val HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX = "missav_recommended_"
 
-/** jable 首頁分節（最近更新/全新上市/熱門影片…）的 key 前綴，後跟區塊序號。 */
+/** jable 首页分节（最近更新/全新上市/热门影片…）的 key 前缀，后跟区块序号。 */
 const val HOME_CATEGORY_JABLE_SECTION_PREFIX = "jable_section_"
 const val HOME_CATEGORY_SHORT_EPISODE = "short_episode"
 const val HOME_CATEGORY_MOTION_ANIME = "motion_anime"

@@ -3,7 +3,7 @@ package com.yenaly.han1meviewer.logic.exception
 import com.yenaly.han1meviewer.R
 
 /**
- * 检测到爬虫被封鎖
+ * 检测到爬虫被封锁
  *
  * @project Han1meViewer
  * @author Yenaly Liew

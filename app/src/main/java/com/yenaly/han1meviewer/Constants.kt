@@ -31,15 +31,15 @@ const val USER_AGENT =
 const val DESKTOP_USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
 
-// 設置發佈日期年份，在搜索的tag裏
+// 设置发布日期年份，在搜索的tag里
 
 /**
- * 發佈日期年份開始於
+ * 发布日期年份开始于
  */
 const val SEARCH_YEAR_RANGE_START = 1990
 
 /**
- * 發佈日期年份結束於
+ * 发布日期年份结束于
  */
 const val SEARCH_YEAR_RANGE_END = BuildConfig.SEARCH_YEAR_RANGE_END
 
@@ -55,13 +55,13 @@ val HANIME_BASE_URL = Preferences.baseUrl
 /**
  * 如果添加备选网址别忘了确认[String.toVideoCode]的videoUrlRegex
  *
- * [HANIME_HOSTNAME] 僅用於內置 DNS 解析，missav.ai 不在其中：
- * 其 Cloudflare IP 與 hanime 不同，須走常規 DNS / DoH。
+ * [HANIME_HOSTNAME] 仅用于内置 DNS 解析，missav.ai 不在其中：
+ * 其 Cloudflare IP 与 hanime 不同，须走常规 DNS / DoH。
  */
 object HanimeConstants {
     val HANIME_HOSTNAME = arrayOf("hanime1.me","hanime1.com","hanimeone.me")
 
-    /** jable.tv 是 KVS 站，與Hanime / missav 的介面與接口都不同。 */
+    /** jable.tv 是 KVS 站，与Hanime / missav 的介面与接口都不同。 */
     const val JABLE_URL = "https://jable.tv/"
 
     val HANIME_URL = arrayOf(
@@ -75,10 +75,10 @@ object HanimeConstants {
 }
 
 /**
- * 目前選擇的站點類型。
+ * 目前选择的站点类型。
  *
- * 站點以 [Preferences.baseUrl] 為唯一真相源（自訂鏡像站一律按 Hanime處理），
- * 不另外持久化，避免切換域名後兩份設定不一致。
+ * 站点以 [Preferences.baseUrl] 为唯一真相源（自订镜像站一律按 Hanime处理），
+ * 不另外持久化，避免切换域名后两份设定不一致。
  */
 enum class SiteType {
     HANIME, MISSAV, JABLE;
@@ -92,7 +92,7 @@ enum class SiteType {
     }
 }
 
-/** 站點名稱的資源 id（抽屜、本地收藏等跨站點列表共用）。 */
+/** 站点名称的资源 id（抽屉、本地收藏等跨站点列表共用）。 */
 val SiteType.labelRes: Int
     get() = when (this) {
         SiteType.HANIME -> R.string.site_hanime
@@ -100,7 +100,7 @@ val SiteType.labelRes: Int
         SiteType.JABLE -> R.string.site_jable
     }
 
-/** 切換到該站點時使用的標準首頁地址；Hanime 優先沿用上次選的鏡像站。 */
+/** 切换到该站点时使用的标准首页地址；Hanime 优先沿用上次选的镜像站。 */
 val SiteType.defaultBaseUrl: String
     get() = when (this) {
         SiteType.HANIME -> Preferences.selectedBaseUrl
@@ -118,27 +118,27 @@ val HANIME_LOGIN_URL: String
             Preferences.baseUrl + "cn/playlists"
         }
         SiteType.JABLE -> {
-            // jable 的登录是 fancybox 弹出的 AJAX 表單；直接打開也能看到並提交表單，
-            // 成功後服務端 302 回首頁，由 LoginActivity 攔截並保存 cookie。
+            // jable 的登录是 fancybox 弹出的 AJAX 表单；直接打开也能看到并提交表单，
+            // 成功后服务端 302 回首页，由 LoginActivity 拦截并保存 cookie。
             Preferences.baseUrl + "login/"
         }
         SiteType.HANIME -> HANIME_BASE_URL + "login"
     }
 
-// 媒體 CDN
+// 媒体 CDN
 
 /**
- * 主站影片與圖片使用的 CDN 主機，部分地區可能無法訪問。
+ * 主站影片与图片使用的 CDN 主机，部分地区可能无法访问。
  */
 const val HANIME_MEDIA_CDN_HOST = "vdownload.hembed.com"
 
 /**
- * 備用媒體 CDN 主機，用於替換 [HANIME_MEDIA_CDN_HOST]。
+ * 备用媒体 CDN 主机，用于替换 [HANIME_MEDIA_CDN_HOST]。
  */
 const val HANIME_BACKUP_MEDIA_CDN_HOST = "1497203185.rsc.cdn77.org"
 
 /**
- * 啟用備用媒體 CDN 後，將回應內容中的媒體（圖片 / 影片）CDN 主機替換為備用主機。
+ * 启用备用媒体 CDN 后，将回应内容中的媒体（图片 / 影片）CDN 主机替换为备用主机。
  */
 fun String.replaceBackupMediaCdnHost(): String {
     if (!Preferences.useBackupMediaCdn) return this
@@ -173,16 +173,16 @@ const val SAVED_USER_ID = "saved_user_id"
 
 const val CLOUDFLARE_COOKIE = "cf_cookie"
 
-/** missav 登入時使用的帳號。站點未必有顯示名（user.name 可能是 null），抽屜就拿這個兜底。 */
+/** missav 登入时使用的帐号。站点未必有显示名（user.name 可能是 null），抽屉就拿这个兜底。 */
 const val MISSAV_LOGIN_EMAIL = "missav_login_email"
 
-/** jable 登入時使用的帳號，僅用於介面顯示。 */
+/** jable 登入时使用的帐号，仅用于介面显示。 */
 const val JABLE_LOGIN_EMAIL = "jable_login_email"
 
-/** missav 推薦使用的 user_uuid（站點把它放在同名 cookie 裡）。 */
+/** missav 推荐使用的 user_uuid（站点把它放在同名 cookie 里）。 */
 const val MISSAV_USER_UUID = "missav_user_uuid"
 
-/** Recombee frontend public token（取自 missav app.js，用於請求簽名）。 */
+/** Recombee frontend public token（取自 missav app.js，用于请求签名）。 */
 const val MISSAV_RECOMBEE_TOKEN = "missav_recombee_token"
 
 const val ALREADY_LOGIN = "already_login"

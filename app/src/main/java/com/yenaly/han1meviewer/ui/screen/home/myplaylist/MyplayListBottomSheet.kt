@@ -287,8 +287,8 @@ private fun PlaylistSheetContent(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    // jable 的片單建立/編輯/刪除是另一套 KVS 寫接口（還要 CSRF），
-                    // 目前只接入讀取；先隱藏按鈕，避免誤打 Hanime 的接口。
+                    // jable 的片单建立/编辑/删除是另一套 KVS 写接口（还要 CSRF），
+                    // 目前只接入读取；先隐藏按钮，避免误打 Hanime 的接口。
                     if (!Preferences.isJableSite) {
                         Button(
                             onClick = { showDeletePlaylistConfirm = true },

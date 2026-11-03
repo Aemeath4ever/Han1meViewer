@@ -56,16 +56,16 @@ import javax.net.ssl.SSLHandshakeException
  */
 object NetworkRepo {
 
-    /** jable 留言每頁條數（站點留言 block 的 `data-parameters` 固定 ipp=5）。 */
+    /** jable 留言每页条数（站点留言 block 的 `data-parameters` 固定 ipp=5）。 */
     private const val JABLE_COMMENTS_PAGE_SIZE = 5
 
     //<editor-fold desc="Hanime">
 
     fun getHomePage(): Flow<WebsiteState<HomePage>> = if (Preferences.isMissavSite) {
-        // missav 新版首頁分兩部分：
-        //  - 服務端靜態分節（新作上市/最近更新/無碼影片/隨機），okhttp 直接解析；
-        //  - 「推薦給你」+ 3 個行為分節，由瀏覽器端調 Recombee 生成，靜態 HTML 裏只有骨架。
-        // 登入後補上後者，並排在最前面；推薦失敗就只顯示靜態分節，不影響原有內容。
+        // missav 新版首页分两部分：
+        //  - 服务端静态分节（新作上市/最近更新/无码影片/随机），okhttp 直接解析；
+        //  - 「推荐给你」+ 3 个行为分节，由浏览器端调 Recombee 生成，静态 HTML 里只有骨架。
+        // 登入后补上后者，并排在最前面；推荐失败就只显示静态分节，不影响原有内容。
         flow {
             val response = HanimeNetwork.hanimeService.getMissavHomePage()
             val body = response.body()?.string()?.replaceBackupMediaCdnHost()
@@ -81,7 +81,7 @@ object NetworkRepo {
             emit(WebsiteState.Error(handleException(e)))
         }.flowOn(Dispatchers.IO)
     } else if (Preferences.isJableSite) {
-        // jable 是 KVS 站，首頁所有分節都由服務端直出，直接解析根路徑即可。
+        // jable 是 KVS 站，首页所有分节都由服务端直出，直接解析根路径即可。
         websiteIOFlow(
             request = { HanimeNetwork.hanimeService.getHomePage(Preferences.homeRequestUrl) },
             action = Parser::jableHomePage,
@@ -99,7 +99,7 @@ object NetworkRepo {
         duration: String?, tags: Set<String>, brands: Set<String>,
     ): Flow<PageLoadingState<HanimeSearchResult>> {
         return if (Preferences.isMissavSite) {
-            // missav 僅支持關鍵詞 + 頁碼，高級篩選不生效
+            // missav 仅支持关键词 + 页码，高级筛选不生效
             pageIOFlow(
                 request = {
                     HanimeNetwork.hanimeService.getMissavSearchResult(query.orEmpty(), page)
@@ -107,7 +107,7 @@ object NetworkRepo {
                 action = { Parser.missavSearch(it, page) },
             )
         } else if (Preferences.isJableSite) {
-            // jable 同樣只支持關鍵詞；genre/sort/date 等高級篩選不生效。
+            // jable 同样只支持关键词；genre/sort/date 等高级筛选不生效。
             val keyword = query.orEmpty().trim()
             pageIOFlow(
                 request = {
@@ -142,12 +142,12 @@ object NetworkRepo {
     }
 
     /**
-     * 女優／模特主頁的作品列表。
+     * 女优／模特主页的作品列表。
      *
-     * - missav：`/actresses/{name}?page=N`（Laravel 分頁）。
-     * - jable：`/models/{hash}/{N}/`；若該路徑式分頁沒有卡片，再退回 `?page=N`。
+     * - missav：`/actresses/{name}?page=N`（Laravel 分页）。
+     * - jable：`/models/{hash}/{N}/`；若该路径式分页没有卡片，再退回 `?page=N`。
      *
-     * 女優名字在不同語言下有多種寫法，按名字搜索會漏作品；直接用站內主頁連結最準。
+     * 女优名字在不同语言下有多种写法，按名字搜索会漏作品；直接用站内主页连结最准。
      */
     fun getArtistVideos(
         profileUrl: String,
@@ -169,8 +169,8 @@ object NetworkRepo {
     }
 
     /**
-     * jable 模特頁分頁。KVS 主題可能用路徑式（`/models/{hash}/2/`）或
-     * query 式（`/models/{hash}/?page=2`）分頁，先試路徑式，拿不到卡片再試 query。
+     * jable 模特页分页。KVS 主题可能用路径式（`/models/{hash}/2/`）或
+     * query 式（`/models/{hash}/?page=2`）分页，先试路径式，拿不到卡片再试 query。
      */
     private fun jableArtistVideosFlow(
         profileUrl: String,
@@ -208,11 +208,11 @@ object NetworkRepo {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * jable 會員中心影片列表（喜歡 / 稍後觀看）。
+     * jable 会员中心影片列表（喜欢 / 稍后观看）。
      *
-     * KVS 主題常把 `/my/` 做成 profile 首頁，真正的影片 block 必須帶 async 參數；
-     * 若該主題不吃 block 參數，再退回完整 `/my/` 頁面解析。第 1 頁兩者都拿不到卡片時
-     * 回空列表（真的沒收藏），第 2 頁起同理，UI 會據此停止翻頁。
+     * KVS 主题常把 `/my/` 做成 profile 首页，真正的影片 block 必须带 async 参数；
+     * 若该主题不吃 block 参数，再退回完整 `/my/` 页面解析。第 1 页两者都拿不到卡片时
+     * 回空列表（真的没收藏），第 2 页起同理，UI 会据此停止翻页。
      */
     private fun jableFavouritesFlow(
         page: Int,
@@ -270,10 +270,10 @@ object NetworkRepo {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * jable 會員中心的片單資料夾列表。
+     * jable 会员中心的片单资料夹列表。
      *
-     * 先走 `/my/playlists/`；部分主題把片單掛在 `/my/?type=playlists`，
-     * 404 或空列表時自動改試後者。`listCode` 保存完整連結，供列表內容使用。
+     * 先走 `/my/playlists/`；部分主题把片单挂在 `/my/?type=playlists`，
+     * 404 或空列表时自动改试后者。`listCode` 保存完整连结，供列表内容使用。
      */
     private fun jablePlaylistsFlow(page: Int): Flow<WebsiteState<Playlists>> = flow {
         val base = Preferences.baseUrl.trimEnd('/')
@@ -327,12 +327,12 @@ object NetworkRepo {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * jable 單個片單的內容。
+     * jable 单个片单的内容。
      *
-     * `listCode` 是片單資料夾頁解析出來的完整連結（`/my/playlists/{id}/` 或
-     * `/playlists/{id}/{slug}/`）。第 2 頁起優先走 KVS block；不同主題的 block id
+     * `listCode` 是片单资料夹页解析出来的完整连结（`/my/playlists/{id}/` 或
+     * `/playlists/{id}/{slug}/`）。第 2 页起优先走 KVS block；不同主题的 block id
      * 可能是 `playlist_view_playlist_view` 或 `list_videos_my_favourite_videos`，
-     * 故依序嘗試，最後才退回路徑式分頁。
+     * 故依序尝试，最后才退回路径式分页。
      */
     private fun jablePlaylistItemsFlow(
         listCode: String,
@@ -437,7 +437,7 @@ object NetworkRepo {
                 request = { HanimeNetwork.hanimeService.getMissavVideo(videoCode) },
                 action = Parser::missavVideo
             ).transform { state ->
-                // 喜歡狀態與片單屬於用戶數據，SSR HTML 裏只有匿名默認值，需再補兩個接口
+                // 喜欢状态与片单属于用户数据，SSR HTML 里只有匿名默认值，需再补两个接口
                 emit(
                     if (state is VideoLoadingState.Success) {
                         VideoLoadingState.Success(enrichMissavVideo(videoCode, state.info))
@@ -457,23 +457,23 @@ object NetworkRepo {
         }
 
     /**
-     * missav 的 Laravel CSRF：`XSRF-TOKEN` cookie 需 URL 解碼後放進 `X-XSRF-TOKEN` 頭。
+     * missav 的 Laravel CSRF：`XSRF-TOKEN` cookie 需 URL 解码后放进 `X-XSRF-TOKEN` 头。
      *
-     * 不能只讀 [HCookieJar.cookieMap]：它要等本次行程收過該 host 的響應後才有值，
-     * 而 `HCookieJar.loadForRequest` 同時還會帶上持久化的登入 cookie。
+     * 不能只读 [HCookieJar.cookieMap]：它要等本次行程收过该 host 的响应后才有值，
+     * 而 `HCookieJar.loadForRequest` 同时还会带上持久化的登入 cookie。
      */
     private fun missavXsrfToken(): String? = missavCookies().firstOrNull { it.name == "XSRF-TOKEN" }
         ?.value
         ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
 
-    /** 讀一次響應體（成功/失敗都可能有），之後只能靠返回值，不能再讀第二次。 */
+    /** 读一次响应体（成功/失败都可能有），之后只能靠返回值，不能再读第二次。 */
     private fun readResponseBody(resp: retrofit2.Response<*>): String? = runCatching {
         val body = (resp as? retrofit2.Response<okhttp3.ResponseBody>)?.errorBody()
             ?: resp.body() as? okhttp3.ResponseBody
         body?.string()
     }.getOrNull()
 
-    /** 登入失敗時把「狀態碼 + CF 標記 + 響應體前 300 字」寫進 log，這是唯一能定位 419/403 的線索。 */
+    /** 登入失败时把「状态码 + CF 标记 + 响应体前 300 字」写进 log，这是唯一能定位 419/403 的线索。 */
     private fun describeResponse(resp: retrofit2.Response<*>, body: String?) = buildString {
         append("code=").append(resp.code())
         resp.headers()["cf-mitigated"]?.let { append(", cf-mitigated=").append(it) }
@@ -482,10 +482,10 @@ object NetworkRepo {
     }
 
     /**
-     * missav 登入失敗的原因。
+     * missav 登入失败的原因。
      *
-     * 422 的響應形如 `{"message":"登入失敗","errors":{"email":["登入失敗"]}}`，
-     * 直接把服務端原文交给使用者，比自己猜「帳號或密碼錯誤」準確。
+     * 422 的响应形如 `{"message":"登入失败","errors":{"email":["登入失败"]}}`，
+     * 直接把服务端原文交给使用者，比自己猜「帐号或密码错误」准确。
      */
     private fun missavLoginError(code: Int, body: String?): Throwable {
         if (code == 422) {
@@ -508,8 +508,8 @@ object NetworkRepo {
     }
 
     /**
-     * jable 登入失敗原因：KVS 回 `{status:"failure", errors:[{field, code, message}]}`，
-     * 直接把第一條 message 交给使用者。
+     * jable 登入失败原因：KVS 回 `{status:"failure", errors:[{field, code, message}]}`，
+     * 直接把第一条 message 交给使用者。
      */
     private fun jableLoginError(code: Int, body: String?): Throwable {
         val json = runCatching { JSONObject(body.orEmpty()) }.getOrNull()
@@ -526,7 +526,7 @@ object NetworkRepo {
         return java.io.IOException("jable 登入失敗：HTTP $code$hint")
     }
 
-    /** 當前 missav 主機名（可能被鏡像站覆蓋，不能寫死 `missav.ai`）。 */
+    /** 当前 missav 主机名（可能被镜像站覆盖，不能写死 `missav.ai`）。 */
     private fun missavHost(): String = runCatching {
         java.net.URI(Preferences.baseUrl).host
     }.getOrNull()?.takeIf { it.isNotBlank() } ?: "missav.ai"
@@ -536,12 +536,12 @@ object NetworkRepo {
                 Preferences.loginCookie.toLoginCookieList(host)
 
     /**
-     * 把 WebView 裏的會話 cookie 灌進 okhttp 的 [HCookieJar]。
+     * 把 WebView 里的会话 cookie 灌进 okhttp 的 [HCookieJar]。
      *
-     * WebView 是「真瀏覽器」：它已經通過 Cloudflare（`cf_clearance`）並且由 Laravel 下發過
-     * `XSRF-TOKEN` / `missav_session`。okhttp 自己空手去撞 `/cn/api/login` 時，
-     * 首頁 `/dm12/cn` 只是個 Cloudflare 快取的 301（`cf-cache-status: HIT`，不帶 Set-Cookie），
-     * 拿不到 CSRF token，於是必然 419。
+     * WebView 是「真浏览器」：它已经通过 Cloudflare（`cf_clearance`）并且由 Laravel 下发过
+     * `XSRF-TOKEN` / `missav_session`。okhttp 自己空手去撞 `/cn/api/login` 时，
+     * 首页 `/dm12/cn` 只是个 Cloudflare 快取的 301（`cf-cache-status: HIT`，不带 Set-Cookie），
+     * 拿不到 CSRF token，于是必然 419。
      */
     private fun seedMissavCookies(host: String, rawCookies: List<String>) {
         if (rawCookies.isEmpty()) return
@@ -551,9 +551,9 @@ object NetworkRepo {
     }
 
     /**
-     * 補齊 missav 影片的用戶數據（未登入時直接跳過）：
-     * - `GET /api/items/{itemId}/view` → `saved`（站內打開影片頁時同樣會調，附帶記錄觀看歷史）
-     * - `GET /api/playlists/{dvdId}` → 用戶片單，含 is_added
+     * 补齐 missav 影片的用户数据（未登入时直接跳过）：
+     * - `GET /api/items/{itemId}/view` → `saved`（站内打开影片页时同样会调，附带记录观看历史）
+     * - `GET /api/playlists/{dvdId}` → 用户片单，含 is_added
      */
     private suspend fun enrichMissavVideo(
         videoCode: String,
@@ -579,7 +579,7 @@ object NetworkRepo {
     }
 
     /**
-     * missav「喜歡」切換。注意與 Hanime不同：按站內 itemId 操作，取消用 DELETE。
+     * missav「喜欢」切换。注意与 Hanime不同：按站内 itemId 操作，取消用 DELETE。
      */
     fun missavToggleSave(itemId: String, save: Boolean) = websiteIOFlow(
         request = {
@@ -593,9 +593,9 @@ object NetworkRepo {
     }
 
     /**
-     * jable「收藏」切換。
+     * jable「收藏」切换。
      *
-     * 站點 JS 是對當前影片頁發 GET（`mode=async&format=json&action=...`），
+     * 站点 JS 是对当前影片页发 GET（`mode=async&format=json&action=...`），
      * 成功回 `{"status":"success"}`；未登入回 `not_logged_in`。
      */
     fun jableToggleFavorite(
@@ -629,7 +629,7 @@ object NetworkRepo {
     }
 
     /**
-     * missav 片單增刪：影片頁 `{dvdId, key}`，key 可能是數字或字串，按原樣回傳。
+     * missav 片单增删：影片页 `{dvdId, key}`，key 可能是数字或字串，按原样回传。
      */
     fun missavTogglePlaylist(dvdId: String, key: String, add: Boolean) = websiteIOFlow(
         request = {
@@ -663,9 +663,9 @@ object NetworkRepo {
     //<editor-fold desc="My List">
 
     fun getMyListItems(userId: String, listType: Any, page: Int): Flow<PageLoadingState<MyListItems<HanimeInfo>>> {
-        // jable 是 KVS 會員中心：
-        //  - 喜歡 / 稍後觀看共用同一個 block，只差 fav_type（0/1）；
-        //  - 片單內容由 getMyPlayListItems 按片單連結抓取。
+        // jable 是 KVS 会员中心：
+        //  - 喜欢 / 稍后观看共用同一个 block，只差 fav_type（0/1）；
+        //  - 片单内容由 getMyPlayListItems 按片单连结抓取。
         if (Preferences.isJableSite) {
             return when (listType) {
                 is MyListType -> when (listType) {
@@ -690,8 +690,8 @@ object NetworkRepo {
             }
         }
         if (Preferences.isMissavSite) {
-            // missav 的「喜歡」= /cn/saved（站內用 api/items/{id}/save 切換）。
-            // 「稍後觀看」在這個站沒有對應頁面，UI 已隱藏，這裡返回空。
+            // missav 的「喜欢」= /cn/saved（站内用 api/items/{id}/save 切换）。
+            // 「稍后观看」在这个站没有对应页面，UI 已隐藏，这里返回空。
             val type = when (listType) {
                 is MyListType -> listType
                 is String -> MyListType.values().firstOrNull { it.value == listType }
@@ -1020,8 +1020,8 @@ object NetworkRepo {
     //<editor-fold desc="Comment">
 
     fun getComments(type: String, code: String): Flow<WebsiteState<VideoComments>> {
-        // jable 的留言就是原站影片頁的 KVS comments block，與 Hanime 的
-        // `loadComment` 接口無關；影片碼在這裏是 jable 的 slug。
+        // jable 的留言就是原站影片页的 KVS comments block，与 Hanime 的
+        // `loadComment` 接口无关；影片码在这里是 jable 的 slug。
         if (Preferences.isJableSite) return jableCommentsFlow(code)
         return websiteIOFlow(
             request = { HanimeNetwork.commentService.getComments(type, code) },
@@ -1030,9 +1030,9 @@ object NetworkRepo {
     }
 
     /**
-     * jable 留言：先解析影片頁自帶的第一頁，再按站點「載入更多」的規則
-     * （`data-max-queries=3`、每頁 5 條）補 2~4 頁。
-     * 第一頁先 emit，後續頁面拿到再更新，避免用戶要等 4 個請求才看到留言。
+     * jable 留言：先解析影片页自带的第一页，再按站点「载入更多」的规则
+     * （`data-max-queries=3`、每页 5 条）补 2~4 页。
+     * 第一页先 emit，后续页面拿到再更新，避免用户要等 4 个请求才看到留言。
      */
     private fun jableCommentsFlow(videoCode: String) = flow {
         val firstResponse = HanimeNetwork.hanimeService.getJableVideo(videoCode)
@@ -1102,12 +1102,12 @@ object NetworkRepo {
         csrfToken: String?,
         commentPlace: CommentPlace,
         foreignId: String?,
-        isPositive: Boolean, // 你選擇的是讚還是踩，1是讚，0是踩
+        isPositive: Boolean, // 你选择的是赞还是踩，1是赞，0是踩
         likeUserId: String?,
         commentLikesCount: Int,
         commentLikesSum: Int,
-        likeCommentStatus: Boolean, // 你之前有沒有點過讚，1是0否
-        unlikeCommentStatus: Boolean, // 你之前有沒有點過踩，1是0否
+        likeCommentStatus: Boolean, // 你之前有没有点过赞，1是0否
+        unlikeCommentStatus: Boolean, // 你之前有没有点过踩，1是0否
         commentPosition: Int, comment: VideoComments.VideoComment,
     ) = websiteIOFlow(
         request = {
@@ -1190,8 +1190,8 @@ object NetworkRepo {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * @param seedCookies 由登入頁 WebView 取到的「真瀏覽器」cookie（`missav_session` / `XSRF-TOKEN`
-     *   / `cf_clearance`）。okhttp 自己拿不到 CSRF token 時就靠它。
+     * @param seedCookies 由登入页 WebView 取到的「真浏览器」cookie（`missav_session` / `XSRF-TOKEN`
+     *   / `cf_clearance`）。okhttp 自己拿不到 CSRF token 时就靠它。
      */
     fun login(email: String, password: String, seedCookies: List<String>? = null) = flow {
         emit(WebsiteState.Loading)
@@ -1199,9 +1199,9 @@ object NetworkRepo {
             val host = missavHost()
             seedMissavCookies(host, seedCookies.orEmpty())
 
-            // 預熱請求：仍缺 XSRF-TOKEN 時才抓頁面（Laravel 會 Set-Cookie）。
-            // 注意 `/dm12/cn` 是 Cloudflare 快取的 301（cf-cache-status: HIT），常常不帶 Set-Cookie，
-            // 所以要再補一個動態頁（片單頁就是登入頁入口，未登入會彈登入框，必然是 Laravel 直出）。
+            // 预热请求：仍缺 XSRF-TOKEN 时才抓页面（Laravel 会 Set-Cookie）。
+            // 注意 `/dm12/cn` 是 Cloudflare 快取的 301（cf-cache-status: HIT），常常不带 Set-Cookie，
+            // 所以要再补一个动态页（片单页就是登入页入口，未登入会弹登入框，必然是 Laravel 直出）。
             if (missavCookies(host).none { it.name == "XSRF-TOKEN" }) {
                 runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
             }
@@ -1223,9 +1223,9 @@ object NetworkRepo {
             )
             var respBody = readResponseBody(req)
             Log.d("missav_login", "login resp ${describeResponse(req, respBody)}")
-            // 419 = CSRF token 過期，重新抓頁面再試一次
+            // 419 = CSRF token 过期，重新抓页面再试一次
             if (req.code() == 419) {
-                // `/dm12/cn` 是 CF 快取的 301，重抓它換不到新 token；要抓動態頁。
+                // `/dm12/cn` 是 CF 快取的 301，重抓它换不到新 token；要抓动态页。
                 runCatching { HanimeNetwork.hanimeService.getHomePage(HANIME_LOGIN_URL) }
                 if (missavCookies(host).none { it.name == "XSRF-TOKEN" }) {
                     runCatching { HanimeNetwork.hanimeService.getMissavHomePage() }
@@ -1240,8 +1240,8 @@ object NetworkRepo {
                 Log.d("missav_login", "login retry(419) ${describeResponse(req, respBody)}")
             }
             if (req.isSuccessful) {
-                // 會話 cookie 可能來自預熱請求（POST 響應不一定重複下發），
-                // 因此把「預熱 jar + 響應 Set-Cookie + 登入後 jar」按名稱合併，後者覆蓋前者。
+                // 会话 cookie 可能来自预热请求（POST 响应不一定重复下发），
+                // 因此把「预热 jar + 响应 Set-Cookie + 登入后 jar」按名称合并，后者覆盖前者。
                 val merged = LinkedHashMap<String, String>()
                 fun putAll(list: List<String>) {
                     list.forEach { c ->
@@ -1260,13 +1260,13 @@ object NetworkRepo {
                     emit(WebsiteState.Success(cookies))
                 }
             } else {
-                // 把真正的原因帶給使用者：422 取服務端原文（Laravel 的 message / errors），
-                // 403 是 Cloudflare 攔截，其餘保留 HTTP 狀態碼。
+                // 把真正的原因带给使用者：422 取服务端原文（Laravel 的 message / errors），
+                // 403 是 Cloudflare 拦截，其余保留 HTTP 状态码。
                 emit(WebsiteState.Error(missavLoginError(req.code(), respBody)))
             }
         } else if (Preferences.isJableSite) {
             val host = missavHost()
-            // 預熱 WebView 拿到的 cf_clearance / 會話 cookie；Cloudflare 的盾要靠它。
+            // 预热 WebView 拿到的 cf_clearance / 会话 cookie；Cloudflare 的盾要靠它。
             seedMissavCookies(host, seedCookies.orEmpty())
             val loginPage = HanimeNetwork.hanimeService.getJableLoginPage()
             val loginBody = loginPage.body()?.string()
@@ -1316,7 +1316,7 @@ object NetworkRepo {
                 // 因为登录成功再次访问 login 会 404，这是判断是否登录成功的方法
                 val loginPageAgain = HanimeNetwork.hanimeService.getLoginPage()
                 if (loginPageAgain.code() == 404) {
-                    // Cookie 會返回 XSRF-TOKEN 和 hanime1_session，我們只需要後者
+                    // Cookie 会返回 XSRF-TOKEN 和 hanime1_session，我们只需要后者
                     // 错误的，还需要 remember_web 字段！但我没找到！
                     Log.d("login_headers", req.headers().toMultimap().toString())
                     emit(WebsiteState.Success(req.headers().values("Set-Cookie")))
@@ -1324,7 +1324,7 @@ object NetworkRepo {
                     emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
                 }
             } else {
-                // 雙重保險
+                // 双重保险
                 emit(WebsiteState.Error(IllegalStateException(getString(R.string.account_or_password_wrong))))
             }
         }
@@ -1402,11 +1402,11 @@ object NetworkRepo {
                         throw CloudFlareBlockedException(getString(R.string.cloudflare_network_mismatch))
 
                     else ->
-                        throw HanimeNotFoundException(getString(R.string.video_might_not_exist)) // 主要出現在影片界面，當你v數不大時會報403
+                        throw HanimeNotFoundException(getString(R.string.video_might_not_exist)) // 主要出现在影片界面，当你v数不大时会报403
                 }
             } else throw IllegalStateException("$code ${message()}")
 
-            500 -> throw HanimeNotFoundException(getString(R.string.video_might_not_exist)) // 主要出現在影片界面，當你v數很大時會報500
+            500 -> throw HanimeNotFoundException(getString(R.string.video_might_not_exist)) // 主要出现在影片界面，当你v数很大时会报500
 
             404 -> if (!isAlreadyLogin) {
                 throw IllegalStateException(getString(R.string.not_logged_in_currently))

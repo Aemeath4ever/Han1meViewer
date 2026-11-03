@@ -13,28 +13,28 @@ data class HomePage(
     val latestHanime: MutableList<HanimeInfo>,
     val latestRelease: MutableList<HanimeInfo>,
     /**
-     * missav 首頁由 Recombee 推薦接口下發的區塊（「推薦給你」「中出」「巨乳」…），
-     * 只有登入時才會填充。展示時排在靜態分節（新作上市/最近更新/無碼影片）之前。
+     * missav 首页由 Recombee 推荐接口下发的区块（「推荐给你」「中出」「巨乳」…），
+     * 只有登入时才会填充。展示时排在静态分节（新作上市/最近更新/无码影片）之前。
      */
     val missavRecommended: MutableList<MissavSection> = mutableListOf(),
     /**
-     * missav 首頁其餘 h2 區塊（「無碼影片」「隨機」等），
-     * 按頁面順序保存，標題保留站點原文。
+     * missav 首页其余 h2 区块（「无码影片」「随机」等），
+     * 按页面顺序保存，标题保留站点原文。
      */
     val missavSections: MutableList<MissavSection> = mutableListOf(),
     /**
-     * jable 首頁分節（最近更新/全新上市/熱門影片/他們在看…），標題保留站點原文。
-     * KVS 站的分節都是同構的，這裡按頁面順序原樣展示。
+     * jable 首页分节（最近更新/全新上市/热门影片/他们在看…），标题保留站点原文。
+     * KVS 站的分节都是同构的，这里按页面顺序原样展示。
      */
     val jableSections: MutableList<MissavSection> = mutableListOf(),
     /**
-     * missav「新作上市」分節的「更多」列表頁（站點上指向 `/cn/release`）。
+     * missav「新作上市」分节的「更多」列表页（站点上指向 `/cn/release`）。
      *
-     * 這兩個分節在首頁被固定分類（見 `buildCategoryList`）接管，卡片列表捨棄了
-     * [MissavSection]，所以「更多」連結單獨保存，不然首頁第一欄的「更多」會沒有去處。
+     * 这两个分节在首页被固定分类（见 `buildCategoryList`）接管，卡片列表舍弃了
+     * [MissavSection]，所以「更多」连结单独保存，不然首页第一栏的「更多」会没有去处。
      */
     val missavReleaseMoreUrl: String? = null,
-    /** missav「最近更新」分節的「更多」列表頁（站點上指向 `/cn/new`）。 */
+    /** missav「最近更新」分节的「更多」列表页（站点上指向 `/cn/new`）。 */
     val missavUpdateMoreUrl: String? = null,
     val ecchiAnime: MutableList<HanimeInfo>,
     val shortEpisodeAnime: MutableList<HanimeInfo>,
@@ -60,14 +60,14 @@ data class HomePage(
     )
 
     /**
-     * 首頁的一個內容區塊（missav 與 jable 共用）。
+     * 首页的一个内容区块（missav 与 jable 共用）。
      *
-     * @param title 區塊標題（站點原文，如「推薦給你」）。
-     * @param videos 區塊內的視頻卡片。
-     * @param moreUrl 站點為該分節準備的「更多」列表頁，例如 missav「無碼影片」指向 `/cn/fc2`。
-     * 站點沒有提供列表頁的分節（如「隨機」）為 null，此時不顯示「更多」。
-     * @param recommId Recombee 推薦分節的推薦 id。站點的「載入更多」就是拿它再調一次
-     * `RecommendNextItems` 續接下一批，所以帶著它才能支援載入更多；非推薦分節為 null。
+     * @param title 区块标题（站点原文，如「推荐给你」）。
+     * @param videos 区块内的视频卡片。
+     * @param moreUrl 站点为该分节准备的「更多」列表页，例如 missav「无码影片」指向 `/cn/fc2`。
+     * 站点没有提供列表页的分节（如「随机」）为 null，此时不显示「更多」。
+     * @param recommId Recombee 推荐分节的推荐 id。站点的「载入更多」就是拿它再调一次
+     * `RecommendNextItems` 续接下一批，所以带著它才能支援载入更多；非推荐分节为 null。
      */
     data class MissavSection(
         val title: String,

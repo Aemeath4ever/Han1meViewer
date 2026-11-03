@@ -53,7 +53,7 @@ abstract class HKeyframeDao {
     ) {
         val entity = findBy(videoCode)
         entity?.let {
-            // 按理説一定會有，如果沒有那就是出問題了
+            // 按理说一定会有，如果没有那就是出问题了
             if (keyframe == oldKeyframe) return
             removeKeyframe(videoCode, oldKeyframe)
             appendKeyframe(videoCode, entity.title, keyframe)

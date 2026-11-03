@@ -18,7 +18,7 @@ sealed interface HomeUiEvent {
     data object ShowExitDialog : HomeUiEvent
     data class ShowAnnouncementDialog(val announcement: Announcement) : HomeUiEvent
 
-    /** 打开分类对应的站点列表页（如 missav 無碼影片 → `/cn/fc2`），列表自带分页。 */
+    /** 打开分类对应的站点列表页（如 missav 无码影片 → `/cn/fc2`），列表自带分页。 */
     data class NavigateToListing(val title: String, val url: String) : HomeUiEvent
 
     /** 就地续接推荐分类的下一批（站点「载入更多」的等价操作）。 */

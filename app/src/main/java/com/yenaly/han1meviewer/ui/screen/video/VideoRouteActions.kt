@@ -49,8 +49,8 @@ class VideoRouteActions(
     private val onRequestDownloadPermissionSettings: () -> Unit,
 ) {
     fun openArtistSearch(artist: HanimeVideo.Artist) {
-        // missav / jable 的影片頁有女優／模特主頁連結：直接列主頁作品，
-        // 避免用日文/英文名字搜索時因譯名不一致而漏作品。
+        // missav / jable 的影片页有女优／模特主页连结：直接列主页作品，
+        // 避免用日文/英文名字搜索时因译名不一致而漏作品。
         val profileUrl = artist.profileUrl?.trim()?.takeIf { it.isNotEmpty() }
         if (profileUrl != null && (Preferences.isMissavSite || Preferences.isJableSite)) {
             (context as? MainActivity)?.navController?.navigateSafely(
@@ -107,12 +107,12 @@ class VideoRouteActions(
             GlobalToasts.show(context.getString(R.string.login_first), level = GlobalToasts.ToastLevel.WARNING)
             return
         }
-        // missav 的「喜歡」是站內 JSON 接口（按 itemId POST/DELETE），走另一條路徑
+        // missav 的「喜欢」是站内 JSON 接口（按 itemId POST/DELETE），走另一条路径
         if (Preferences.isMissavSite) {
             viewModel.toggleMissavFavorite(video)
             return
         }
-        // jable 的收藏也是站內 AJAX GET（按 pageContext.videoId）
+        // jable 的收藏也是站内 AJAX GET（按 pageContext.videoId）
         if (Preferences.isJableSite) {
             viewModel.toggleJableFavorite(video)
             return
@@ -125,8 +125,8 @@ class VideoRouteActions(
     }
 
     /**
-     * jable 的「加入稍後再看」：影片頁的書籤鍵（fav_type=1），
-     * 與 Hanime 的片單/稍後觀看接口完全無關。
+     * jable 的「加入稍后再看」：影片页的书签键（fav_type=1），
+     * 与 Hanime 的片单/稍后观看接口完全无关。
      */
     fun toggleWatchLater(video: HanimeVideo) {
         if (!Preferences.isJableSite) return
@@ -199,7 +199,7 @@ class VideoRouteActions(
     }
 
     fun startDownloadFlow(videoData: HanimeVideo) {
-        // jable 的播放源是簽名 m3u8，下載器只支援直鏈檔案，強行下載會得到播放清單而非影片。
+        // jable 的播放源是签名 m3u8，下载器只支援直链档案，强行下载会得到播放清单而非影片。
         if (Preferences.isJableSite) {
             GlobalToasts.show(
                 context.getString(R.string.feature_not_supported_on_site),

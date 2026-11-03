@@ -563,8 +563,8 @@ fun VideoRouteHostScreen(
             viewModel.hanimeVideoStateFlow.collect { state ->
                 when (state) {
                     is VideoLoadingState.Error -> {
-                        // 解析失敗只提示，不再自動拉起瀏覽器：曾經因為推薦位解析
-                        // 異常（ParseException）讓本可播放的影片被誤導出 App。
+                        // 解析失败只提示，不再自动拉起浏览器：曾经因为推荐位解析
+                        // 异常（ParseException）让本可播放的影片被误导出 App。
                         state.throwable.localizedMessage?.let { GlobalToasts.show(it, level = GlobalToasts.ToastLevel.ERROR) }
                     }
 

@@ -56,7 +56,7 @@ fun VideoRouteContent(
     val tabs = remember(disableComments, hostUiState.commentBadgeCount, fromDownload) {
         buildList {
             add(VideoTabItem(R.string.introduction))
-            // jable 的留言直接取原站影片頁的 KVS comments block（見 NetworkRepo.jableCommentsFlow）。
+            // jable 的留言直接取原站影片页的 KVS comments block（见 NetworkRepo.jableCommentsFlow）。
             if (!fromDownload && !disableComments) {
                 add(VideoTabItem(R.string.comment, badgeCount = hostUiState.commentBadgeCount))
             }

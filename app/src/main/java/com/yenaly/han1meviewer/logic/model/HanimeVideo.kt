@@ -25,11 +25,11 @@ data class HanimeVideo(
 
     val tags: List<String>,
     /**
-     * 注意，這裏的myList是指用戶的播放清單playlist
+     * 注意，这里的myList是指用户的播放清单playlist
      */
     @Transient val myList: MyList? = null,
     /**
-     * 注意，這裏的playlist是指該影片的系列影片，並非用戶的播放清單
+     * 注意，这里的playlist是指该影片的系列影片，并非用户的播放清单
      */
     @Transient val playlist: Playlist? = null,
     @Transient val relatedHanimes: List<HanimeInfo> = emptyList(),
@@ -42,11 +42,11 @@ data class HanimeVideo(
     @Transient val csrfToken: String? = null,
     @Transient val currentUserId: String? = null,
     @Transient val originalComic: String? = null,
-    /** missav 站內物品 id（`/api/items/{id}/save`），與 dvd id 不同，用於喜歡操作 */
+    /** missav 站内物品 id（`/api/items/{id}/save`），与 dvd id 不同，用于喜欢操作 */
     @Transient val missavItemId: String? = null,
-    /** jable 站內影片 id（主收藏按鈕的 data-fav-video-id，匿名頁退回 pageContext.videoId） */
+    /** jable 站内影片 id（主收藏按钮的 data-fav-video-id，匿名页退回 pageContext.videoId） */
     @Transient val jableVideoId: String? = null,
-    /** jable「稍後觀看」狀態（書籤按鈕 active，fav_type=1） */
+    /** jable「稍后观看」状态（书签按钮 active，fav_type=1） */
     @Transient val isWatchLater: Boolean = false,
 ) {
 
@@ -90,7 +90,7 @@ data class HanimeVideo(
         }
     }
 
-    // 為保證兼容性，不能直接用天數
+    // 为保证兼容性，不能直接用天数
     val uploadTimeMillis: Long
         get() = uploadTime?.let {
             it.toEpochDays() * 24 * 60 * 60 * 1000
@@ -122,8 +122,8 @@ data class HanimeVideo(
         val genre: String,
         @Transient val post: POST? = null,
         /**
-         * 站內女優／演员主页。missav 是 `/actresses/{name}`，
-         * jable 是 `/models/{hash}/`；Hanime 沒有对应页面，保持 null。
+         * 站内女优／演员主页。missav 是 `/actresses/{name}`，
+         * jable 是 `/models/{hash}/`；Hanime 没有对应页面，保持 null。
          */
         @Transient val profileUrl: String? = null,
     ) {

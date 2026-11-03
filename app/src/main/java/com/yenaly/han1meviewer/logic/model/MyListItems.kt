@@ -8,7 +8,7 @@ package com.yenaly.han1meviewer.logic.model
 data class MyListItems<I>(
     val hanimeInfo: List<I>,
     /**
-     * 清單的介紹，一般用於播放清單
+     * 清单的介绍，一般用于播放清单
      */
     var desc: String? = null,
     val csrfToken: String? = null,

@@ -87,7 +87,7 @@ fun CommentScreen(
     reportReasons: List<ReportReason>,
     isPreviewCommentPrefetched: Boolean,
     isAlreadyLogin: Boolean,
-    /** 站點是否支援回覆/讚踩/檢舉；jable 的原站留言只有唯讀內容。 */
+    /** 站点是否支援回复/赞踩/检举；jable 的原站留言只有唯读内容。 */
     canInteract: Boolean = true,
     onRefresh: () -> Unit,
     onReply: (VideoComments.VideoComment, String) -> Unit,

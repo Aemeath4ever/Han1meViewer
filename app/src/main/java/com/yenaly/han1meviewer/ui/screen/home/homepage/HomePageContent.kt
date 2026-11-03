@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
  * [rememberHomeHeroSpec]。
  *
  * 「更多」的去处按行数据决定：推荐分行续接下一批（[SectionMoreState]）、
- * 有站點列表頁的分行打开该列表、其余走高级搜索；三者都没有时不显示「更多」，
+ * 有站点列表页的分行打开该列表、其余走高级搜索；三者都没有时不显示「更多」，
  * 避免点了没反应。
  *
  * @param data 主页数据
@@ -150,9 +150,9 @@ fun HomePageContent(
                 val recommId = category.recommId
                 val moreUrl = category.moreUrl
                 val moreEvent: HomeUiEvent? = when {
-                    // 站點上這些分行的「更多」就是就地續接，不跳頁
+                    // 站点上这些分行的「更多」就是就地续接，不跳页
                     recommId != null -> HomeUiEvent.LoadMoreSection(category.key, recommId)
-                    // missav / jable 的服務端分節各自有列表頁（如 無碼影片 → /cn/fc2）
+                    // missav / jable 的服务端分节各自有列表页（如 无码影片 → /cn/fc2）
                     moreUrl != null -> HomeUiEvent.NavigateToListing(title, moreUrl)
                     else -> category.toAdvancedSearchParams()
                         .takeIf { it.isNotEmpty() }

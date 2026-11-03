@@ -60,12 +60,12 @@ abstract class YenalySettingsFragment(@param:XmlRes private val xmlRes: Int,
     abstract fun onPreferencesCreated(savedInstanceState: Bundle?)
 
     /**
-     * 快速獲得隸屬於某[key]的Preference，可以爲null
+     * 快速获得隶属于某[key]的Preference，可以为null
      */
     fun <T : Preference> preference(key: String) = unsafeLazy { findPreference<T>(key) }
 
     /**
-     * 快速獲得隸屬於某[key]的Preference，不可以爲null
+     * 快速获得隶属于某[key]的Preference，不可以为null
      */
     fun <T : Preference> safePreference(key: String) = unsafeLazy {
         checkNotNull(findPreference<T>(key)) {

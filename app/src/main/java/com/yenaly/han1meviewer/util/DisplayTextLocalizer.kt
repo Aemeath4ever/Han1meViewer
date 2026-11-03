@@ -41,10 +41,10 @@ object DisplayTextLocalizer {
     }
 
     /**
-     * 只有數字的觀看數（jable 卡片是 `1080234` / `14 130` 這種純數字文本）。
+     * 只有数字的观看数（jable 卡片是 `1080234` / `14 130` 这种纯数字文本）。
      *
-     * 站點自身用空格分組千位，這裡一併接受空格、逗號和全角逗號。
-     * 不足一萬保持原樣；一萬以上用「w」：`1080234 -> 108w`、`28309 -> 2.8w`。
+     * 站点自身用空格分组千位，这里一并接受空格、逗号和全角逗号。
+     * 不足一万保持原样；一万以上用「w」：`1080234 -> 108w`、`28309 -> 2.8w`。
      */
     private fun formatBareViews(text: String): String? {
         if (text.isEmpty() || !bareViewsRegex.matches(text)) return null

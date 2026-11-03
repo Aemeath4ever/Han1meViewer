@@ -81,7 +81,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
 
     companion object {
         /**
-         * 最小的 HKeyframe 保存間隔，暫定 5s
+         * 最小的 HKeyframe 保存间隔，暂定 5s
          */
         const val MIN_H_KEYFRAME_SAVE_INTERVAL = 5_000 // ms
     }
@@ -108,9 +108,9 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
     val videoHostUiStateFlow = _videoHostUiStateFlow.asStateFlow()
 
     /**
-     * 同系列影片已歸入的分組 id，作為下載時分組名的推薦項。
+     * 同系列影片已归入的分组 id，作为下载时分组名的推荐项。
      *
-     * 同系列任意一集在非預設分組中時推薦該分組，否則為 null。
+     * 同系列任意一集在非预设分组中时推荐该分组，否则为 null。
      */
     val recommendedGroupId: StateFlow<Int?> =
         hanimeVideoFlow
@@ -129,7 +129,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
             )
 
     /**
-     * 已下載分組列表，供下載時自動分組選擇（複用/挑選已有分組）使用。
+     * 已下载分组列表，供下载时自动分组选择（复用/挑选已有分组）使用。
      */
     val downloadGroups: StateFlow<List<DownloadGroupEntity>> =
         DatabaseRepo.HanimeDownload.getAllGroups()
@@ -354,8 +354,8 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
     }
 
     /**
-     * missav「喜歡」切換：接口按站內 itemId 操作（`/api/items/{id}/save` POST/DELETE），
-     * 與 Hanime按 videoCode 的表單提交完全不同。
+     * missav「喜欢」切换：接口按站内 itemId 操作（`/api/items/{id}/save` POST/DELETE），
+     * 与 Hanime按 videoCode 的表单提交完全不同。
      */
     fun toggleMissavFavorite(video: HanimeVideo) {
         val itemId = video.missavItemId
@@ -377,7 +377,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
     }
 
     /**
-     * jable「收藏」切換：按站內 videoId 對影片頁發 AJAX GET。
+     * jable「收藏」切换：按站内 videoId 对影片页发 AJAX GET。
      */
     fun toggleJableFavorite(video: HanimeVideo) {
         val videoId = video.jableVideoId
@@ -399,7 +399,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
     }
 
     /**
-     * jable「稍後觀看」切換：與收藏共用 `add_to_favourites` 接口，差別在 `fav_type=1`。
+     * jable「稍后观看」切换：与收藏共用 `add_to_favourites` 接口，差别在 `fav_type=1`。
      */
     fun toggleJableWatchLater(video: HanimeVideo) {
         val videoId = video.jableVideoId
@@ -451,7 +451,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
         position: Int,
     ) {
         viewModelScope.launch {
-            // missav 的片單是 `{dvdId, key}` 的 JSON 接口，listCode 即片單 key
+            // missav 的片单是 `{dvdId, key}` 的 JSON 接口，listCode 即片单 key
             val flow = if (Preferences.isMissavSite) {
                 NetworkRepo.missavTogglePlaylist(videoCode, listCode, isChecked)
             } else {
@@ -524,7 +524,7 @@ class VideoViewModel(application: Application) : YenalyViewModel(application) {
         }
     }
 
-    // boolean: 成功 or 失敗，String: 提示信息
+    // boolean: 成功 or 失败，String: 提示信息
     private val _modifyHKeyframeFlow = MutableSharedFlow<Pair<Boolean, String>>()
     val modifyHKeyframeFlow = _modifyHKeyframeFlow.asSharedFlow()
     private val _forceRefresh = MutableSharedFlow<Unit>(replay = 1)

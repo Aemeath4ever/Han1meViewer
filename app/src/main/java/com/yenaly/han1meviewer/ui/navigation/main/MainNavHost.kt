@@ -73,7 +73,7 @@ fun MainNavHost(
         destinationSpec?.let(onDestinationChanged)
     }
 
-    // 從本地收藏打開他站影片時，switchSite 會重啟進程；重啟後在這裡消費一次。
+    // 从本地收藏打开他站影片时，switchSite 会重启进程；重启后在这里消费一次。
     LaunchedEffect(Unit) {
         val pendingCode = Preferences.pendingLocalFavoriteVideoCode
         if (!pendingCode.isNullOrBlank()) {
@@ -130,8 +130,8 @@ fun MainNavHost(
                         SearchRoute(advancedSearchJson = Json.encodeToString(params))
                     )
                 },
-                // 站點給的「更多」列表頁：走搜尋頁的來源網址模式，分頁交給各站自己的
-                // 列表分頁解析；標題帶上分節名，頁面才不會只顯示一個空白搜尋框。
+                // 站点给的「更多」列表页：走搜寻页的来源网址模式，分页交给各站自己的
+                // 列表分页解析；标题带上分节名，页面才不会只显示一个空白搜寻框。
                 onNavigateToListing = { title, url ->
                     navController.navigateSafely(SearchRoute(query = title, sourceUrl = url))
                 },

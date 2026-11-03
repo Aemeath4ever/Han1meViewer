@@ -121,7 +121,7 @@ fun SearchScreen(
     onLongPressCopy: (String, String) -> Unit,
     onOpenAdvancedSearch: () -> Unit,
     initialQuery: String? = null,
-    /** 女優／模特主页地址；非空时展示该主页作品，不写入搜索历史。 */
+    /** 女优／模特主页地址；非空时展示该主页作品，不写入搜索历史。 */
     initialSourceUrl: String? = null,
 ) {
     val searchState by viewModel.searchStateFlow.collectAsStateWithLifecycle()
@@ -214,7 +214,7 @@ fun SearchScreen(
         )
     }
 
-    // 初始 query / 女優主頁自动搜索
+    // 初始 query / 女优主页自动搜索
     LaunchedEffect(initialQuery, initialSourceUrl) {
         val query = initialQuery?.trim().orEmpty()
         if ((query.isNotBlank() || !initialSourceUrl.isNullOrBlank()) && !hasSearched) {
@@ -352,7 +352,7 @@ fun SearchScreen(
             val shouldSearch = q.isNotBlank() || hasAdvancedFilters()
             if (shouldSearch) {
                 hasSearched = true
-                // 用户主动搜索时退出女優主頁模式
+                // 用户主动搜索时退出女优主页模式
                 viewModel.sourceUrl = null
                 viewModel.query = q.ifBlank { null }
                 focusMgr.clearFocus(); kb?.hide()

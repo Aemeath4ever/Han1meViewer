@@ -39,8 +39,8 @@ internal fun saveInt(key: String, value: Int) {
 
 internal fun buildDomainOptions(context: Context): List<Pair<String, String>> =
     HANIME_URL.mapIndexed { index, url ->
-        // 不能按下標去查 HANIME_HOSTNAME：它只有 3 項（missav.ai 故意不在裡面），
-        // 以前寫死 HANIME_HOSTNAME[3] 會直接 ArrayIndexOutOfBoundsException 崩在網路設定頁。
+        // 不能按下标去查 HANIME_HOSTNAME：它只有 3 项（missav.ai 故意不在里面），
+        // 以前写死 HANIME_HOSTNAME[3] 会直接 ArrayIndexOutOfBoundsException 崩在网路设定页。
         val host = runCatching { java.net.URI(url).host }.getOrNull() ?: url
         val suffix = when (index) {
             0 -> " (${context.getString(R.string.default_)})"

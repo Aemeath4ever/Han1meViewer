@@ -58,8 +58,8 @@ fun PlaylistItem(
             Box(modifier = Modifier.height(100.dp)) {
                 val cover = playlist.coverUrl
                 if (cover.isNullOrBlank()) {
-                    // missav 的片單列表頁不提供封面。以前把空字串丟給 RetryableImage，
-                    // 顯示的是「載入失敗」的佔位圖 —— 看起來就像封面抓錯了。
+                    // missav 的片单列表页不提供封面。以前把空字串丢给 RetryableImage，
+                    // 显示的是「载入失败」的占位图 —— 看起来就像封面抓错了。
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -84,7 +84,7 @@ fun PlaylistItem(
                     )
                 }
 
-                // total < 0 = 站點未提供數量（missav），不顯示「-1 部」
+                // total < 0 = 站点未提供数量（missav），不显示「-1 部」
                 if (playlist.total >= 0) {
                     Box(
                         modifier = Modifier

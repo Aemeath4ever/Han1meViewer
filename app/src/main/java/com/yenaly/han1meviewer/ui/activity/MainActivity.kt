@@ -80,7 +80,7 @@ class MainActivity : FrameActivity(), PermissionRequester {
         const val ACTION_TOGGLE_PLAY = "com.yenaly.han1meviewer.ACTION_TOGGLE_PLAY"
     }
 
-    // 登錄完了後讓activity刷新主頁
+    // 登录完了后让activity刷新主页
     private val loginDataLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
@@ -274,9 +274,9 @@ class MainActivity : FrameActivity(), PermissionRequester {
     }
 
     /**
-     * 抽屜「切換站點」的可選項：Hanime / missav / jable。
+     * 抽屉「切换站点」的可选项：Hanime / missav / jable。
      *
-     * Hanime 一項會回到使用者上次選的鏡像站（[Preferences.selectedBaseUrl]），
+     * Hanime 一项会回到使用者上次选的镜像站（[Preferences.selectedBaseUrl]），
      * 而不是固定 hanime1.me。
      */
     fun buildSiteSwitchOptions(): List<SiteSwitchOption> {
@@ -309,13 +309,13 @@ class MainActivity : FrameActivity(), PermissionRequester {
         val currentSite = Preferences.baseUrl
         if (targetSite == currentSite) return
         val selectedBaseUrl = Preferences.selectedBaseUrl
-        // 離開 Hanime時記住當前鏡像站，下次從其他站點切回來仍然用它。
+        // 离开 Hanime时记住当前镜像站，下次从其他站点切回来仍然用它。
         if (currentSite in ANIME_URL) {
             Preferences.preferenceSp.edit(true) {
                 putString(SettingsPreferenceKeys.SELECTED_BASE_URL, currentSite)
             }
         } else if (selectedBaseUrl !in ANIME_URL) {
-            // 舊版本遷移：selectedBaseUrl 可能被寫成 missav 位址。
+            // 旧版本迁移：selectedBaseUrl 可能被写成 missav 位址。
             Preferences.preferenceSp.edit(true) {
                 putString(SettingsPreferenceKeys.SELECTED_BASE_URL, ANIME_URL[0])
             }
@@ -329,10 +329,10 @@ class MainActivity : FrameActivity(), PermissionRequester {
     }
 
     /**
-     * 從本地收藏打開其他站點的影片：先記住影片碼，切站重啟後由 MainNavHost 導航。
+     * 从本地收藏打开其他站点的影片：先记住影片码，切站重启后由 MainNavHost 导航。
      */
     fun switchSiteForVideo(targetSite: SiteType, videoCode: String) {
-        // 以站點類型而不是實際網址比較：同一站點可能用了自訂鏡像位址。
+        // 以站点类型而不是实际网址比较：同一站点可能用了自订镜像位址。
         if (Preferences.siteType == targetSite) {
             navController.navigateSafely(VideoRoute(videoCode))
             return

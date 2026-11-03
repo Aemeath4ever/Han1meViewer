@@ -16,7 +16,9 @@ import com.yenaly.han1meviewer.worker.HanimeDownloadManagerV2
 import com.yenaly.yenaly_libs.utils.applicationContext
 import com.yenaly.yenaly_libs.utils.getSpValue
 import com.yenaly.yenaly_libs.utils.putSpValue
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
@@ -24,37 +26,37 @@ object Preferences {
     private const val USAGE_NOTICE_ACCEPTED = "usage_notice_accepted"
 
     /**
-     * 登入狀態按站點隔離的遷移標記。
+     * 登入状态按站点隔离的迁移标记。
      *
-     * 舊版本的 `cookie` / `already_login` / `saved_user_id` / `cf_cookie` 是全域的，
-     * 從 missav 切到 jable 時 missav 的會話會被 [HCookieJar][com.yenaly.han1meviewer.logic.network.HCookieJar]
-     * 帶到 jable 的請求上，於是 jable 被誤判成已登入 missav 帳號。
+     * 旧版本的 `cookie` / `already_login` / `saved_user_id` / `cf_cookie` 是全域的，
+     * 从 missav 切到 jable 时 missav 的会话会被 [HCookieJar][com.yenaly.han1meviewer.logic.network.HCookieJar]
+     * 带到 jable 的请求上，于是 jable 被误判成已登入 missav 帐号。
      */
     private const val LOGIN_STATE_SCOPED_V1 = "login_state_scoped_v1"
 
     /**
-     * 從本地收藏打開其他站點的影片時，切站會重啟進程；
-     * 這裡暫存重啟後要導航到的影片碼，由 MainNavHost 消費一次。
+     * 从本地收藏打开其他站点的影片时，切站会重启进程；
+     * 这里暂存重启后要导航到的影片码，由 MainNavHost 消费一次。
      */
     private const val PENDING_LOCAL_FAVORITE_VIDEO = "pending_local_favorite_video"
 
     /**
-     * [Preference][androidx.preference.PreferenceFragmentCompat]自帶的SP
+     * [Preference][androidx.preference.PreferenceFragmentCompat]自带的SP
      */
     val preferenceSp: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(
             applicationContext
         )
 
-    /** 把站點無關的舊鍵名變成站點專屬鍵名，例如 `cookie` → `cookie_jable`。 */
+    /** 把站点无关的旧键名变成站点专属键名，例如 `cookie` → `cookie_jable`。 */
     private fun scopedLoginKey(base: String, site: SiteType = siteType): String =
         "${base}_${site.name.lowercase()}"
 
     /**
-     * 一次性把舊版全域登入狀態歸屬到推斷出的站點。
+     * 一次性把旧版全域登入状态归属到推断出的站点。
      *
-     * 推斷依據（依序）：cookie 名稱 → 各站登入信箱 → 目前站點。
-     * 遷移後舊鍵不再被讀取，避免任何站點的會話再被其他站點帶走。
+     * 推断依据（依序）：cookie 名称 → 各站登入信箱 → 目前站点。
+     * 迁移后旧键不再被读取，避免任何站点的会话再被其他站点带走。
      */
     private fun ensureLoginStateScoped() {
         if (preferenceSp.getBoolean(LOGIN_STATE_SCOPED_V1, false)) return
@@ -85,9 +87,9 @@ object Preferences {
         }
     }
 
-    /** 舊版全域 cookie / 信箱歸屬推斷；只在首次遷移時使用。 */
+    /** 旧版全域 cookie / 信箱归属推断；只在首次迁移时使用。 */
     private fun inferLegacyLoginSite(cookie: String, userId: String?): SiteType {
-        // 只看 cookie 名稱，避免隨機值恰好包含站點關鍵字
+        // 只看 cookie 名称，避免随机值恰好包含站点关键字
         val cookieNames = cookie.split(';')
             .map { it.substringBefore('=').trim().lowercase() }
             .filter { it.isNotEmpty() }
@@ -97,23 +99,23 @@ object Preferences {
             hasName("missav") -> SiteType.MISSAV
             hasName("hanime") || hasName("remember_web") -> SiteType.HANIME
             hasName("phpsessid") || hasName("kt_tcookie") || hasName("jable") -> SiteType.JABLE
-            // 登入信箱是站點自己記錄的，比可能殘留的 savedUserId 可靠
+            // 登入信箱是站点自己记录的，比可能残留的 savedUserId 可靠
             missavLoginEmail.isNotBlank() -> SiteType.MISSAV
             jableLoginEmail.isNotBlank() -> SiteType.JABLE
-            // 只有 missav 會寫這個推薦用 id
+            // 只有 missav 会写这个推荐用 id
             missavUserUuid.isNotBlank() -> SiteType.MISSAV
-            // savedUserId 只在Hanime 有意義（missav / jable 首頁解析固定回傳空字串），
-            // 但它可能是使用者很早以前在Hanime 留下的殘值，故放在信箱之後。
+            // savedUserId 只在Hanime 有意义（missav / jable 首页解析固定回传空字串），
+            // 但它可能是使用者很早以前在Hanime 留下的残值，故放在信箱之后。
             !userId.isNullOrBlank() -> SiteType.HANIME
             else -> siteType
         }
     }
 
-    // app 相關
+    // app 相关
 
     /**
-     * 當前站點是否已登入，一般跟[loginCookie]一起賦值。
-     * 每個站點各自保存，切換站點後不會沿用其他站點的登入狀態。
+     * 当前站点是否已登入，一般跟[loginCookie]一起赋值。
+     * 每个站点各自保存，切换站点后不会沿用其他站点的登入状态。
      */
     var isAlreadyLogin: Boolean
         get() {
@@ -148,7 +150,7 @@ object Preferences {
         }
 
     /**
-     * 保存的string格式的登入cookie（當前站點）。
+     * 保存的string格式的登入cookie（当前站点）。
      */
     var loginCookie: CookieString
         get() {
@@ -162,37 +164,37 @@ object Preferences {
 
     val loginCookieStateFlow = MutableStateFlow(loginCookie)
 
-    /** missav 登入帳號（email），僅用於介面顯示。 */
+    /** missav 登入帐号（email），仅用于介面显示。 */
     var missavLoginEmail: String
         get() = getSpValue(MISSAV_LOGIN_EMAIL, EMPTY_STRING)
         set(value) = putSpValue(MISSAV_LOGIN_EMAIL, value)
 
-    /** jable 登入帳號，僅用於介面顯示。 */
+    /** jable 登入帐号，仅用于介面显示。 */
     var jableLoginEmail: String
         get() = getSpValue(JABLE_LOGIN_EMAIL, EMPTY_STRING)
         set(value) = putSpValue(JABLE_LOGIN_EMAIL, value)
 
     /**
-     * missav 首頁 Recombee 推薦用的使用者 id（對應站點 cookie `user_uuid`）。
-     * 站點會把瀏覽行為記在這個 id 下，所以優先沿用它，否則每次安裝都會是一份空白畫像。
+     * missav 首页 Recombee 推荐用的使用者 id（对应站点 cookie `user_uuid`）。
+     * 站点会把浏览行为记在这个 id 下，所以优先沿用它，否则每次安装都会是一份空白画像。
      */
     var missavUserUuid: String
         get() = getSpValue(MISSAV_USER_UUID, EMPTY_STRING)
         set(value) = putSpValue(MISSAV_USER_UUID, value)
 
     /**
-     * Recombee frontend public token（從 missav 的 app.js 裡取），
-     * 用於給 client-rapi 請求簽名。緩存起來避免每次啟動都下載 100KB 的 bundle。
+     * Recombee frontend public token（从 missav 的 app.js 里取），
+     * 用于给 client-rapi 请求签名。缓存起来避免每次启动都下载 100KB 的 bundle。
      */
     var missavRecombeeToken: String
         get() = getSpValue(MISSAV_RECOMBEE_TOKEN, EMPTY_STRING)
         set(value) = putSpValue(MISSAV_RECOMBEE_TOKEN, value)
 
     /**
-     * 當前站點的 Cloudflare 驗證 cookie。
+     * 当前站点的 Cloudflare 验证 cookie。
      *
-     * 不同站點的 `cf_clearance` 不能互用；共用一份會讓切換站點後的第一個請求
-     * 帶著上一站的驗證值，被 Cloudflare 當成無效會話，表現為「網路環境有問題」。
+     * 不同站点的 `cf_clearance` 不能互用；共用一份会让切换站点后的第一个请求
+     * 带著上一站的验证值，被 Cloudflare 当成无效会话，表现为「网路环境有问题」。
      */
     var cloudFlareCookie: CookieString
         get() {
@@ -205,7 +207,21 @@ object Preferences {
         }
     val cloudFlareCookieStateFlow = MutableStateFlow(cloudFlareCookie)
 
-    // 更新 相關
+    /**
+     * 人机验证完成的一次性事件。
+     *
+     * 请求等待验证是有上限的（见 CloudflareInterceptor.WAIT_SECONDS）：用户验证得
+     * 太慢时，原请求早已超时失败，首页会停在错误页。收到这个事件后由首页自行重载，
+     * 不必让用户手动下拉刷新。
+     */
+    private val cloudFlareVerifiedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val cloudFlareVerifiedEvent = cloudFlareVerifiedEvents.asSharedFlow()
+
+    fun notifyCloudFlareVerified() {
+        cloudFlareVerifiedEvents.tryEmit(Unit)
+    }
+
+    // 更新 相关
 
     private const val UPDATE_NODE_ID = "update_node_id"
 
@@ -233,7 +249,7 @@ object Preferences {
             return now > lastCheckTime + interval.days
         }
 
-    // 設定 相關
+    // 设定 相关
 
     val switchPlayerKernel: String
         get() = preferenceSp.getString(
@@ -346,27 +362,27 @@ object Preferences {
         }
 
     /**
-     * 當前站點類型。以 [baseUrl] 為唯一真相源，自訂鏡像站視為 Hanime。
+     * 当前站点类型。以 [baseUrl] 为唯一真相源，自订镜像站视为 Hanime。
      */
     val siteType: SiteType
         get() = SiteType.fromBaseUrl(baseUrl)
 
     /**
-     * 當前站點是否為 missav（AV 站）
+     * 当前站点是否为 missav（AV 站）
      */
     val isMissavSite: Boolean
         get() = siteType == SiteType.MISSAV
 
     /**
-     * 當前站點是否為 jable（KVS 站）
+     * 当前站点是否为 jable（KVS 站）
      */
     val isJableSite: Boolean
         get() = siteType == SiteType.JABLE
 
     /**
-     * 首頁請求地址。missav 的內容位於 /dm12/cn 目錄下，
-     * 直接請求根路徑或 /en/ 會被 Cloudflare 中轉頁（JS 跳轉）攔截，故顯式帶上目錄。
-     * jable 的首頁就是根路徑，分節（最近更新/全新上市/熱門影片…）都在根頁。
+     * 首页请求地址。missav 的内容位于 /dm12/cn 目录下，
+     * 直接请求根路径或 /en/ 会被 Cloudflare 中转页（JS 跳转）拦截，故显式带上目录。
+     * jable 的首页就是根路径，分节（最近更新/全新上市/热门影片…）都在根页。
      */
     val homeRequestUrl: String
         get() = when (siteType) {
@@ -395,7 +411,7 @@ object Preferences {
         get() = preferenceSp.getString(SettingsPreferenceKeys.SELECTED_BASE_URL, HANIME_URL[0])
             ?: HANIME_URL[0]
 
-    /** 切站重啟後待打開的本地收藏影片碼；沒有時為 null。 */
+    /** 切站重启后待打开的本地收藏影片码；没有时为 null。 */
     var pendingLocalFavoriteVideoCode: String?
         get() = preferenceSp.getString(PENDING_LOCAL_FAVORITE_VIDEO, null)
         set(value) = preferenceSp.edit {
@@ -427,7 +443,7 @@ object Preferences {
     val dohTimeoutSeconds: Int
         get() = preferenceSp.getInt(SettingsPreferenceKeys.DOH_TIMEOUT_SECONDS, 10)
 
-    // 關鍵H幀 相關
+    // 关键H帧 相关
 
     val whenCountdownRemind: Int
         get() = preferenceSp.getInt(
@@ -459,7 +475,7 @@ object Preferences {
             false
         )
 
-    // 代理 相關
+    // 代理 相关
 
     val proxyType: Int
         get() = preferenceSp.getInt(
@@ -473,12 +489,12 @@ object Preferences {
     val proxyPort: Int
         get() = preferenceSp.getInt(SettingsPreferenceKeys.PROXY_PORT, -1)
 
-    // 隐私 相關
+    // 隐私 相关
 
     val isAnalyticsEnabled: Boolean
         get() = preferenceSp.getBoolean(SettingsPreferenceKeys.USE_ANALYTICS, true)
 
-    // 下载 相關
+    // 下载 相关
 
     val downloadCountLimit: Int
         get() = preferenceSp.getInt(
@@ -491,7 +507,7 @@ object Preferences {
         get() = preferenceSp.getBoolean(SettingsPreferenceKeys.COLLAPSE_DOWNLOADED_GROUP,false)
 
     /**
-     * 下載時是否預設按系列自動建立分組，同時作為下載確認對話框的預設勾選狀態。
+     * 下载时是否预设按系列自动建立分组，同时作为下载确认对话框的预设勾选状态。
      */
     var downloadAutoGroup: Boolean
         get() = preferenceSp.getBoolean(SettingsPreferenceKeys.DOWNLOAD_AUTO_GROUP, true)
@@ -500,8 +516,8 @@ object Preferences {
         }
 
     /**
-     * 自動分組時分組名是否取自系列名（關閉時取自影片標題）。
-     * 於下載確認對話框選擇，並記住作為下次的預設選項。
+     * 自动分组时分组名是否取自系列名（关闭时取自影片标题）。
+     * 于下载确认对话框选择，并记住作为下次的预设选项。
      */
     var downloadGroupNameFromSeriesName: Boolean
         get() = preferenceSp.getBoolean(
@@ -513,8 +529,8 @@ object Preferences {
         }
 
     /**
-     * 自動分組時是否將分組名快速轉換為繁體（關閉時轉為簡體）。
-     * 於下載確認對話框選擇，未曾選擇過時跟隨[視頻標題語言][videoLanguage]。
+     * 自动分组时是否将分组名快速转换为繁体（关闭时转为简体）。
+     * 于下载确认对话框选择，未曾选择过时跟随[视频标题语言][videoLanguage]。
      */
     var downloadGroupNameTraditional: Boolean
         get() = preferenceSp.getBoolean(

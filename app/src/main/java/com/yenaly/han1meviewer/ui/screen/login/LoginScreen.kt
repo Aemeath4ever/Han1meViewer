@@ -47,7 +47,7 @@ fun LoginScreen(
     onShowLoginDialog: () -> Unit,
     onOpenQrScanner: () -> Unit,
     webViewFactory: () -> WebView,
-    /** missav：不展示原站頁面，只用隱藏的 WebView 建立登入工作階段。 */
+    /** missav：不展示原站页面，只用隐藏的 WebView 建立登入工作阶段。 */
     missavMode: Boolean = false,
 ) {
     val refreshingState = rememberPullToRefreshState()
@@ -90,9 +90,9 @@ fun LoginScreen(
             }
         ) {
             if (missavMode) {
-                // 站內登入走原生彈窗，這裡不該把 missav 原站頁面擺出來當背景。
-                // 但仍然需要一個「活著」的 WebView：登入用的 cf_clearance / XSRF-TOKEN
-                // 要從它的 CookieManager 取。放在 1dp 處渲染即可，JS 照常執行。
+                // 站内登入走原生弹窗，这里不该把 missav 原站页面摆出来当背景。
+                // 但仍然需要一个「活著」的 WebView：登入用的 cf_clearance / XSRF-TOKEN
+                // 要从它的 CookieManager 取。放在 1dp 处渲染即可，JS 照常执行。
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -151,7 +151,7 @@ fun LoginDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoggingIn,
                 )
-                // 登入失敗的具體原因（HTTP 狀態碼 / 服務端原文），不能只丟一個通用提示
+                // 登入失败的具体原因（HTTP 状态码 / 服务端原文），不能只丢一个通用提示
                 if (!errorMessage.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

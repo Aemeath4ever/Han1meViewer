@@ -1,7 +1,7 @@
 package com.yenaly.han1meviewer.logic.exception
 
 /**
- * 解析錯誤
+ * 解析错误
  *
  * @project Han1meViewer
  * @author Yenaly Liew

@@ -41,11 +41,11 @@ object ServiceCreator {
     private val dns = HDns()
 
     /**
-     * 注意：**必須**掛 kotlinx-serialization 轉換器。
-     * 以前這裏沒有轉換器，凡是 `@Body` 自訂型別的介面（missav 的
-     * `missavLogin` / `missavPlaylistAdd` / `missavPlaylistRemove`）在呼叫時就會
-     * 同步拋 `IllegalArgumentException: Unable to create @Body converter`，
-     * 請求根本發不出去 —— 表現為「點登入毫無反應」。
+     * 注意：**必须**挂 kotlinx-serialization 转换器。
+     * 以前这里没有转换器，凡是 `@Body` 自订型别的介面（missav 的
+     * `missavLogin` / `missavPlaylistAdd` / `missavPlaylistRemove`）在呼叫时就会
+     * 同步抛 `IllegalArgumentException: Unable to create @Body converter`，
+     * 请求根本发不出去 —— 表现为「点登入毫无反应」。
      */
     inline fun <reified T> create(baseUrl: String): T = Retrofit.Builder()
         .baseUrl(baseUrl)
@@ -83,22 +83,22 @@ object ServiceCreator {
         private set
 
     /**
-     * Recombee 推薦接口（missav 首頁前幾欄）用的 client。
+     * Recombee 推荐接口（missav 首页前几栏）用的 client。
      *
-     * **不能共用 [hClient]**：`HCookieJar.loadForRequest` 會把 `Preferences.loginCookie`
-     * 按請求的 host 重新拼成 Cookie 發出去，也就是會把 missav 的會話 cookie 送到
-     * `*.recombee.com`。這裏刻意不掛 CookieJar。
+     * **不能共用 [hClient]**：`HCookieJar.loadForRequest` 会把 `Preferences.loginCookie`
+     * 按请求的 host 重新拼成 Cookie 发出去，也就是会把 missav 的会话 cookie 送到
+     * `*.recombee.com`。这里刻意不挂 CookieJar。
      */
     var recombeeClient: OkHttpClient = buildRecombeeClient()
         private set
 
     /**
-     * 下載站點靜態資源（目前只有 missav 的 `app.<hash>.js`，用來取 Recombee 的公開
-     * token）用的 client：要帶 cookie / UA / 代理，但**不掛** [CloudflareInterceptor]。
+     * 下载站点静态资源（目前只有 missav 的 `app.<hash>.js`，用来取 Recombee 的公开
+     * token）用的 client：要带 cookie / UA / 代理，但**不挂** [CloudflareInterceptor]。
      *
-     * 走 [hClient] 的話，資源請求被盾攔時會給用戶彈出人機驗證頁（頁面裏是一個 js 檔），
-     * 還會佔住 CloudflareActivity 的等待鎖，把真正的首頁請求一起拖死。靜態資源拿不到
-     * 就該直接放棄推薦，而不是驚動用戶。
+     * 走 [hClient] 的话，资源请求被盾拦时会给用户弹出人机验证页（页面里是一个 js 档），
+     * 还会占住 CloudflareActivity 的等待锁，把真正的首页请求一起拖死。静态资源拿不到
+     * 就该直接放弃推荐，而不是惊动用户。
      */
     var assetClient: OkHttpClient = buildAssetClient()
         private set
@@ -143,7 +143,10 @@ object ServiceCreator {
             // 部分 CDN 节点会接受连接后不回响应（黑洞），读超时必须有，
             // 否则首页等请求会永远挂在 recvfrom 上表现为无限 Loading
             .readTimeout(20, TimeUnit.SECONDS)
-            .callTimeout(45, TimeUnit.SECONDS)
+            // callTimeout 只是兜底，必须大于 CloudflareInterceptor 等待人机验证的时间
+            // （WAIT_SECONDS = 90s）：否则用户还在验证页上，整个 call 就先被取消，
+            // 之后验证成功也来不及重放，首页只能显示失败。
+            .callTimeout(150, TimeUnit.SECONDS)
             .addInterceptor(UserAgentInterceptor)
             .addInterceptor(UrlLoggingInterceptor())
             .addInterceptor(CloudflareInterceptor(applicationContext))
@@ -156,7 +159,7 @@ object ServiceCreator {
 
     private fun buildRecombeeClient(): OkHttpClient {
         return OkHttpClient.Builder()
-            // 推薦只是首頁的錦上添花：接口不通時要儘快失敗，別把首頁拖住
+            // 推荐只是首页的锦上添花：接口不通时要尽快失败，别把首页拖住
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(8, TimeUnit.SECONDS)
             .callTimeout(10, TimeUnit.SECONDS)

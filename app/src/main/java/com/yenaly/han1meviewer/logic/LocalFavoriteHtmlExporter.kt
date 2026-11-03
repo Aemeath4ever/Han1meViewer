@@ -18,11 +18,11 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * 把本地收藏導出成單檔離線 HTML。
+ * 把本地收藏导出成单档离线 HTML。
  *
- * 封面會盡量下載後以 data URI 內嵌，失敗時用站點色塊佔位，保證檔案離線可看；
- * 影片連結、標題、評分與評價都會寫進卡片。圖片請求刻意使用不帶站點 cookie 的
- * 獨立 client，避免匯出過程觸發 Cloudflare 驗證或影響目前的登入會話。
+ * 封面会尽量下载后以 data URI 内嵌，失败时用站点色块占位，保证档案离线可看；
+ * 影片连结、标题、评分与评价都会写进卡片。图片请求刻意使用不带站点 cookie 的
+ * 独立 client，避免汇出过程触发 Cloudflare 验证或影响目前的登入会话。
  */
 object LocalFavoriteHtmlExporter {
 

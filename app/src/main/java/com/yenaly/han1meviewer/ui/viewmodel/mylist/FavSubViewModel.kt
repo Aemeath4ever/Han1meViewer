@@ -32,8 +32,8 @@ class FavSubViewModel(application: Application) : MyListSubViewModel(application
         deleteItem(
             deleteCall = {
                 if (Preferences.isJableSite) {
-                    // jable 的「喜歡」是 KVS AJAX：按站內 video_id 取消 fav_type=0。
-                    // 列表卡片通常帶 data-fav-video-id；沒有時退回 slug（多數主題也接受）。
+                    // jable 的「喜欢」是 KVS AJAX：按站内 video_id 取消 fav_type=0。
+                    // 列表卡片通常带 data-fav-video-id；没有时退回 slug（多数主题也接受）。
                     NetworkRepo.jableToggleFavorite(
                         videoCode = videoCode,
                         videoId = jableVideoId ?: videoCode,

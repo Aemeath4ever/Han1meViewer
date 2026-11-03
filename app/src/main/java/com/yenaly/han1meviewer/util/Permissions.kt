@@ -28,7 +28,7 @@ suspend fun Context.pickVisualMedia(type: ActivityResultContracts.PickVisualMedi
     )
 
 /**
- * 獲得發送通知權限
+ * 获得发送通知权限
  */
 suspend fun Context.requestPostNotificationPermission(): Boolean {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -46,7 +46,7 @@ suspend fun Context.requestPostNotificationPermission(): Boolean {
 }
 
 /**
- * 顯示發送通知權限對話框
+ * 显示发送通知权限对话框
  */
 private suspend fun Context.showPostNotificationPermissionDialog(): Boolean =
     suspendCancellableCoroutine { cont ->

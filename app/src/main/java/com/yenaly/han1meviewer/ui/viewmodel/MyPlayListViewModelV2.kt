@@ -241,8 +241,8 @@ class MyPlayListViewModelV2 : ViewModel() {
     fun deleteFromPlaylist(itemId: String, position: Int) {
         viewModelScope.launch {
             if (Preferences.isJableSite) {
-                // jable 的片單項目移除走 KVS 的 playlist 寫接口（含 CSRF），
-                // 目前只支援讀取，先明確報錯而不是誤打 Hanime 接口。
+                // jable 的片单项目移除走 KVS 的 playlist 写接口（含 CSRF），
+                // 目前只支援读取，先明确报错而不是误打 Hanime 接口。
                 _deleteFromPlaylistFlow.emit(
                     WebsiteState.Error(
                         UnsupportedOperationException("jable playlist editing is not supported")

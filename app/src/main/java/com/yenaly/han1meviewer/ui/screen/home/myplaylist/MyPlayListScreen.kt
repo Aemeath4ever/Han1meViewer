@@ -134,7 +134,7 @@ fun PlaylistScreen(
         onBack = navigateBack,
         scrollBehavior = scrollBehavior,
         actions = {
-            // jable 只接入片單讀取；建立片單走 KVS 的寫接口，先不提供入口。
+            // jable 只接入片单读取；建立片单走 KVS 的写接口，先不提供入口。
             if (!Preferences.isJableSite) {
                 FilledIconButton(onClick = { showCreatePlaylistDialog = true }) {
                     Icon(

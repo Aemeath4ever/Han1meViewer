@@ -32,7 +32,7 @@ class WatchLaterSubViewModel(application: Application) : MyListSubViewModel(appl
         deleteItem(
             deleteCall = {
                 if (Preferences.isJableSite) {
-                    // jable 的「稍後觀看」= KVS fav_type=1，與喜歡共用同一個接口。
+                    // jable 的「稍后观看」= KVS fav_type=1，与喜欢共用同一个接口。
                     NetworkRepo.jableToggleFavorite(
                         videoCode = videoCode,
                         videoId = jableVideoId ?: videoCode,

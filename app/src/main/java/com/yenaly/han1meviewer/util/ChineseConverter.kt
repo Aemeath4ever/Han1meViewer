@@ -11,7 +11,7 @@ import androidx.annotation.RequiresApi
  * 1. 日文新字体（しんじたい）→ 简体中文（纯 Kotlin 映射，所有版本可用）
  * 2. 繁体中文 → 简体中文（依赖 ICU，API 29+）
  *
- * 例如「飛鳥」「飞鸟」均归一化为「飞鸟」；「伝」「傳」「传」均归一化为「传」。
+ * 例如「飞鸟」「飞鸟」均归一化为「飞鸟」；「伝」「传」「传」均归一化为「传」。
  */
 fun String.toSimplified(): String {
     val jpConverted = JapaneseKanjiConverter.toSimplified(this)

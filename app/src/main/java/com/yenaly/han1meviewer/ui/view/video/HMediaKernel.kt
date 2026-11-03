@@ -208,7 +208,7 @@ class ExoMediaKernel(jzvd: Jzvd) : JZMediaInterface(jzvd), Player.Listener, HMed
         handler.post {
             jzvd.onVideoSizeChanged(realWidth.toInt(), realHeight)
         }
-        val ratio = realWidth / realHeight // > 1 橫屏， < 1 竖屏
+        val ratio = realWidth / realHeight // > 1 横屏， < 1 竖屏
         if (ratio > 1) {
             Jzvd.FULLSCREEN_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
@@ -454,7 +454,7 @@ class ExoMediaKernel(jzvd: Jzvd) : JZMediaInterface(jzvd), Player.Listener, HMed
 
 
 class SystemMediaKernel(jzvd: Jzvd) : JZMediaSystem(jzvd), HMediaKernel {
-    // #issue-26: 有的手機長按快進會報錯，合理懷疑是不是因爲沒有加 post
+    // #issue-26: 有的手机长按快进会报错，合理怀疑是不是因为没有加 post
     // #issue-28: 有的平板长按快进也会报错，结果是 IllegalArgumentException，很奇怪，两次 try-catch 处理试试。
     val videoRealWidth: Int get() = mediaPlayer?.videoWidth ?: 0
     val videoRealHeight: Int get() = mediaPlayer?.videoHeight ?: 0
@@ -477,7 +477,7 @@ class SystemMediaKernel(jzvd: Jzvd) : JZMediaSystem(jzvd), HMediaKernel {
 
     override fun onVideoSizeChanged(mediaPlayer: MediaPlayer?, width: Int, height: Int) {
         super.onVideoSizeChanged(mediaPlayer, width, height)
-        val ratio = width.toFloat() / height // > 1 橫屏， < 1 竖屏
+        val ratio = width.toFloat() / height // > 1 横屏， < 1 竖屏
         if (ratio > 1) {
             Jzvd.FULLSCREEN_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
@@ -707,7 +707,7 @@ class MpvMediaKernel(jzvd: Jzvd) : JZMediaInterface(jzvd) {
             return
         }
 
-        // surrit.com (missav) 要求帶站點 Referer 才能通過 Cloudflare，其餘站點清空
+        // surrit.com (missav) 要求带站点 Referer 才能通过 Cloudflare，其余站点清空
         MPVLib.setOptionString(
             "http-header-fields",
             if (url.contains("surrit.")) "Referer: ${Preferences.baseUrl}" else ""

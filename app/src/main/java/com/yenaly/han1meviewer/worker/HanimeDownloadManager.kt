@@ -149,7 +149,7 @@ object HanimeDownloadManager {
      */
     suspend fun deleteTaskCrazily(entity: HanimeDownloadEntity) {
         Log.d(TAG, "deleteTask: ${entity.videoCode}")
-        // 必須另闢蹊徑，通過替換的方式來刪除，要不然無法真正地取消。
+        // 必须另辟蹊径，通过替换的方式来删除，要不然无法真正地取消。
         val downloadRequest = OneTimeWorkRequestBuilder<HanimeDownloadWorker>()
             .addTag(HanimeDownloadWorker.TAG)
             .setInputData(workDataOf(HanimeDownloadWorker.FAST_PATH_CANCEL to true))

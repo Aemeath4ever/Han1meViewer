@@ -87,32 +87,32 @@ class HJzvdStd @JvmOverloads constructor(
         get() = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary)
 
     companion object {
-        // 相當於重寫了
+        // 相当于重写了
         /**
          * 滑动操作的阈值
          */
         const val THRESHOLD = 10
 
-        // 相當於重寫了
+        // 相当于重写了
         /**
-         * 默認滑動調整進度條的靈敏度 越大播放进度条滑动越慢
+         * 默认滑动调整进度条的灵敏度 越大播放进度条滑动越慢
          */
         const val DEF_PROGRESS_SLIDE_SENSITIVITY = 5
 
         const val DEF_COUNTDOWN_SEC = 10
 
         /**
-         * 默認速度
+         * 默认速度
          */
         const val DEF_SPEED = 1.0F
 
         /**
-         * 默認速度的索引
+         * 默认速度的索引
          */
         const val DEF_SPEED_INDEX = 2
 
         /**
-         * 默認長按速度是原先速度的幾倍
+         * 默认长按速度是原先速度的几倍
          */
         const val DEF_LONG_PRESS_SPEED_TIMES = 2.5F
 
@@ -155,47 +155,47 @@ class HJzvdStd @JvmOverloads constructor(
     }
 
     /**
-     * 用戶定義的是否顯示底部進度條
+     * 用户定义的是否显示底部进度条
      */
     private val showBottomProgress = Preferences.showBottomProgress
 
     /**
-     * 用戶定義的默認速度
+     * 用户定义的默认速度
      */
     private val userDefSpeed = Preferences.playerSpeed
 
     /**
-     * 用戶定義的默認速度的索引
+     * 用户定义的默认速度的索引
      */
     private val userDefSpeedIndex = speedArray.indexOfFirst { it == userDefSpeed }
 
     /**
-     * 用戶定義的滑動調整進度條的靈敏度
+     * 用户定义的滑动调整进度条的灵敏度
      */
     private val userDefSlideSensitivity = Preferences.slideSensitivity.toRealSensitivity()
 
     /**
-     * 用戶定義的默認長按速度是原先速度的幾倍
+     * 用户定义的默认长按速度是原先速度的几倍
      */
     private val userDefLongPressSpeedTimes = Preferences.longPressSpeedTime
 
     /**
-     * 用戶定義的倒數提醒毫秒數
+     * 用户定义的倒数提醒毫秒数
      */
     private val userDefWhenCountdownRemind = Preferences.whenCountdownRemind
 
     /**
-     * 用戶定義的是否在倒數時顯示評論
+     * 用户定义的是否在倒数时显示评论
      */
     private val userDefShowCommentWhenCountdown = Preferences.showCommentWhenCountdown
 
     /**
-     * 用戶定義的是否啟用關鍵H幀
+     * 用户定义的是否启用关键H帧
      */
     private val isHKeyframeEnabled = Preferences.hKeyframesEnable
 
     /**
-     * 當前速度的索引，如果设置速度的话，修改这个，别动 [videoSpeed]
+     * 当前速度的索引，如果设置速度的话，修改这个，别动 [videoSpeed]
      */
     private var currentSpeedIndex = userDefSpeedIndex
         @SuppressLint("SetTextI18n")
@@ -289,9 +289,9 @@ class HJzvdStd @JvmOverloads constructor(
     var onVideoStateChanged: ((state: Int) -> Unit)? = null
 
     /**
-     * 初始化關鍵H幀的 Adapter，最好不用 lazy
+     * 初始化关键H帧的 Adapter，最好不用 lazy
      *
-     * 但我還是最終用了 lazy，要不然首次 submitList 收不到
+     * 但我还是最终用了 lazy，要不然首次 submitList 收不到
      */
     private fun initHKeyframeAdapter() = run {
         val videoCode = checkNotNull(this.videoCode) {
@@ -310,23 +310,23 @@ class HJzvdStd @JvmOverloads constructor(
     }
 
     /**
-     * 關鍵H幀的點擊事件
+     * 关键H帧的点击事件
      *
-     * 作用：打開 Dialog，顯示關鍵H幀的列表
+     * 作用：打开 Dialog，显示关键H帧的列表
      */
     var onKeyframeClickListener: ((View) -> Unit)? = null
 
     /**
-     * 回到主頁的點擊事件
+     * 回到主页的点击事件
      *
-     * 作用：關閉所有的 VideoActivity
+     * 作用：关闭所有的 VideoActivity
      */
     var onGoHomeClickListener: ((View) -> Unit)? = null
 
     /**
-     * 關鍵H幀的長按事件
+     * 关键H帧的长按事件
      *
-     * 作用：將當前時刻加入關鍵H幀
+     * 作用：将当前时刻加入关键H帧
      */
     var onKeyframeLongClickListener: ((View) -> Unit)? = null
 
@@ -343,14 +343,14 @@ class HJzvdStd @JvmOverloads constructor(
         }
 
     /**
-     * 是否觸發了長按快進
+     * 是否触发了长按快进
      */
     @Volatile
     private var isSpeedGestureDetected = false
     private var screenBrightnessBK = -1f
     private var isAdjustBrightness = false
     /**
-     * 長按快進檢測
+     * 长按快进检测
      */
     // #issue-20: 长按倍速功能添加
     private val speedGestureDetector =
@@ -845,7 +845,7 @@ class HJzvdStd @JvmOverloads constructor(
         var deltaY = y - mDownY
         val absDeltaX = deltaX.absoluteValue
         val absDeltaY = deltaY.absoluteValue
-        // 此處進行了修改，未全屏也能調節進度
+        // 此处进行了修改，未全屏也能调节进度
         Log.d(TAG, "mDownX=$mDownX, screenWidth=${JZUtils.getScreenWidth(context)}")
         if (screen != SCREEN_TINY && !isSpeedGestureDetected) {
             //拖动的是NavigationBar和状态栏
@@ -1077,8 +1077,8 @@ class HJzvdStd @JvmOverloads constructor(
         Log.i(TAG, "onStatePreparingChangeUrl " + " [" + this.hashCode() + "] ")
         state = STATE_PREPARING_CHANGE_URL
 
-        // 原方法直接使用下面的方法，會導致全屏切換清晰度返回正常界面時重置影片。
-        // 所以重寫，只抄過調用的方法的一部分。
+        // 原方法直接使用下面的方法，会导致全屏切换清晰度返回正常界面时重置影片。
+        // 所以重写，只抄过调用的方法的一部分。
         // releaseAllVideos()
         CURRENT_JZVD?.let {
             it.reset()
@@ -1107,7 +1107,7 @@ class HJzvdStd @JvmOverloads constructor(
         )
     }
 
-    // 原來是 300 period 我改成了 100 爲了計時準確
+    // 原来是 300 period 我改成了 100 为了计时准确
     override fun startProgressTimer() {
         Log.i(TAG, "startProgressTimer: " + " [" + this.hashCode() + "] ")
         cancelProgressTimer()
@@ -1318,8 +1318,8 @@ class HJzvdStd @JvmOverloads constructor(
     }
 
     /**
-     * 將靈敏度轉換為實際數值，很多用戶對滑動要求挺高，
-     * 靈敏度太高沒人在乎，所以高靈敏度照舊，低靈敏度差別大一點
+     * 将灵敏度转换为实际数值，很多用户对滑动要求挺高，
+     * 灵敏度太高没人在乎，所以高灵敏度照旧，低灵敏度差别大一点
      */
     private fun @receiver:IntRange(from = 1, to = 9) Int.toRealSensitivity(): Int {
         return when (this) {

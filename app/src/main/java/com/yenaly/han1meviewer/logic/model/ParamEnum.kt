@@ -14,6 +14,6 @@ enum class FavStatus(val value: String) {
 }
 
 enum class CommentPlace(val value: String) {
-    COMMENT("comment"), // 主評論
-    CHILD_COMMENT("reply") // 子評論
+    COMMENT("comment"), // 主评论
+    CHILD_COMMENT("reply") // 子评论
 }

@@ -292,10 +292,10 @@ object DatabaseRepo {
     }
 
     /**
-     * 本地收藏（跨站點，不需要登入）。
+     * 本地收藏（跨站点，不需要登入）。
      *
-     * 以 `site + videoCode` 為唯一鍵；再次收藏同一部影片時保留原 `createdAt`，
-     * 只更新評分、評價與時間，避免列表順序被莫名重置。
+     * 以 `site + videoCode` 为唯一键；再次收藏同一部影片时保留原 `createdAt`，
+     * 只更新评分、评价与时间，避免列表顺序被莫名重置。
      */
     object LocalFavorite {
         private val dao = LocalFavoriteDatabase.instance.localFavoriteDao

@@ -25,26 +25,26 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
- * missav 首頁抓取器。
+ * missav 首页抓取器。
  *
- * missav 新版首頁（/dm12/cn 等）的內容區塊由 Alpine.js + Recombee 在瀏覽器端動態渲染，
- * okhttp 拿到的 HTML 只有「載入中」骨架，無法離線解析。因此首頁改用 WebView 渲染。
+ * missav 新版首页（/dm12/cn 等）的内容区块由 Alpine.js + Recombee 在浏览器端动态渲染，
+ * okhttp 拿到的 HTML 只有「载入中」骨架，无法离线解析。因此首页改用 WebView 渲染。
  *
- * 【關鍵】WebView 必須 attach 到窗口才會真正執行 JS：實測純離屏（不 attach）的 WebView
- * 連 evaluateJavascript 回調和注入的 JS 都不會跑（渲染進程被系統掛起）。故通過
- * [MissavHomeRenderActivity]（透明、1dp）承載 WebView，渲染完取 DOM 後立即銷毀。
+ * 【关键】WebView 必须 attach 到窗口才会真正执行 JS：实测纯离屏（不 attach）的 WebView
+ * 连 evaluateJavascript 回调和注入的 JS 都不会跑（渲染进程被系统挂起）。故通过
+ * [MissavHomeRenderActivity]（透明、1dp）承载 WebView，渲染完取 DOM 后立即销毁。
  */
 object MissavHomeWebViewFetcher {
 
     private const val TAG = "MissavHomeFetcher"
 
-    /** 渲染總超時：包含可能的 CF challenge 等待。 */
+    /** 渲染总超时：包含可能的 CF challenge 等待。 */
     private const val RENDER_TIMEOUT_MILLIS = 45_000L
 
-    /** 頁面加載完成後額外等待 JS 拉取推薦數據的時間。 */
+    /** 页面加载完成后额外等待 JS 拉取推荐数据的时间。 */
     internal const val JS_SETTLE_MILLIS = 6_000L
 
-    /** Activity 與協程之間的結果傳遞。 */
+    /** Activity 与协程之间的结果传递。 */
     internal var pendingResult: ((String?) -> Unit)? = null
 
     suspend fun fetch(context: Context): WebsiteState<HomePage> {
@@ -90,8 +90,8 @@ object MissavHomeWebViewFetcher {
         }
 
     /**
-     * 把 WebView 側的 missav cookie 同步到 okhttp 的 [HCookieJar]，
-     * 供搜索/視頻等後續 okhttp 請求復用 cf_clearance。
+     * 把 WebView 侧的 missav cookie 同步到 okhttp 的 [HCookieJar]，
+     * 供搜索/视频等后续 okhttp 请求复用 cf_clearance。
      */
     fun syncCookiesToOkhttp() {
         val host = runCatching {
@@ -101,15 +101,15 @@ object MissavHomeWebViewFetcher {
         if (cookie.contains("cf_clearance")) {
             Preferences.cloudFlareCookie =
                 com.yenaly.han1meviewer.util.CookieString(cookie)
-            // 同步進 jar，否則 jar 裡的舊值會在 loadForRequest 時蓋掉這份新值
+            // 同步进 jar，否则 jar 里的旧值会在 loadForRequest 时盖掉这份新值
             HCookieJar.putRawCookieString(host, cookie)
         }
     }
 }
 
 /**
- * 透明殼 Activity：承載 1dp 的 WebView 讓其真正渲染。
- * 渲染完成（JS 橋回傳 DOM）後立即 finish，用戶幾乎無感。
+ * 透明壳 Activity：承载 1dp 的 WebView 让其真正渲染。
+ * 渲染完成（JS 桥回传 DOM）后立即 finish，用户几乎无感。
  */
 class MissavHomeRenderActivity : Activity() {
 

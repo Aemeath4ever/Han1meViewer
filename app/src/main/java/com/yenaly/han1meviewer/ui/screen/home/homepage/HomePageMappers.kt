@@ -13,7 +13,7 @@ private const val HERO_VIDEO_ITEM_COUNT = 6
  * 构建首页 Hero 轮播数据。
  *
  * 官网运营位固定排在首位；其后从下方分类行中取若干条视频，使轮播在网站只下发一条运营位时
- * 依然可以翻页。视频优先取自「他們在看」，其余分组按用户设置的顺序补足，并跳过与运营位
+ * 依然可以翻页。视频优先取自「他们在看」，其余分组按用户设置的顺序补足，并跳过与运营位
  * 重复的条目。
  *
  * @param homePage 仓库层返回的首页原始数据。
@@ -32,7 +32,7 @@ fun buildHomeHeroItems(
         )
     }
     val videos = categories
-        // 推薦區塊是行為畫像內容，不參與 hero 輪播，避免首屏和登入前不一致
+        // 推荐区块是行为画像内容，不参与 hero 轮播，避免首屏和登入前不一致
         .filterNot { it.key.startsWith(HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX) }
         .sortedBy { if (it.key == HOME_CATEGORY_WATCHING_NOW) 0 else 1 }
         .flatMap { it.videos }
@@ -65,8 +65,8 @@ fun buildHomeHeroItems(
  * @return 当前站点类型下存在视频内容的分类行列表。
  */
 fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
-    // jable 的分節來自站點自身（最近更新/全新上市/熱門影片/他們在看），
-    // 與 Hanime固定分類沒有對應關係，原樣按頁面順序展示。
+    // jable 的分节来自站点自身（最近更新/全新上市/热门影片/他们在看），
+    // 与 Hanime固定分类没有对应关系，原样按页面顺序展示。
     if (Preferences.isJableSite) {
         return homePage.jableSections.mapIndexed { index, section ->
             HomeCategory(
@@ -86,8 +86,8 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
             key = HOME_CATEGORY_LATEST_HANIME,
             titleRes = if (isAVSite) R.string.latest_av else R.string.latest_hanime,
             genre = if (isAVSite) "日本AV" else "裏番",
-            // missav 的站內搜尋只認關鍵詞，靠 genre/sort 過去的「更多」在那邊是死路；
-            // 改用分節自己在 header 上提供的列表頁（新作上市 → /cn/release）。
+            // missav 的站内搜寻只认关键词，靠 genre/sort 过去的「更多」在那边是死路；
+            // 改用分节自己在 header 上提供的列表页（新作上市 → /cn/release）。
             moreUrl = homePage.missavReleaseMoreUrl,
             videos = homePage.ecchiAnime
         ),
@@ -170,19 +170,19 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
     ).let { base ->
         if (!isAVSite) base
         else {
-            // missav 登入後，首頁最前面幾欄是 Recombee 按帳號行為生成的
-            // 「推薦給你 / 中出 / 巨乳 …」；站點把它們排在新作上市之前。
+            // missav 登入后，首页最前面几栏是 Recombee 按帐号行为生成的
+            // 「推荐给你 / 中出 / 巨乳 …」；站点把它们排在新作上市之前。
             val recommended = homePage.missavRecommended.mapIndexed { index, section ->
                 HomeCategory(
                     key = "$HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX$index",
                     titleRes = R.string.missav_recommended,
                     titleText = section.title,
-                    // 推薦分節的「更多」是就地續接，靠 recommId 再要一批
+                    // 推荐分节的「更多」是就地续接，靠 recommId 再要一批
                     recommId = section.recommId,
                     videos = section.videos
                 )
             }
-            // missav 首頁的其餘靜態區塊（無碼影片、隨機等）維持在固定分類之後
+            // missav 首页的其余静态区块（无码影片、随机等）维持在固定分类之后
             val missavExtra = homePage.missavSections.mapIndexed { index, section ->
                 HomeCategory(
                     key = "${HOME_CATEGORY_MISSAV_SECTION_PREFIX}$index",
@@ -203,8 +203,8 @@ fun buildCategoryList(homePage: HomePage): List<HomeCategory> {
                 .sortedBy { orderIndex[it.key] ?: Int.MAX_VALUE }
             if (!isAVSite) visible
             else {
-                // 動態 key 不在用戶的排序表裏（Int.MAX_VALUE），排完會落到最後，
-                // 所以推薦區塊要再單獨提到最前；其餘順序保持不變。
+                // 动态 key 不在用户的排序表里（Int.MAX_VALUE），排完会落到最后，
+                // 所以推荐区块要再单独提到最前；其余顺序保持不变。
                 val (recommended, rest) = visible.partition {
                     it.key.startsWith(HOME_CATEGORY_MISSAV_RECOMMENDED_PREFIX)
                 }

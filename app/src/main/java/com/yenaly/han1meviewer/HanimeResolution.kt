@@ -21,7 +21,7 @@ class HanimeResolution {
 
     companion object {
 
-        // 目前hanime1有的分辨率好像就這些，暫時不考慮其他分辨率
+        // 目前hanime1有的分辨率好像就这些，暂时不考虑其他分辨率
 
         const val RES_1080P = "1080P"
         const val RES_720P = "720P"
@@ -31,10 +31,10 @@ class HanimeResolution {
     }
 
     /**
-     * 解析分辨率，從高到低排列。
+     * 解析分辨率，从高到低排列。
      *
      * @param resString 分辨率
-     * @param resLink 分辨率對應網址
+     * @param resLink 分辨率对应网址
      * @param type 例如 video/mp4
      */
     fun parseResolution(resString: String?, resLink: String, type: String? = null) {

@@ -31,9 +31,9 @@ import androidx.compose.ui.unit.dp
 import com.yenaly.han1meviewer.R
 
 /**
- * 新增／編輯本地收藏的評分與評價。
+ * 新增／编辑本地收藏的评分与评价。
  *
- * 評分為 0~5 星，0 表示未評分；再點一次目前星數可清回 0。
+ * 评分为 0~5 星，0 表示未评分；再点一次目前星数可清回 0。
  */
 @Composable
 fun LocalFavoriteEditorDialog(

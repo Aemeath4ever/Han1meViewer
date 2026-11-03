@@ -56,7 +56,7 @@ abstract class HistoryDatabase : RoomDatabase() {
                 val id = cursor.getInt(cursor.getColumnIndexOrThrow("id"))
                 val url = cursor.getString(cursor.getColumnIndexOrThrow("redirectLink"))
                 val videoCode =
-                    url.substringAfter("v=") // 不用 String.toVideoCode() 的原因是，防止該拓展函數因不可抗力改變導致 migrate 失敗
+                    url.substringAfter("v=") // 不用 String.toVideoCode() 的原因是，防止该拓展函数因不可抗力改变导致 migrate 失败
                 val values = contentValuesOf("redirectLink" to videoCode)
                 db.update(
                     "WatchHistoryEntity",

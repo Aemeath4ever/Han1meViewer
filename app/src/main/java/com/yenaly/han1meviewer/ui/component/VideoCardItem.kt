@@ -93,8 +93,8 @@ fun VideoCardItem(
                     contentDescription = videoItem.title,
                     modifier = Modifier
                         .fillMaxSize()
-                        // 橫式卡片用 16:9 容器，封面（jable 16:9、missav 約 3:2）
-                        // 按寬度鋪滿後可能略微上下溢出，裁掉避免壓到標題。
+                        // 横式卡片用 16:9 容器，封面（jable 16:9、missav 约 3:2）
+                        // 按宽度铺满后可能略微上下溢出，裁掉避免压到标题。
                         .clipToBounds(),
                     placeholder = painterResource(R.drawable.h_chan_loading),
                     error = painterResource(R.drawable.h_chan_load_failed),

@@ -82,7 +82,7 @@ class HUpdateWorker(
         suspend fun collectOutput(context: Context) = WorkManager.getInstance(context)
             .getWorkInfosByTagFlow(TAG)
             .collect { workInfos ->
-                // 只有一個！
+                // 只有一个！
                 val workInfo = workInfos.firstOrNull()
                 workInfo?.let {
                     when (it.state) {

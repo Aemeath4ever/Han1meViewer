@@ -19,11 +19,11 @@ class HanimeDataSource : JZDataSource {
         }
         this.title = title
         this.headerMap = hashMapOf()
-        // missav 的影片源 (surrit.com) 要求帶站點 Referer，否則會被 Cloudflare 攔截
+        // missav 的影片源 (surrit.com) 要求带站点 Referer，否则会被 Cloudflare 拦截
         if (resolutionLinkMap.values.any { it.link.contains("surrit.") }) {
             this.headerMap["Referer"] = Preferences.baseUrl
         }
-        // jable 的 m3u8 走第三方簽名 CDN；帶上站點 Referer 更接近站內播放器行為。
+        // jable 的 m3u8 走第三方签名 CDN；带上站点 Referer 更接近站内播放器行为。
         if (Preferences.isJableSite) {
             this.headerMap["Referer"] = Preferences.baseUrl
         }

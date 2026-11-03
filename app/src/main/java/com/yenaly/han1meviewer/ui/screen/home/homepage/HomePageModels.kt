@@ -45,11 +45,11 @@ data class HomeHeroItem(
  *
  * @param key 分类唯一标识。
  * @param titleRes 分类标题的字符串资源。
- * @param titleText 直接展示的分类标题（missav 站点区块为站點原文），非空时优先于 [titleRes]。
+ * @param titleText 直接展示的分类标题（missav 站点区块为站点原文），非空时优先于 [titleRes]。
  * @param genre 高级搜索使用的可选类型参数。
  * @param sort 高级搜索使用的可选排序参数。
  * @param tags 高级搜索使用的可选标签参数。
- * @param moreUrl 站点给该分类准备的「更多」列表页（如 missav 無碼影片 → `/cn/fc2`）。
+ * @param moreUrl 站点给该分类准备的「更多」列表页（如 missav 无码影片 → `/cn/fc2`）。
  * @param recommId Recombee 推荐分类的推荐 id；非空时「更多」改为就地续接下一批。
  * @param videos 当前分类下展示的视频列表。
  */

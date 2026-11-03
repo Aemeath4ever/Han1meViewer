@@ -602,7 +602,7 @@ class HanimeDownloadWorker(
         val notification = createDownloadNotification(progress)
         return ForegroundInfo(
             downloadId, notification,
-            // #issue-34: 這裡的參數是為了讓 Android 14 以上的系統可以正常顯示前景通知
+            // #issue-34: 这里的参数是为了让 Android 14 以上的系统可以正常显示前景通知
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             } else 0

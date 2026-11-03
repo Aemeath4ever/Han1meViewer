@@ -24,7 +24,7 @@ data class HanimeInfo(
 
     val playlistItemId: String? = null,
 
-    /** jable 站內影片 id（卡片收藏鈕的 `data-fav-video-id`），用於從「喜歡」列表移除。 */
+    /** jable 站内影片 id（卡片收藏钮的 `data-fav-video-id`），用于从「喜欢」列表移除。 */
     val jableVideoId: String? = null,
 
     override var itemType: Int,

@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -49,9 +50,9 @@ class HomePageViewModel: ViewModel() {
     val sectionMoreFlow = _sectionMoreFlow.asStateFlow()
 
     /**
-     * 各推薦分類續接後的 recommId（分類 key → 當前推薦 id）。
+     * 各推荐分类续接后的 recommId（分类 key → 当前推荐 id）。
      *
-     * Recombee 的下一批要用「上一次續接返回的 recommId」，首頁資料裡的 id 只對第一批有效。
+     * Recombee 的下一批要用「上一次续接返回的 recommId」，首页资料里的 id 只对第一批有效。
      */
     private val sectionRecommIds = mutableMapOf<String, String>()
 
@@ -66,6 +67,20 @@ class HomePageViewModel: ViewModel() {
         viewModelScope.launch {
             // 初始化默认已下载分组，防止[FOREIGN KEY constraint failed]
             DatabaseRepo.HanimeDownload.insertDefaultGroup()
+        }
+        // 人机验证完成时，首页请求往往已经超时失败（用户在验证页停留太久）。
+        // 拿到新的 cf_clearance 后自动重载一次，而不是让首页一直停在错误页。
+        viewModelScope.launch {
+            Preferences.cloudFlareVerifiedEvent.collect {
+                // 原请求可能正在用新 cookie 重放：先等这次载入出结果，最终仍是错误才重载，
+                // 免得把一个马上就要成功的请求取消掉。
+                withTimeoutOrNull(VERIFY_RELOAD_WAIT_MILLIS.milliseconds) {
+                    _homePageFlow.first { it !is PageState.Loading }
+                }
+                val state = _homePageFlow.value as? PageState.Error ?: return@collect
+                // 有旧资料就保留画面同时刷新；没有就回到 Loading，让错误页消失。
+                getHomePage(isRefresh = state.cachedInfo != null)
+            }
         }
     }
 
@@ -107,7 +122,7 @@ class HomePageViewModel: ViewModel() {
                         networkState.info.userId.takeIf { it.isNotEmpty() }?.let { userId ->
                             Preferences.savedUserId = userId
                         }
-                        // 新一輪首頁數據的推薦 id 也換了，續接出來的卡片一併作廢
+                        // 新一轮首页数据的推荐 id 也换了，续接出来的卡片一并作废
                         sectionRecommIds.clear()
                         _sectionMoreFlow.value = SectionMoreState()
                         val homeData = HomeData(page = networkState.info, announcements = currentAnnouncements)
@@ -120,10 +135,10 @@ class HomePageViewModel: ViewModel() {
     }
 
     /**
-     * 推薦分類的「更多」：續接 Recombee 的下一批，追加到該行尾。
+     * 推荐分类的「更多」：续接 Recombee 的下一批，追加到该行尾。
      *
-     * @param categoryKey 分類 key（`missav_recommended_N`），用於把結果放回同一行
-     * @param recommId 該行當前持有的推薦 id；續接過的行改用 [sectionRecommIds] 裡較新的那個
+     * @param categoryKey 分类 key（`missav_recommended_N`），用于把结果放回同一行
+     * @param recommId 该行当前持有的推荐 id；续接过的行改用 [sectionRecommIds] 里较新的那个
      */
     fun loadMoreRecommendedSection(categoryKey: String, recommId: String) {
         val current = _sectionMoreFlow.value
@@ -133,7 +148,7 @@ class HomePageViewModel: ViewModel() {
         viewModelScope.launch {
             val next = MissavRecommender.fetchNext(activeRecommId)
             val state = _sectionMoreFlow.value
-            // 请求期间首页刷新过（加载状态被清空）：这一批属于旧的首頁數據，直接丢弃
+            // 请求期间首页刷新过（加载状态被清空）：这一批属于旧的首页数据，直接丢弃
             if (categoryKey !in state.loadingKeys) return@launch
             if (next == null) {
                 Log.d("homeMore", "load more failed: $categoryKey")
@@ -186,6 +201,9 @@ class HomePageViewModel: ViewModel() {
 
     private companion object {
         const val ANNOUNCEMENTS_TIMEOUT_MILLIS = 5_000L
+
+        /** 验证完成后等原请求收尾的上限；超时就当它在正常载入中，不再插手。 */
+        const val VERIFY_RELOAD_WAIT_MILLIS = 8_000L
     }
 
     fun dismissAnnouncements(){

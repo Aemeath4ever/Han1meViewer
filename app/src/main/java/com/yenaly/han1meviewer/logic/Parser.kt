@@ -51,10 +51,10 @@ object Parser {
         val videoSource = Regex("""const source = '(.+)'""")
         val viewAndUploadTime = Regex("""(觀看次數|观看次数)：(.+次) *(\d{4}-\d{2}-\d{2})""")
 
-        // missav 影片頁的 seek 縮略圖，可用於兜底提取 surrit.com 的影片 UUID（HTML 中斜槓可能被轉義為 \/）
+        // missav 影片页的 seek 缩略图，可用于兜底提取 surrit.com 的影片 UUID（HTML 中斜杠可能被转义为 \/）
         val missavSurritId = Regex("""surrit\.com\\?/([a-f0-9-]+)\\?/""")
 
-        // AV 站的 CDN 節點（t26 / t27 / t30 等）可能已失效，需要統一切換成可用的 t33
+        // AV 站的 CDN 节点（t26 / t27 / t30 等）可能已失效，需要统一切换成可用的 t33
         val avCdnHost = Regex("""^(\s*(?:https?:)?//)t\d+\.cdn2020\.com(?=[/:]|\z)""", RegexOption.IGNORE_CASE)
     }
 
@@ -243,9 +243,9 @@ object Parser {
     }
 
     /**
-     * missav 搜索頁（SSR HTML）解析，路徑形如 /en/search/{query}?page=N。
+     * missav 搜索页（SSR HTML）解析，路径形如 /en/search/{query}?page=N。
      *
-     * [page] 為當前頁碼，用於判斷是否存在下一頁。
+     * [page] 为当前页码，用于判断是否存在下一页。
      */
     fun missavSearch(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
         val parseBody = Jsoup.parse(body).body()
@@ -259,10 +259,10 @@ object Parser {
     }
 
     /**
-     * missav 女優頁（`/actresses/{name}`）的作品列表。
+     * missav 女优页（`/actresses/{name}`）的作品列表。
      *
-     * 卡片與搜尋頁同構，分頁是 Laravel 的 `?page=N`。頁首的女優頭像也可能帶
-     * `alt`，但它不會是影片卡片，故過濾掉含空白的「影片碼」。
+     * 卡片与搜寻页同构，分页是 Laravel 的 `?page=N`。页首的女优头像也可能带
+     * `alt`，但它不会是影片卡片，故过滤掉含空白的「影片码」。
      */
     fun missavArtistVideos(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
         val parseBody = Jsoup.parse(body).body()
@@ -279,10 +279,10 @@ object Parser {
     }
 
     /**
-     * jable 搜尋頁解析。
+     * jable 搜寻页解析。
      *
-     * 第 1 頁是完整 HTML；第 2 頁起是 KVS 的 AJAX block 片段，卡片結構相同。
-     * 分頁資訊在 `ul.pagination` 的 `data-parameters="...;from:NN"` 裡。
+     * 第 1 页是完整 HTML；第 2 页起是 KVS 的 AJAX block 片段，卡片结构相同。
+     * 分页资讯在 `ul.pagination` 的 `data-parameters="...;from:NN"` 里。
      */
     fun jableSearch(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
         val parseBody = Jsoup.parse(body).body()
@@ -292,10 +292,10 @@ object Parser {
     }
 
     /**
-     * jable 模特頁（`/models/{hash}/`）的作品列表。
+     * jable 模特页（`/models/{hash}/`）的作品列表。
      *
-     * 卡片與搜尋頁同構；分頁沿用 KVS 的 `ul.pagination`。
-     * 同時把分頁連結寫進日誌，方便站點改版後確認下一頁的真實 URL 形式。
+     * 卡片与搜寻页同构；分页沿用 KVS 的 `ul.pagination`。
+     * 同时把分页连结写进日志，方便站点改版后确认下一页的真实 URL 形式。
      */
     fun jableArtistVideos(body: String, page: Int): PageLoadingState<HanimeSearchResult> {
         val parseBody = Jsoup.parse(body).body()
@@ -311,21 +311,21 @@ object Parser {
     }
 
     /**
-     * jable 會員中心（`/my/...`）的影片列表：喜歡、稍後觀看、單個片單內容都用它。
+     * jable 会员中心（`/my/...`）的影片列表：喜欢、稍后观看、单个片单内容都用它。
      *
-     * KVS 的分頁 block 與搜尋頁共用同一套卡片結構；第一頁有時是完整頁面，
-     * 第二頁起是 block 片段，兩種都能直接走 [parseJableCards]。
+     * KVS 的分页 block 与搜寻页共用同一套卡片结构；第一页有时是完整页面，
+     * 第二页起是 block 片段，两种都能直接走 [parseJableCards]。
      */
     fun jableUserVideoList(body: String, page: Int): PageLoadingState<MyListItems<HanimeInfo>> {
         val parseBody = Jsoup.parse(body).body()
-        // 會員頁可能同時有「推薦」「最近更新」等影片區塊，若整頁解析會把
-        // 不相關的卡片混進喜歡/片單列表。優先在 KVS block 容器內找。
+        // 会员页可能同时有「推荐」「最近更新」等影片区块，若整页解析会把
+        // 不相关的卡片混进喜欢/片单列表。优先在 KVS block 容器内找。
         val container = parseBody.selectFirst("#list_videos_my_favourite_videos")
             ?: parseBody.selectFirst("#playlist_view_playlist_view")
             ?: parseBody.selectFirst("#list_videos_common_videos_list")
-        // AJAX block 有時只回一段沒有 id 的 HTML 片段；此時整段就是列表。
-        // 但完整頁面若找不到 block 容器，寧可回空列表，也不要把整頁的
-        // 推薦/最近更新誤當成使用者的收藏。
+        // AJAX block 有时只回一段没有 id 的 HTML 片段；此时整段就是列表。
+        // 但完整页面若找不到 block 容器，宁可回空列表，也不要把整页的
+        // 推荐/最近更新误当成使用者的收藏。
         val scope = container ?: parseBody.takeIf { !body.contains("<html", ignoreCase = true) }
         var results = scope?.let { parseJableCards(it) } ?: mutableListOf()
         if (results.isEmpty()) {
@@ -337,11 +337,11 @@ object Parser {
     }
 
     /**
-     * jable 會員中心的片單資料夾列表（`/my/playlists/`）。
+     * jable 会员中心的片单资料夹列表（`/my/playlists/`）。
      *
-     * 站點的片單路徑有兩種寫法：`/my/playlists/{id}/`（自己的）與
-     * `/playlists/{id}/{slug}/`（公開頁）。`listCode` 直接保存完整連結，
-     * 之後取片單內容時不必再猜 id。
+     * 站点的片单路径有两种写法：`/my/playlists/{id}/`（自己的）与
+     * `/playlists/{id}/{slug}/`（公开页）。`listCode` 直接保存完整连结，
+     * 之后取片单内容时不必再猜 id。
      */
     fun jablePlaylists(body: String): WebsiteState<Playlists> {
         val parseBody = Jsoup.parse(body).body()
@@ -350,8 +350,8 @@ object Parser {
         val playlistPath = Regex("""/(?:my/)?playlists/([^/?#]+)""")
         for (a in parseBody.select("a[href]")) {
             val href = a.absUrl("href").ifBlank { a.attr("href") }.trim()
-            // 分頁連結（`/my/playlists/2/`）長得和片單連結一樣，必須先排除，
-            // 否則第 2 頁會被當成一個叫「2」的片單。
+            // 分页连结（`/my/playlists/2/`）长得和片单连结一样，必须先排除，
+            // 否则第 2 页会被当成一个叫「2」的片单。
             if (a.closest("ul.pagination") != null) continue
             if (href.contains("from_my_playlists") || href.contains("block_id=")) continue
             if (a.hasAttr("data-action") || href.contains("delete")) continue
@@ -359,7 +359,7 @@ object Parser {
             val id = playlistPath.find(path)?.groupValues?.get(1) ?: continue
             if (id.isBlank() || id in setOf("create", "delete", "my")) continue
             if (path.trimEnd('/').endsWith("/playlists")) continue
-            // 同一張卡片通常有封面與標題兩個連結，按路徑去重。
+            // 同一张卡片通常有封面与标题两个连结，按路径去重。
             val key = path.trimEnd('/')
             if (!seen.add(key)) continue
 
@@ -407,8 +407,8 @@ object Parser {
     }
 
     /**
-     * 保守的 KVS 通用影片卡片解析：只在 [parseJableCards] 一張都沒抓到時兜底。
-     * 用 `a[href*=/videos/]` 反查最近的卡片容器，避免會員頁改版後整個列表空白。
+     * 保守的 KVS 通用影片卡片解析：只在 [parseJableCards] 一张都没抓到时兜底。
+     * 用 `a[href*=/videos/]` 反查最近的卡片容器，避免会员页改版后整个列表空白。
      */
     private fun parseJableGenericVideoCards(root: Element): MutableList<HanimeInfo> {
         val results = mutableListOf<HanimeInfo>()
@@ -440,8 +440,8 @@ object Parser {
                     ?.attr("data-fav-video-id")
                     ?.trim()
                     ?.takeIf { it.isNotEmpty() },
-                // jable 封面是 16:9 橫圖，用 NORMAL 讓卡片容器保持 16:9、搜尋頁兩列，
-                // 與站點自身一致；SIMPLIFIED 會套 3:4 的直式容器，底部留大片空白。
+                // jable 封面是 16:9 横图，用 NORMAL 让卡片容器保持 16:9、搜寻页两列，
+                // 与站点自身一致；SIMPLIFIED 会套 3:4 的直式容器，底部留大片空白。
                 itemType = HanimeInfo.NORMAL,
             )
         }
@@ -457,10 +457,10 @@ object Parser {
      *   <div class="img-box"><a href="https://jable.tv/videos/{slug}/">
      *     <img data-src=".../320x180/1.jpg"> <span class="label">2:10:08</span>
      *   </a></div>
-     *   <div class="detail"><h6 class="title"><a>標題</a></h6><p class="sub-title">觀看數 喜歡數</p></div>
+     *   <div class="detail"><h6 class="title"><a>标题</a></h6><p class="sub-title">观看数 喜欢数</p></div>
      * </div>
      * ```
-     * 部分卡片連結帶 `/s0/` 鏡像前綴，且首頁會混入廣告卡片，因此只認 `.../videos/{slug}/`。
+     * 部分卡片连结带 `/s0/` 镜像前缀，且首页会混入广告卡片，因此只认 `.../videos/{slug}/`。
      */
     private fun parseJableCards(root: Element): MutableList<HanimeInfo> {
         val results = mutableListOf<HanimeInfo>()
@@ -479,7 +479,7 @@ object Parser {
                         url.isNotBlank() && !url.contains("/assets/images/placeholder")
                     }
             }
-            // 「全新上市」輪播的卡片沒有 <img>，封面放在連結的 inline background-image。
+            // 「全新上市」轮播的卡片没有 <img>，封面放在连结的 inline background-image。
             val styleCover = card.selectFirst("div.img-box a[style*=background-image]")
                 ?.attr("style")
                 ?.let { style ->
@@ -492,8 +492,8 @@ object Parser {
                 ?: slug
             val duration = card.selectFirst("span.label")?.text()?.trim()
                 ?.takeIf { it.isNotEmpty() }
-            // p.sub-title 的 DOM 是「眼睛圖標 + 觀看數 + 心形圖標 + 喜歡數」，
-            // 直接 text() 會把兩個數字連在一起，取第一個非空 TextNode 才是觀看數。
+            // p.sub-title 的 DOM 是「眼睛图标 + 观看数 + 心形图标 + 喜欢数」，
+            // 直接 text() 会把两个数字连在一起，取第一个非空 TextNode 才是观看数。
             val views = card.selectFirst("p.sub-title")
                 ?.childNodes()
                 ?.filterIsInstance<TextNode>()
@@ -506,8 +506,8 @@ object Parser {
                     videoCode = slug,
                     duration = duration,
                     views = views,
-                    // 收藏列表的卡片帶着站內影片 id，長按移除時直接用它，
-                    // 不必再額外抓一次影片頁。
+                    // 收藏列表的卡片带着站内影片 id，长按移除时直接用它，
+                    // 不必再额外抓一次影片页。
                     jableVideoId = card.selectFirst("[data-fav-video-id]")
                         ?.attr("data-fav-video-id")
                         ?.trim()
@@ -520,8 +520,8 @@ object Parser {
     }
 
     /**
-     * 把 jable 登入表單轉成 [FieldMap]：保留站點現有的 hidden 欄位（可能有 token），
-     * 再覆蓋帳號密碼，最後補上 AJAX 表單固定追加的 `format=json&mode=async`。
+     * 把 jable 登入表单转成 [FieldMap]：保留站点现有的 hidden 栏位（可能有 token），
+     * 再覆盖帐号密码，最后补上 AJAX 表单固定追加的 `format=json&mode=async`。
      */
     fun jableLoginFormFields(
         body: String,
@@ -544,7 +544,7 @@ object Parser {
         return fields
     }
 
-    /** 從 `https://jable.tv/videos/{slug}/`（或帶 `/s0/` 前綴）取出 slug。 */
+    /** 从 `https://jable.tv/videos/{slug}/`（或带 `/s0/` 前缀）取出 slug。 */
     private fun jableVideoSlug(href: String): String? =
         Regex("""/videos/([A-Za-z0-9][A-Za-z0-9_-]*)(?:/|${'$'})""")
             .find(href)
@@ -552,7 +552,7 @@ object Parser {
             ?.get(1)
             ?.takeIf { it != "videos" }
 
-    /** KVS 分頁總頁數：`data-parameters` 裡最大的 `from:` 值（頁碼從 1 開始）。 */
+    /** KVS 分页总页数：`data-parameters` 里最大的 `from:` 值（页码从 1 开始）。 */
     private fun jableMaxPage(root: Element, currentPage: Int): Int {
         val fromMax = root.select("ul.pagination a[data-parameters]")
             .mapNotNull { link ->
@@ -574,9 +574,9 @@ object Parser {
     /**
      * missav 通用卡片解析。
      *
-     * 卡片形如 `<a alt="{slug}" href=".../dmXX/en/{slug}"><img/></a>`，slug 即影片碼；
-     * 封面取自 img 的 data-src / src，時長取自同一容器內的時間 span，
-     * 標題優先取相鄰標題連結的文本，兜底取 img 的 alt。
+     * 卡片形如 `<a alt="{slug}" href=".../dmXX/en/{slug}"><img/></a>`，slug 即影片码；
+     * 封面取自 img 的 data-src / src，时长取自同一容器内的时间 span，
+     * 标题优先取相邻标题连结的文本，兜底取 img 的 alt。
      */
     private fun parseMissavCards(
         root: Element,
@@ -599,11 +599,11 @@ object Parser {
             results.add(
                 HanimeInfo(
                     title = title, coverUrl = cover, videoCode = slug,
-                    // missav 封面約 3:2（`cover-t.jpg`），站點自身用 16:9 容器裁切，
-                    // 這裡也走 NORMAL 的 16:9 卡片，避免直式容器底部留白。
+                    // missav 封面约 3:2（`cover-t.jpg`），站点自身用 16:9 容器裁切，
+                    // 这里也走 NORMAL 的 16:9 卡片，避免直式容器底部留白。
                     duration = duration, itemType = HanimeInfo.NORMAL,
-                    // 無碼不能只看「是不是在無碼影片這個分節」：FC2 和 *-uncensored-leak
-                    // 會出現在最近更新/隨機等分節裏，以前這些卡片不會有無碼角標。
+                    // 无码不能只看「是不是在无码影片这个分节」：FC2 和 *-uncensored-leak
+                    // 会出现在最近更新/随机等分节里，以前这些卡片不会有无码角标。
                     isUncensored = uncensored || isMissavUncensoredCode(slug)
                 )
             )
@@ -709,7 +709,7 @@ object Parser {
     }
 
     /**
-     * AV 站的 CDN 節點可能已失效，這裡統一修正成可用的節點；其餘站點原樣返回。
+     * AV 站的 CDN 节点可能已失效，这里统一修正成可用的节点；其余站点原样返回。
      */
     private fun fixAvCdnHost(url: String): String {
         if (Preferences.baseUrl != HANIME_URL[3]) return url
@@ -912,9 +912,9 @@ object Parser {
                                 .firstOrNull { it.isNotBlank() }
                         }
                         ?: continue
-                    // 新版標題 div 可能還帶別的 class（例如 `... title fs-14`），舊的
-                    // `div[class$=title]` 匹配不到就拋 ParseException，會讓整部影片
-                    // 解析失敗並被誤導去瀏覽器。這裡放寬選擇器，壞卡片直接跳過。
+                    // 新版标题 div 可能还带别的 class（例如 `... title fs-14`），旧的
+                    // `div[class$=title]` 匹配不到就抛 ParseException，会让整部影片
+                    // 解析失败并被误导去浏览器。这里放宽选择器，坏卡片直接跳过。
                     val eachTitle = homeRowsVideosDiv.selectFirst("[class*=title]")
                         ?.text()?.trim()?.takeIf { it.isNotEmpty() }
                         ?: homeRowsVideosDiv.selectFirst("img")?.attr("alt")?.trim()
@@ -1025,10 +1025,10 @@ object Parser {
     }
 
     /**
-     * missav 影片頁解析。
+     * missav 影片页解析。
      *
-     * 元數據取自 og: meta 標籤；影片源在 eval-packed 的播放器腳本內，解包後得到
-     * surrit.com 各分辨率 m3u8；相關影片複用通用卡片解析。
+     * 元数据取自 og: meta 标签；影片源在 eval-packed 的播放器脚本内，解包后得到
+     * surrit.com 各分辨率 m3u8；相关影片复用通用卡片解析。
      */
     fun missavVideo(body: String): VideoLoadingState<HanimeVideo> {
         val doc = Jsoup.parse(body)
@@ -1066,7 +1066,7 @@ object Parser {
                 }
             }
         }
-        // 兜底：從 seek 縮略圖中提取 UUID，拼接主播放列表
+        // 兜底：从 seek 缩略图中提取 UUID，拼接主播放列表
         if (unpacked == null) {
             Regex.missavSurritId.find(body)?.let {
                 masterUrl = "https://surrit.com/${it.groupValues[1]}/playlist.m3u8"
@@ -1076,8 +1076,8 @@ object Parser {
 
         val relatedAnimeList = parseMissavCards(doc.body())
 
-        // 詳情頁信息區：`div.space-y-2` 內每行是一個 div.text-secondary，
-        // 標籤/女優/片商都是站內鏈接；用帶 <time datetime> 的那一塊定位，避免依賴語言文案。
+        // 详情页信息区：`div.space-y-2` 内每行是一个 div.text-secondary，
+        // 标签/女优/片商都是站内链接；用带 <time datetime> 的那一块定位，避免依赖语言文案。
         val infoLinks = doc.select("div.space-y-2")
             .firstOrNull { it.select("time[datetime]").isNotEmpty() }
             ?.select("a[href]")
@@ -1092,16 +1092,16 @@ object Parser {
         val actressLink = infoLinks.firstOrNull { "/actresses/" in it.attr("href") }
         val actressName = actressLink
             ?.text()?.trim()?.takeIf { it.isNotEmpty() }
-        // 直接保存女優主頁連結：名字有日文/英文兩種寫法時，用名字搜索會漏掉其他作品，
-        // 用站內的 /actresses/{name} 頁面則能拿到完整列表。
+        // 直接保存女优主页连结：名字有日文/英文两种写法时，用名字搜索会漏掉其他作品，
+        // 用站内的 /actresses/{name} 页面则能拿到完整列表。
         val actressProfileUrl = actressLink
             ?.absUrl("href")
             ?.takeIf { it.isNotBlank() }
 
-        // 站內物品 id：影片頁的喜歡/片單組件寫死 `api/items/{itemId}/save`
+        // 站内物品 id：影片页的喜欢/片单组件写死 `api/items/{itemId}/save`
         val missavItemId = Regex("""api/items/([A-Za-z0-9]+)/save""")
             .find(body)?.groupValues?.get(1)
-        // Blade 渲染的初始喜歡狀態（未登入恆為 false，登入後由 /view 接口校正）
+        // Blade 渲染的初始喜欢状态（未登入恒为 false，登入后由 /view 接口校正）
         val saved = Regex("""saved:\s*(true|false)""")
             .find(body)?.groupValues?.get(1)?.toBoolean() ?: false
 
@@ -1129,11 +1129,11 @@ object Parser {
     }
 
     /**
-     * jable 影片頁解析。
+     * jable 影片页解析。
      *
-     * 元數據在 `og:` meta 與 `.video-info` 區塊；播放地址是內聯腳本裡的
-     * `var hlsUrl = '...'`（通常是帶簽名的 m3u8），只對應一個「Unknown」畫質。
-     * 收藏按鈕的初始狀態在 `button.fav` 的 `active` class，站內 id 在
+     * 元数据在 `og:` meta 与 `.video-info` 区块；播放地址是内联脚本里的
+     * `var hlsUrl = '...'`（通常是带签名的 m3u8），只对应一个「Unknown」画质。
+     * 收藏按钮的初始状态在 `button.fav` 的 `active` class，站内 id 在
      * `pageContext.videoId`。
      */
     fun jableVideo(body: String): VideoLoadingState<HanimeVideo> {
@@ -1169,7 +1169,7 @@ object Parser {
         val metaSpans = doc.select(".info-header .header-left h6 span.mr-3")
             .map { it.text().trim() }
             .filter { it.isNotEmpty() }
-        // 第一項是相對時間（「4 年前」），第二項才是觀看數；若站點調整結構則退回第一個含數字的。
+        // 第一项是相对时间（「4 年前」），第二项才是观看数；若站点调整结构则退回第一个含数字的。
         val views = metaSpans.getOrNull(1)
             ?: metaSpans.firstOrNull { span ->
                 span.any(Char::isDigit) && !span.contains("前") && !span.contains("ago")
@@ -1182,7 +1182,7 @@ object Parser {
                 val name = model.selectFirst("span[title]")?.attr("title")?.trim()
                     ?.takeIf { it.isNotEmpty() }
                     ?: model.text().trim().takeIf { it.isNotEmpty() }
-                // 模特頭像旁邊的頭像連到站內模特頁；保留連結，點擊時直接列出她的作品。
+                // 模特头像旁边的头像连到站内模特页；保留连结，点击时直接列出她的作品。
                 val profileUrl = model.absUrl("href").ifBlank { model.attr("href") }
                     .trim().takeIf { it.isNotEmpty() }
                 name?.let {
@@ -1198,9 +1198,9 @@ object Parser {
             .firstOrNull()
 
         val favButton = doc.selectFirst("button.fav")
-        // 收藏接口的 video_id 是站點資料庫 id。登入後主按鈕會帶 data-fav-video-id；
-        // 匿名頁只有 pageContext.videoId。不能直接取全頁第一個 [data-fav-video-id]——
-        // 那通常是「猜你喜歡」第一張卡片的 id，會收藏到別的影片。
+        // 收藏接口的 video_id 是站点资料库 id。登入后主按钮会带 data-fav-video-id；
+        // 匿名页只有 pageContext.videoId。不能直接取全页第一个 [data-fav-video-id]——
+        // 那通常是「猜你喜欢」第一张卡片的 id，会收藏到别的影片。
         val videoId = favButton?.attr("data-fav-video-id")?.takeIf { it.isNotBlank() }
             ?: doc.selectFirst("section.video-info [data-fav-video-id]")
                 ?.attr("data-fav-video-id")?.takeIf { it.isNotBlank() }
@@ -1211,8 +1211,8 @@ object Parser {
             ?.filter(Char::isDigit)
             ?.toIntOrNull()
         val isFav = favButton?.hasClass("active") == true
-        // 「稍後觀看」是同一排按鈕裏的書籤鍵（SVG `#icon-bookmark-inline`）。
-        // 登入後才會帶 data-fav-type=1；未登入頁只有指向 login-required 的錨點。
+        // 「稍后观看」是同一排按钮里的书签键（SVG `#icon-bookmark-inline`）。
+        // 登入后才会带 data-fav-type=1；未登入页只有指向 login-required 的锚点。
         val watchLaterButton = doc.select("button.btn-action").firstOrNull { button ->
             button.attr("data-fav-type") == "1" ||
                     button.outerHtml().contains("icon-bookmark")
@@ -1240,12 +1240,12 @@ object Parser {
     }
 
     /**
-     * jable 影片頁留言（KVS `video_comments_video_comments` block）。
+     * jable 影片页留言（KVS `video_comments_video_comments` block）。
      *
-     * 匿名頁與 AJAX 分頁片段的結構一致：
+     * 匿名页与 AJAX 分页片段的结构一致：
      * `#video_comments_video_comments_items .item[data-comment-id]`，
-     * 每條留言是 `img.avatar` + `.title`（會員連結、相對時間）+ `.comment-text`。
-     * 原站留言沒有讚/踩與回覆，這裡只映射可展示的欄位。
+     * 每条留言是 `img.avatar` + `.title`（会员连结、相对时间）+ `.comment-text`。
+     * 原站留言没有赞/踩与回复，这里只映射可展示的栏位。
      */
     fun jableComments(body: String): WebsiteState<VideoComments> {
         val doc = Jsoup.parse(body)
@@ -1263,7 +1263,7 @@ object Parser {
                 ?: item.selectFirst(".title a")?.text()?.trim().orEmpty()
             val date = item.selectFirst(".title .inactive-color")?.text()?.trim().orEmpty()
             val content = item.selectFirst(".comment-text")?.let { text ->
-                // 表情是 `<img alt=":xx:">`，直接去掉，避免把短碼當正文顯示。
+                // 表情是 `<img alt=":xx:">`，直接去掉，避免把短码当正文显示。
                 text.select("img").remove()
                 text.text().trim()
             }.orEmpty()
@@ -1288,14 +1288,14 @@ object Parser {
     }
 
     /**
-     * missav 影片所屬的用戶片單：`{data: [{key, name, is_added}]}`。
+     * missav 影片所属的用户片单：`{data: [{key, name, is_added}]}`。
      *
-     * 復用 [HanimeVideo.MyList]（code 即片單 key，isSelected 即 is_added），
-     * 這樣影片頁的「加入清單」彈窗無需為 missav 另寫一套 UI。
+     * 复用 [HanimeVideo.MyList]（code 即片单 key，isSelected 即 is_added），
+     * 这样影片页的「加入清单」弹窗无需为 missav 另写一套 UI。
      */
     /**
-     * missav 使用者頁（`/cn/saved`、`/cn/history`、`/cn/playlists/{key}`）的影片列表。
-     * 這些頁面是 Laravel 直出的 SSR，卡片結構與搜尋頁相同，直接複用 [parseMissavCards]。
+     * missav 使用者页（`/cn/saved`、`/cn/history`、`/cn/playlists/{key}`）的影片列表。
+     * 这些页面是 Laravel 直出的 SSR，卡片结构与搜寻页相同，直接复用 [parseMissavCards]。
      */
     fun missavUserVideoList(body: String, page: Int): PageLoadingState<MyListItems<HanimeInfo>> {
         val parseBody = Jsoup.parse(body).body()
@@ -1312,23 +1312,23 @@ object Parser {
     }
 
     /**
-     * missav 我的片單資料夾列表（`/cn/playlists`）。
+     * missav 我的片单资料夹列表（`/cn/playlists`）。
      *
-     * 站點用 `/cn/playlists/{key}` 進入單個片單，這裡只抓「資料夾」層。
-     * 選擇器刻意只用 `a[href]` + Kotlin 端過濾：複雜的 `[href*=/xxx/]` 選擇器
-     * 曾讓 Jsoup 直接拋異常整頁崩掉。
+     * 站点用 `/cn/playlists/{key}` 进入单个片单，这里只抓「资料夹」层。
+     * 选择器刻意只用 `a[href]` + Kotlin 端过滤：复杂的 `[href*=/xxx/]` 选择器
+     * 曾让 Jsoup 直接抛异常整页崩掉。
      */
     fun missavPlaylistFolders(body: String): WebsiteState<Playlists> {
         val parseBody = Jsoup.parse(body).body()
         val lists = mutableListOf<Playlists.Playlist>()
         val seen = mutableSetOf<String>()
-        // 片單列表是 `<ul role="list"><li><a href="/cn/playlists/{key}">`。
-        // 同頁還有三個坑：
-        //  1. 「建立片單」指向 `/playlists/create`，會被當成一個片單；
-        //  2. 分頁/麵包屑是 `?page=N` 連結；
-        //  3. 第 2 頁以後（超出實際片單數時）只會剩「建立片單」。
-        // 以前三者都沒排除，於是每頁都解析出 1 個「片單」→ 列表永遠不為空 →
-        // ViewModel 的 noMore 永不成立 → 一直翻到 page=30 還在 fetch。
+        // 片单列表是 `<ul role="list"><li><a href="/cn/playlists/{key}">`。
+        // 同页还有三个坑：
+        //  1. 「建立片单」指向 `/playlists/create`，会被当成一个片单；
+        //  2. 分页/面包屑是 `?page=N` 连结；
+        //  3. 第 2 页以后（超出实际片单数时）只会剩「建立片单」。
+        // 以前三者都没排除，于是每页都解析出 1 个「片单」→ 列表永远不为空 →
+        // ViewModel 的 noMore 永不成立 → 一直翻到 page=30 还在 fetch。
         for (a in parseBody.select("li a[href]")) {
             val href = a.attr("href")
             if (href.contains("page=")) continue
@@ -1337,14 +1337,14 @@ object Parser {
             val key = href.substring(idx + "/playlists/".length)
                 .substringBefore('?').trim('/')
             if (key.isBlank() || key == "create" || !seen.add(key)) continue
-            // 標題是卡片裏的第一個 <p>（class 含 truncate）；用 a.text() 會把
-            // 「私人 / 擁有者 / 最后更新于 …」整串吞進來。
+            // 标题是卡片里的第一个 <p>（class 含 truncate）；用 a.text() 会把
+            // 「私人 / 拥有者 / 最后更新于 …」整串吞进来。
             val title = a.selectFirst("p.truncate")?.text()?.trim()
                 ?.takeIf { it.isNotEmpty() }
                 ?: a.selectFirst("p")?.text()?.trim()?.takeIf { it.isNotEmpty() }
                 ?: key
-            // missav 的片單列表頁不提供封面，也沒有影片數量（站點本身就只列名稱/擁有者/更新時間）。
-            // total = -1 / coverUrl = null 由 UI 顯示中性佔位，不再顯示「-1 部」和載入失敗圖。
+            // missav 的片单列表页不提供封面，也没有影片数量（站点本身就只列名称/拥有者/更新时间）。
+            // total = -1 / coverUrl = null 由 UI 显示中性占位，不再显示「-1 部」和载入失败图。
             lists += Playlists.Playlist(
                 listCode = key,
                 title = title,
@@ -1409,14 +1409,14 @@ object Parser {
         var unpacked = payload
         for (i in count - 1 downTo 0) {
             val keyword = keywords.getOrNull(i) ?: continue
-            // 用 lambda 替換以避免轉義問題；注意此處不能寫 Regex.escapeReplacement——
-            // 會被 Parser.Regex 嵌套對象遮蔽而解析失敗
+            // 用 lambda 替换以避免转义问题；注意此处不能写 Regex.escapeReplacement——
+            // 会被 Parser.Regex 嵌套对象遮蔽而解析失败
             unpacked = unpacked.replace(Regex("""\b${encodeIndex(i)}\b""")) { keyword }
         }
         return unpacked
     }
 
-    /** 分節標題欄裡「更多」連結的文案（missav「更多」、KVS「更多 / More」、日文「もっと見る」等）。 */
+    /** 分节标题栏里「更多」连结的文案（missav「更多」、KVS「更多 / More」、日文「もっと见る」等）。 */
     private val sectionMoreTexts = setOf(
         "更多", "查看更多", "更多影片", "查看全部",
         "more", "view all", "view more", "see all", "see more",
@@ -1424,12 +1424,12 @@ object Parser {
     )
 
     /**
-     * 從分節容器裡找「更多」連結。
+     * 从分节容器里找「更多」连结。
      *
-     * 卡片標題連結的文字都是完整片名，不會等於這些短文案，所以直接按文字全等匹配即可，
-     * 不必限定它掛在標題欄的哪一層。
+     * 卡片标题连结的文字都是完整片名，不会等于这些短文案，所以直接按文字全等匹配即可，
+     * 不必限定它挂在标题栏的哪一层。
      *
-     * @return 改寫成目前站點域名的絕對地址；沒有該連結（如 missav「隨機」）時為 null
+     * @return 改写成目前站点域名的绝对地址；没有该连结（如 missav「随机」）时为 null
      */
     private fun findSectionMoreUrl(root: Element): String? {
         val href = root.select("a[href]")
@@ -1439,10 +1439,10 @@ object Parser {
     }
 
     /**
-     * jable 分節的「更多」目標。
+     * jable 分节的「更多」目标。
      *
-     * KVS 模板有時把「更多」單獨放在標題欄外，有時整個標題就是一顆連到列表頁的連結
-     * （如「最近更新」→ `/latest-updates/`），兩種都認。
+     * KVS 模板有时把「更多」单独放在标题栏外，有时整个标题就是一颗连到列表页的连结
+     * （如「最近更新」→ `/latest-updates/`），两种都认。
      */
     private fun jableSectionMoreUrl(section: Element, titleBox: Element?): String? {
         findSectionMoreUrl(section)?.let { return it }
@@ -1451,10 +1451,10 @@ object Parser {
     }
 
     /**
-     * 把站點給的分節連結改寫到目前站點域名。
+     * 把站点给的分节连结改写到目前站点域名。
      *
-     * 頁面裡的連結是 `https://missav.ai/...`、`https://jable.tv/...` 這樣的絕對地址；
-     * 自訂鏡像的使用者點「更多」時不該被帶回原站（原站還可能被牆），所以只取路徑部分。
+     * 页面里的连结是 `https://missav.ai/...`、`https://jable.tv/...` 这样的绝对地址；
+     * 自订镜像的使用者点「更多」时不该被带回原站（原站还可能被墙），所以只取路径部分。
      */
     private fun sectionListUrl(href: String?): String? {
         val raw = href?.trim().orEmpty()
@@ -1469,19 +1469,19 @@ object Parser {
     }
 
     /**
-     * missav 首頁解析：按分節容器（`div.sm:container`，內含 h2 標題 + 卡片 grid）提取卡片。
+     * missav 首页解析：按分节容器（`div.sm:container`，内含 h2 标题 + 卡片 grid）提取卡片。
      *
-     * 靜態 HTML 只含服務端渲染的分節：新作上市→latestHanime、最近更新→latestRelease、
-     * 無碼影片等其餘分節按頁面順序存入 [HomePage.missavSections]。
-     * 「推薦給你」等 Recombee 分節為客戶端渲染，靜態 HTML 中只有骨架，解析結果為空會被跳過。
-     * 區塊標題含「無碼/uncensored」時，區塊內卡片標記 [HanimeInfo.isUncensored]。
+     * 静态 HTML 只含服务端渲染的分节：新作上市→latestHanime、最近更新→latestRelease、
+     * 无码影片等其余分节按页面顺序存入 [HomePage.missavSections]。
+     * 「推荐给你」等 Recombee 分节为客户端渲染，静态 HTML 中只有骨架，解析结果为空会被跳过。
+     * 区块标题含「无码/uncensored」时，区块内卡片标记 [HanimeInfo.isUncensored]。
      */
     fun missavHomePage(body: String): WebsiteState<HomePage> {
         val parseBody = Jsoup.parse(body).body()
-        // 已登入時，頁面內聯的 Alpine 根狀態長這樣：`user: { name: "..." }`（未登入是 `user: null`）。
-        // 站點本身可能在 user.name 為 null 時顯示別的名字，所以兩邊都兜。
-        // 注意 `}` 在 Java 正則裡必須轉義，否則 PatternSyntaxException: Illegal repetition（src 17），
-        // 整個首頁解析會直接失敗 → 使用者看到「頁面載入失敗」。
+        // 已登入时，页面内联的 Alpine 根状态长这样：`user: { name: "..." }`（未登入是 `user: null`）。
+        // 站点本身可能在 user.name 为 null 时显示别的名字，所以两边都兜。
+        // 注意 `}` 在 Java 正则里必须转义，否则 PatternSyntaxException: Illegal repetition（src 17），
+        // 整个首页解析会直接失败 → 使用者看到「页面载入失败」。
         val missavUser = Regex("""user:\s*\{[^{}]*\}""").find(body)?.value
         val missavUserName = missavUser
             ?.let { Regex("""["']?name["']?\s*:\s*["']([^"']+)["']""").find(it)?.groupValues?.get(1) }
@@ -1494,9 +1494,9 @@ object Parser {
         for (heading in parseBody.select("h2")) {
             val sectionTitle = heading.text().trim()
             if (sectionTitle.isEmpty()) continue
-            // 分節容器：h2 所在標題欄的祖先，卡片的 grid div 是它的直接子節點。
-            // 只認「含影片卡（a[alt] 內有 video）」且「只含一個 h2」的祖先，
-            // 避免爬到頁面外層把其他分節的卡片吞進來（頁尾/登入框就是這樣被誤判的）。
+            // 分节容器：h2 所在标题栏的祖先，卡片的 grid div 是它的直接子节点。
+            // 只认「含影片卡（a[alt] 内有 video）」且「只含一个 h2」的祖先，
+            // 避免爬到页面外层把其他分节的卡片吞进来（页尾/登入框就是这样被误判的）。
             val container = generateSequence(heading.parent()) { it.parent() }
                 .take(4)
                 .firstOrNull {
@@ -1507,8 +1507,8 @@ object Parser {
                 it.contains("uncensored") || it.contains("無碼") || it.contains("无码")
             }
             val cards = parseMissavCards(container, uncensored)
-            // 站點在區塊標題右側放了「更多」，指向該分節的列表頁（新作上市 → /cn/release、
-            // 最近更新 → /cn/new、無碼影片 → /cn/fc2；「隨機」沒有這個連結）。
+            // 站点在区块标题右侧放了「更多」，指向该分节的列表页（新作上市 → /cn/release、
+            // 最近更新 → /cn/new、无码影片 → /cn/fc2；「随机」没有这个连结）。
             val moreUrl = findSectionMoreUrl(container)
             val title = sectionTitle.lowercase()
             when {
@@ -1555,11 +1555,11 @@ object Parser {
     }
 
     /**
-     * jable 首頁解析。
+     * jable 首页解析。
      *
-     * 首頁由多個同構的 `section` 組成，每節標題在 `.title-box h2.h3-md`，
-     * 卡片是 `div.video-img-box`。只保留真的有影片卡的分節，廣告位與
-     * 「影片主題/專題合集」這類純連結區塊自然被跳過。
+     * 首页由多个同构的 `section` 组成，每节标题在 `.title-box h2.h3-md`，
+     * 卡片是 `div.video-img-box`。只保留真的有影片卡的分节，广告位与
+     * 「影片主题/专题合集」这类纯连结区块自然被跳过。
      */
     fun jableHomePage(body: String): WebsiteState<HomePage> {
         val parseBody = Jsoup.parse(body).body()
@@ -2061,12 +2061,12 @@ object Parser {
     fun reportCommentResponse(body: String): WebsiteState<String> {
         // 暂时无法判断是否举报成功
         return WebsiteState.Success("已成功檢舉該則評論，我們會儘快處理您的檢舉。")
-//        return if (body.contains("已成功檢舉該則評論")) {
-//            WebsiteState.Success("已成功檢舉該則評論，我們會儘快處理您的檢舉。")
+//        return if (body.contains("已成功检举该则评论")) {
+//            WebsiteState.Success("已成功检举该则评论，我们会尽快处理您的检举。")
 //        } else {
 //            val doc = Jsoup.parse(body)
 //            val msg = doc.select("#error").text()
-//            if (msg.contains("已成功檢舉")) {
+//            if (msg.contains("已成功检举")) {
 //                WebsiteState.Success(msg)
 //            } else {
 //                WebsiteState.Error(Throwable("举报失败或未检测到成功提示"))
@@ -2187,7 +2187,7 @@ object Parser {
     }
 
     /**
-     * 這個網站的網頁結構真的很奇怪，所以我寫了一個 forEachStep2 來處理
+     * 这个网站的网页结构真的很奇怪，所以我写了一个 forEachStep2 来处理
      */
     private inline fun Elements.forEachStep2(action: (Element) -> Unit) {
         for (i in 0 until size step 2) {
@@ -2196,7 +2196,7 @@ object Parser {
     }
 
     /**
-     * 得到 Element 的 child，如果 index 超出範圍，就返回 null
+     * 得到 Element 的 child，如果 index 超出范围，就返回 null
      */
     private fun Element.childOrNull(index: Int): Element? {
         return try {
@@ -2207,22 +2207,22 @@ object Parser {
     }
 
     /**
-     * 基本都是必需的參數，所以如果是 null，就直接丟出 [ParseException]
+     * 基本都是必需的参数，所以如果是 null，就直接丢出 [ParseException]
      *
-     * @param funcName 這個參數是在哪個函數中被使用的
-     * @param varName 這個參數的名稱
-     * @return 如果 [this] 不是 null，就回傳 [this]
-     * @throws ParseException 如果 [this] 是 null，就丟出 [ParseException]
+     * @param funcName 这个参数是在哪个函数中被使用的
+     * @param varName 这个参数的名称
+     * @return 如果 [this] 不是 null，就回传 [this]
+     * @throws ParseException 如果 [this] 是 null，就丢出 [ParseException]
      */
     private fun <T> T?.throwIfParseNull(funcName: String, varName: String): T = this
         ?: throw ParseException(funcName, varName)
 
     /**
-     * 如果 [this] 是 null，就在 logcat 中顯示訊息
+     * 如果 [this] 是 null，就在 logcat 中显示讯息
      *
-     * @param funcName 這個參數是在哪個函數中被使用的
-     * @param varName 這個參數的名稱
-     * @return 回傳 [this]
+     * @param funcName 这个参数是在哪个函数中被使用的
+     * @param varName 这个参数的名称
+     * @return 回传 [this]
      */
     private fun <T> T?.logIfParseNull(
         funcName: String, varName: String, loginNeeded: Boolean = false,
@@ -2240,11 +2240,11 @@ object Parser {
 }
 
 /**
- * missav 的番號裏藏着是否無碼的信息。
+ * missav 的番号里藏着是否无码的信息。
  *
- * 站點自己也是這麼判的：詳情頁的「無碼影片」角標只認 `-uncensored-leak` 後綴，
- * 而 FC2-PPV 這類素人片源本身就沒有馬賽克，站點把它們歸在「無碼影片」分節。
- * 所以不能只看卡片落在哪個分節 —— 最近更新/隨機裏同樣會混進這兩類。
+ * 站点自己也是这么判的：详情页的「无码影片」角标只认 `-uncensored-leak` 后缀，
+ * 而 FC2-PPV 这类素人片源本身就没有马赛克，站点把它们归在「无码影片」分节。
+ * 所以不能只看卡片落在哪个分节 —— 最近更新/随机里同样会混进这两类。
  */
 internal fun isMissavUncensoredCode(code: String): Boolean {
     val lower = code.lowercase()

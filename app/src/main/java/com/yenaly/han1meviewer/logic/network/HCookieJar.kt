@@ -11,15 +11,15 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * 用於管理 Cookie。
+ * 用于管理 Cookie。
  *
- * #issue-71: 我竟然栽倒在 Cookie 管理上好幾年了！你去看我以前的管理方式，
- * 是完全錯誤的，竟然還能維持應用正常運行，太離譜了！怪不得切換簡體繁體一直不起作用！
+ * #issue-71: 我竟然栽倒在 Cookie 管理上好几年了！你去看我以前的管理方式，
+ * 是完全错误的，竟然还能维持应用正常运行，太离谱了！怪不得切换简体繁体一直不起作用！
  *
- * 2026-10-25 修正：`saveFromResponse` 以前會「用本次響應的 cookie 整表替換」，
- * 這會丟掉本次響應沒提到的 cookie（`cf_clearance`、會話、剛從 WebView 灌進來的登入 cookie），
- * 還會讓 jar 裡的死值蓋掉 WebView 裡的活值。OkHttp 的契約是「增量保存」，故改為按名稱合併：
- * 舊值打底 → 本次響應覆蓋 → 持久化 cookie 只補空缺 → 丟掉已過期的（服務端刪除仍生效）。
+ * 2026-10-25 修正：`saveFromResponse` 以前会「用本次响应的 cookie 整表替换」，
+ * 这会丢掉本次响应没提到的 cookie（`cf_clearance`、会话、刚从 WebView 灌进来的登入 cookie），
+ * 还会让 jar 里的死值盖掉 WebView 里的活值。OkHttp 的契约是「增量保存」，故改为按名称合并：
+ * 旧值打底 → 本次响应覆盖 → 持久化 cookie 只补空缺 → 丢掉已过期的（服务端删除仍生效）。
  *
  * @project Han1meViewer
  * @author Yenaly Liew
@@ -31,17 +31,26 @@ class HCookieJar : CookieJar {
         @JvmStatic
         val cookieMap: MutableMap<String, MutableList<Cookie>> = ConcurrentHashMap()
 
-        /** `cookieMap` 的讀改寫需要互斥；OkHttp 會在多個 IO 執行緒上同時調用。 */
+        /** `cookieMap` 的读改写需要互斥；OkHttp 会在多个 IO 执行绪上同时调用。 */
         private val lock = Any()
 
         /**
-         * 是否為當前站點自己的主機。
+         * 同一个站点的 host 变体：`a.com` 与 `www.a.com` 视为同一份 cookie 池。
+         * 只加减 `www.` 前缀，不放行 cdn/static 等其他子域。
+         */
+        private fun hostAliases(host: String): List<String> {
+            val bare = host.removePrefix("www.")
+            return listOf(host, bare, "www.$bare").distinct()
+        }
+
+        /**
+         * 是否为当前站点自己的主机。
          *
-         * 登錄 / Cloudflare cookie 只屬於站點本身：以前不管請求去哪個 host
-         * 都把這兩串 cookie 以該 host 為 domain 塞進去，等於把站點 session
-         * （甚至 cf_clearance）發給封面 CDN、Recombee 等第三方。第三方收到
-         * 不屬於自己的 session 容易觸發風控/Cloudflare challenge，也是
-         * 「切站或重開 app 時莫名彈盾」的來源之一。
+         * 登录 / Cloudflare cookie 只属于站点本身：以前不管请求去哪个 host
+         * 都把这两串 cookie 以该 host 为 domain 塞进去，等于把站点 session
+         * （甚至 cf_clearance）发给封面 CDN、Recombee 等第三方。第三方收到
+         * 不属于自己的 session 容易触发风控/Cloudflare challenge，也是
+         * 「切站或重开 app 时莫名弹盾」的来源之一。
          */
         private fun HttpUrl.isCurrentSiteHost(): Boolean {
             val site = runCatching { Preferences.baseUrl.toHttpUrlOrNull()?.host }.getOrNull()
@@ -54,11 +63,11 @@ class HCookieJar : CookieJar {
         }
 
         /**
-         * 把一整串 `a=1; b=2`（WebView 的 `CookieManager.getCookie` 結果）灌進 jar，同名覆蓋。
+         * 把一整串 `a=1; b=2`（WebView 的 `CookieManager.getCookie` 结果）灌进 jar，同名覆盖。
          *
-         * WebView 過完 Cloudflare、或在站內拿到新會話之後必須走這裡：`loadForRequest`
-         * 是「jar 優先」，jar 裡的舊 `cf_clearance` 會把 WebView 剛拿到的新值蓋掉，
-         * 於是重放請求又被攔，使用者看到的就是「當前網路環境無法通過驗證」。
+         * WebView 过完 Cloudflare、或在站内拿到新会话之后必须走这里：`loadForRequest`
+         * 是「jar 优先」，jar 里的旧 `cf_clearance` 会把 WebView 刚拿到的新值盖掉，
+         * 于是重放请求又被拦，使用者看到的就是「当前网路环境无法通过验证」。
          */
         @JvmStatic
         fun putRawCookieString(host: String, raw: String?) {
@@ -88,12 +97,18 @@ class HCookieJar : CookieJar {
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
         val host = url.host
-        // 同名只送一份：jar 優先，其次持久化的登入 / Cloudflare cookie。
-        // （以前會把 loginCookie 再追加一遍，服務端收到重複的同名 cookie。）
+        // 同名只送一份：jar 优先，其次持久化的登入 / Cloudflare cookie。
+        // （以前会把 loginCookie 再追加一遍，服务端收到重复的同名 cookie。）
         val merged = LinkedHashMap<String, Cookie>()
-        synchronized(lock) { cookieMap[host]?.forEach { merged[it.name] = it } }
-        // 只向站點自己的 host 附加持久化的登錄 / CF cookie；第三方 host
-        // 只使用它們自己在響應裡種下的 cookie。
+        // cookieMap 是按 host 精确取值的，但站点可能从 a.com 301 到 www.a.com，
+        // 验证页保存 cookie 时的 host 与实际请求的 host 不一致，旧写法就取不到。
+        synchronized(lock) {
+            hostAliases(host).forEach { alias ->
+                cookieMap[alias]?.forEach { merged.putIfAbsent(it.name, it) }
+            }
+        }
+        // 只向站点自己的 host 附加持久化的登录 / CF cookie；第三方 host
+        // 只使用它们自己在响应里种下的 cookie。
         if (url.isCurrentSiteHost()) {
             Preferences.loginCookieStateFlow.value.toLoginCookieList(host)
                 .forEach { merged.putIfAbsent(it.name, it) }
@@ -102,8 +117,8 @@ class HCookieJar : CookieJar {
         }
 
         val cookies = merged.values.toList()
-        // cf_clearance 只記一個不可逆的短指紋，方便對照「WebView 拿到的」和「jar 發出去的」
-        // 是不是同一份（排查過盾失敗時用），不把 cookie 值寫進日誌。
+        // cf_clearance 只记一个不可逆的短指纹，方便对照「WebView 拿到的」和「jar 发出去的」
+        // 是不是同一份（排查过盾失败时用），不把 cookie 值写进日志。
         val clearanceFp = merged["cf_clearance"]?.value
             ?.let { " cf#${Integer.toHexString(it.hashCode())}" }.orEmpty()
         Log.d("HCookieJar", "loadForRequest for $host: ${cookies.map { it.name }}$clearanceFp")
@@ -116,7 +131,7 @@ class HCookieJar : CookieJar {
         synchronized(lock) {
             val merged = LinkedHashMap<String, Cookie>()
             cookieMap[host]?.forEach { merged[it.name] = it }
-            // 本次響應的同名 cookie 覆蓋舊值；過期時間在過去的等於服務端要求刪除。
+            // 本次响应的同名 cookie 覆盖旧值；过期时间在过去的等于服务端要求删除。
             cookies.forEach { merged[it.name] = it }
             if (url.isCurrentSiteHost()) {
                 Preferences.loginCookieStateFlow.value.toLoginCookieList(host)

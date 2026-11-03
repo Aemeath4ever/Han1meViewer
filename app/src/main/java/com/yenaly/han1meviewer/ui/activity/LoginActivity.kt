@@ -77,8 +77,8 @@ class LoginActivity : FrameActivity() {
         setContentView(composeView)
         // missav 站点的登录是站内 SPA 弹窗（依赖 Alpine/axios 全链路），WebView 内交互不稳定；
         // 直接弹出原生登录框走 /cn/api/login，网页作为兜底。
-        // jable 的登录也是 fancybox AJAX 表單，成功後不一定會導航，故同樣原生優先；
-        // 頁面仍保留在背景，原生登入被 Cloudflare 攔截時可以改用手動登入。
+        // jable 的登录也是 fancybox AJAX 表单，成功后不一定会导航，故同样原生优先；
+        // 页面仍保留在背景，原生登入被 Cloudflare 拦截时可以改用手动登入。
         if (Preferences.isMissavSite || Preferences.isJableSite) {
             showLoginDialog = true
         }
@@ -114,7 +114,7 @@ class LoginActivity : FrameActivity() {
         return WebView(this).apply {
             webView = this
             // missav / jable 都依赖 cf_clearance cookie，清空会导致重新触发 Cloudflare 人机验证。
-            // 只有 Hanime 站沿用「清空 cookie 再登入」的舊流程。
+            // 只有 Hanime 站沿用「清空 cookie 再登入」的旧流程。
             if (Preferences.siteType == com.yenaly.han1meviewer.SiteType.HANIME) {
                 CookieManager.getInstance().removeAllCookies(null)
                 CookieManager.getInstance().flush()
@@ -196,11 +196,11 @@ class LoginActivity : FrameActivity() {
     }
 
     /**
-     * jable 的 AJAX 登入成功後會 `window.location.reload()` 或跳到 `redirect`，
-     * 不會觸發 [WebViewClient.shouldOverrideUrlLoading] 的 redirect 分支。
-     * 因此改用 DOM 判斷：非 /login 頁且頁首的「登入」入口消失，即代表已登入。
+     * jable 的 AJAX 登入成功后会 `window.location.reload()` 或跳到 `redirect`，
+     * 不会触发 [WebViewClient.shouldOverrideUrlLoading] 的 redirect 分支。
+     * 因此改用 DOM 判断：非 /login 页且页首的「登入」入口消失，即代表已登入。
      *
-     * 只認真的 jable 頁面（有 `.header-right .settings`），Cloudflare 驗證頁不會誤判。
+     * 只认真的 jable 页面（有 `.header-right .settings`），Cloudflare 验证页不会误判。
      */
     private fun watchJableLogin(view: WebView) {
         if (jableLoginWatching) return
@@ -255,11 +255,11 @@ class LoginActivity : FrameActivity() {
     private fun handleLogin(username: String, password: String) {
         isLoggingIn = true
         loginError = null
-        // 登入頁的 WebView 是唯一「真瀏覽器」會話：cf_clearance / XSRF-TOKEN / missav_session
-        // 都只存在 CookieManager 裏。okhttp 自己抓 /dm12/cn 只會拿到 Cloudflare 快取的 301，
-        // 沒有 Set-Cookie，於是 POST /cn/api/login 必然 419。把這些 cookie 轉交給 okhttp。
-        // missav / jable 的登入頁 WebView 是唯一「真瀏覽器」會話：cf_clearance
-        // 只存在 CookieManager 裏，先交給 okhttp 才不會又被 Cloudflare 攔。
+        // 登入页的 WebView 是唯一「真浏览器」会话：cf_clearance / XSRF-TOKEN / missav_session
+        // 都只存在 CookieManager 里。okhttp 自己抓 /dm12/cn 只会拿到 Cloudflare 快取的 301，
+        // 没有 Set-Cookie，于是 POST /cn/api/login 必然 419。把这些 cookie 转交给 okhttp。
+        // missav / jable 的登入页 WebView 是唯一「真浏览器」会话：cf_clearance
+        // 只存在 CookieManager 里，先交给 okhttp 才不会又被 Cloudflare 拦。
         val seedCookies = if (Preferences.isMissavSite || Preferences.isJableSite) {
             runCatching { CookieManager.getInstance().getCookie(HANIME_LOGIN_URL) }
                 .getOrNull()
@@ -278,8 +278,8 @@ class LoginActivity : FrameActivity() {
                     is WebsiteState.Error -> {
                         isLoggingIn = false
                         state.throwable.printStackTrace()
-                        // 直接顯示具體原因（服務端訊息 / HTTP 狀態碼）並留在彈窗裡，
-                        // 不能用一個轉瞬即逝的通用 toast 把原因吞掉。
+                        // 直接显示具体原因（服务端讯息 / HTTP 状态码）并留在弹窗里，
+                        // 不能用一个转瞬即逝的通用 toast 把原因吞掉。
                         val reason = state.throwable.message
                             ?.takeIf { it.isNotBlank() }
                             ?: getString(R.string.login_failed)

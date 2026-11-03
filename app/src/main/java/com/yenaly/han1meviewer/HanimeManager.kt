@@ -29,9 +29,9 @@ private const val HANIME_TITLE_HTML =
 val hanimeSpannedTitle = HANIME_TITLE_HTML.parseAsHtml()
 
 /**
- * 獲取影片地址（同時用於「跳轉網頁」與分享文本）
+ * 获取影片地址（同时用于「跳转网页」与分享文本）
  *
- * missav 的影片頁形如 `https://missav.ai/cn/{slug}`，與 Hanime的 `watch?v=` 完全不同。
+ * missav 的影片页形如 `https://missav.ai/cn/{slug}`，与 Hanime的 `watch?v=` 完全不同。
  */
 fun getHanimeVideoLink(videoCode: String) = when {
     Preferences.isMissavSite -> Preferences.baseUrl + "cn/" + videoCode
@@ -41,7 +41,7 @@ fun getHanimeVideoLink(videoCode: String) = when {
 
 
 /**
- * 獲取搜索地址
+ * 获取搜索地址
  */
 fun getHanimeSearchLink(artist: String) = when {
     Preferences.isMissavSite -> Preferences.baseUrl + "cn/search/" + artist
@@ -49,7 +49,7 @@ fun getHanimeSearchLink(artist: String) = when {
     else -> HANIME_BASE_URL + "search?query=" + artist
 }
 /**
- * 獲取 Hanime 影片分享文本
+ * 获取 Hanime 影片分享文本
  */
 fun getHanimeShareText(title: String, videoCode: String): String = buildString {
     appendLine(title)
@@ -57,7 +57,7 @@ fun getHanimeShareText(title: String, videoCode: String): String = buildString {
     append("- From Han1meViewer -")
 }
 /**
- * 獲取 Hanime 影片分享文本
+ * 获取 Hanime 影片分享文本
  */
 fun getHanimeSearchShareText(artist: String): String = buildString {
     appendLine(artist)
@@ -66,7 +66,7 @@ fun getHanimeSearchShareText(artist: String): String = buildString {
 }
 
 /**
- * 獲取 Hanime 影片**官方**下載地址
+ * 获取 Hanime 影片**官方**下载地址
  */
 fun getHanimeVideoDownloadLink(videoCode: String) =
     if (Preferences.isJableSite) getHanimeVideoLink(videoCode)
@@ -76,13 +76,13 @@ fun getHanimeVideoDownloadLink(videoCode: String) =
         """(?:(?:https?:)?//[^\s"'<>/]+|(?:hanime(?:1|one))\.(?:com|me))?(?:/[^/?#\s"'<>]+)*/watch\?(?:[^#\s"'<>]*&)?v=(\d+)"""
     )
 
-    // missav 的影片連結形如 https://missav.ai/dm72/en/{slug}，dm 前綴與語言目錄先於 slug
+    // missav 的影片连结形如 https://missav.ai/dm72/en/{slug}，dm 前缀与语言目录先于 slug
     val missavVideoUrlRegex =
         Regex("""(?:https?://missav\.(?:ai|ws))?/(?:dm\d+/)?(?:[a-z]{2}/)?([A-Za-z0-9-]+)""")
 
-    // jable 的影片連結形如 https://jable.tv/videos/{slug}/，部分鏡像帶 /s0/ 前綴。
-    // 必須在 missav 正則之前匹配：missav 的正則允許省略主機，會把 /videos/... 裏的
-    // 「videos」當成影片碼。
+    // jable 的影片连结形如 https://jable.tv/videos/{slug}/，部分镜像带 /s0/ 前缀。
+    // 必须在 missav 正则之前匹配：missav 的正则允许省略主机，会把 /videos/... 里的
+    // 「videos」当成影片码。
     val jableVideoUrlRegex = Regex(
         """(?:https?://(?:[\w-]+\.)?jable\.tv)?/(?:[A-Za-z0-9_-]+/)?videos/([A-Za-z0-9_-]+)/?""",
         RegexOption.IGNORE_CASE,

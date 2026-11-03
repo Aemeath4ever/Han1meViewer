@@ -348,7 +348,7 @@ fun RenderVideoCommentContent(
             reportReasons = viewModel.reportReason,
             isPreviewCommentPrefetched = false,
             isAlreadyLogin = isAlreadyLogin,
-            // jable 原站留言沒有讚/踩、回覆與檢舉接口，只做展示。
+            // jable 原站留言没有赞/踩、回复与检举接口，只做展示。
             canInteract = !Preferences.isJableSite,
             onRefresh = { viewModel.getComment(VIDEO_COMMENT_PREFIX, viewModel.code) },
             onReply = { comment, text ->

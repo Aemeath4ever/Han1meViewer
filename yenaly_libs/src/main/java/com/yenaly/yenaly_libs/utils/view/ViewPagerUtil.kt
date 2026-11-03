@@ -26,7 +26,7 @@ inline var ViewPager2.realOverScrollMode: Int
     }
 
 /**
- * ViewPager2快速設置FragmentStateAdapter，這裏作用域為FragmentActivity
+ * ViewPager2快速设置FragmentStateAdapter，这里作用域为FragmentActivity
  */
 inline fun ViewPager2.setUpFragmentStateAdapter(
     fragmentActivity: FragmentActivity,
@@ -36,7 +36,7 @@ inline fun ViewPager2.setUpFragmentStateAdapter(
 }
 
 /**
- * ViewPager2快速設置FragmentStateAdapter，這裏作用域為Fragment
+ * ViewPager2快速设置FragmentStateAdapter，这里作用域为Fragment
  */
 inline fun ViewPager2.setUpFragmentStateAdapter(
     fragment: Fragment,

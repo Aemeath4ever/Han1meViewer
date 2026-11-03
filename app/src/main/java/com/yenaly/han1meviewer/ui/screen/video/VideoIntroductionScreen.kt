@@ -462,11 +462,11 @@ private fun VideoIntroductionContent(
                     onOpenLocalFavorite = onOpenLocalFavorite,
                     onManageMyList = {
                         if (isJable) {
-                            // jable 的片單寫接口（含 CSRF）未接入；
-                            // 這個位置改成原站書籤鍵的「加入稍後再看」。
+                            // jable 的片单写接口（含 CSRF）未接入；
+                            // 这个位置改成原站书签键的「加入稍后再看」。
                             onToggleWatchLater()
                         } else if (video.myList == null) {
-                            // 未登入或站內片單接口沒有返回時，避免按鈕靜默無反應。
+                            // 未登入或站内片单接口没有返回时，避免按钮静默无反应。
                             GlobalToasts.show(
                                 context.getString(R.string.login_first),
                                 level = GlobalToasts.ToastLevel.WARNING,

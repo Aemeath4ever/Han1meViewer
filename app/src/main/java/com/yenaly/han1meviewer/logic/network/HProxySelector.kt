@@ -45,7 +45,7 @@ class HProxySelector : ProxySelector() {
             return port in 0..65535
         }
 
-        // #issue-39: 代理沒有應用到 WebView 上，只能通過此種方式來全局代理。
+        // #issue-39: 代理没有应用到 WebView 上，只能通过此种方式来全局代理。
         fun rebuildNetwork() {
             val properties = System.getProperties()
             when (Preferences.proxyType) {

@@ -45,7 +45,7 @@ import coil3.compose.AsyncImage
 import com.yenaly.han1meviewer.R
 import com.yenaly.han1meviewer.ui.preview.ComponentPreview
 
-/** 抽屜「切換站點」下拉選項。 */
+/** 抽屉「切换站点」下拉选项。 */
 data class SiteSwitchOption(
     val label: String,
     val url: String,

@@ -22,20 +22,20 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * missav 首頁「推薦給你」等分節的資料來源。
+ * missav 首页「推荐给你」等分节的资料来源。
  *
- * 站點首頁前四欄不是服務端渲染的：頁面裏的 Alpine 組件在瀏覽器端直接調
- * [Recombee](https://www.recombee.com/) 的 client API，所以靜態 HTML 裏只有模板骨架。
- * 這裏復刻同一條調用鏈，讓 app 也能拿到按帳號行為生成的推薦：
+ * 站点首页前四栏不是服务端渲染的：页面里的 Alpine 组件在浏览器端直接调
+ * [Recombee](https://www.recombee.com/) 的 client API，所以静态 HTML 里只有模板骨架。
+ * 这里复刻同一条调用链，让 app 也能拿到按帐号行为生成的推荐：
  *
- * 1. `POST /recomms/users/{user_uuid}/item-segments/` → 3 個「分節」（標籤 id，如 `中出し`）
- * 2. 再一次 batch：`mobile-home-recommended`（推薦給你）+ 每個分節各一次
- *    `mobile-home-segment-items`（filter: `"標籤" in 'genres'`）
+ * 1. `POST /recomms/users/{user_uuid}/item-segments/` → 3 个「分节」（标签 id，如 `中出し`）
+ * 2. 再一次 batch：`mobile-home-recommended`（推荐给你）+ 每个分节各一次
+ *    `mobile-home-segment-items`（filter: `"标签" in 'genres'`）
  *
- * 兩個細節：
- * - 請求要帶 `frontend_timestamp` / `frontend_sign`，簽名見 [signedPath]；
- * - token 是公開的 frontend token（就寫在站點的 app.js 裏），不是私鑰。為了不把它
- *   硬編碼進來，第一次使用時從當前版本的 app.js 裏取並緩存。
+ * 两个细节：
+ * - 请求要带 `frontend_timestamp` / `frontend_sign`，签名见 [signedPath]；
+ * - token 是公开的 frontend token（就写在站点的 app.js 里），不是私钥。为了不把它
+ *   硬编码进来，第一次使用时从当前版本的 app.js 里取并缓存。
  */
 object MissavRecommender {
 
@@ -47,31 +47,31 @@ object MissavRecommender {
     private const val SCENARIO_SEGMENTS = "mobile-home-segments"
     private const val SCENARIO_SEGMENT_ITEMS = "mobile-home-segment-items"
 
-    /** 站點 `window.recommendedQuantity`（每欄 4 個）。 */
+    /** 站点 `window.recommendedQuantity`（每栏 4 个）。 */
     private const val ITEMS_PER_SECTION = 4
 
-    /** 站點 `window.recommendedRows - 1`（推薦給你之外的 3 個分節）。 */
+    /** 站点 `window.recommendedRows - 1`（推荐给你之外的 3 个分节）。 */
     private const val SEGMENT_COUNT = 3
 
     private const val ITEM_CDN = "https://fourhoi.com"
 
     /**
-     * 站點「載入更多」按鈕的取數方式：`RecommendNextItems(recommId, count)`。
+     * 站点「载入更多」按钮的取数方式：`RecommendNextItems(recommId, count)`。
      *
-     * Recombee 的推薦 id 只在基礎請求（或上一次續接）之後 30 分鐘內可用，
-     * 所以首頁重新整理後必須用新的 recommId，這也是它跟著分節一起回傳的原因。
+     * Recombee 的推荐 id 只在基础请求（或上一次续接）之后 30 分钟内可用，
+     * 所以首页重新整理后必须用新的 recommId，这也是它跟著分节一起回传的原因。
      */
     private const val NEXT_ITEMS_PATH = "/recomms/next/items/"
 
-    /** 站點一次「載入更多」補的數量（`recommendedQuantity * 2`）。 */
+    /** 站点一次「载入更多」补的数量（`recommendedQuantity * 2`）。 */
     private const val NEXT_ITEMS_COUNT = ITEMS_PER_SECTION * 2
 
     private val mediaType = "application/json; charset=utf-8".toMediaType()
 
     /**
-     * 「載入更多」的結果。
+     * 「载入更多」的结果。
      *
-     * @param recommId 續接後的推薦 id，下一次載入更多要用它（不是原來那個）。
+     * @param recommId 续接后的推荐 id，下一次载入更多要用它（不是原来那个）。
      * @param videos 新一批影片。
      */
     data class NextItems(
@@ -87,10 +87,10 @@ object MissavRecommender {
     )
 
     /**
-     * 拉取推薦分節。任何一步失敗都返回空列表 —— 首頁的靜態分節（新作上市/最近更新/無碼影片）
-     * 不能因為推薦接口掛了而不顯示。
+     * 拉取推荐分节。任何一步失败都返回空列表 —— 首页的静态分节（新作上市/最近更新/无码影片）
+     * 不能因为推荐接口挂了而不显示。
      *
-     * @param homeHtml 剛抓到的首頁 HTML，用於取 genreMap 與 app.js 地址。
+     * @param homeHtml 刚抓到的首页 HTML，用于取 genreMap 与 app.js 地址。
      */
     suspend fun fetch(homeHtml: String): List<HomePage.MissavSection> =
         withContext(Dispatchers.IO) {
@@ -124,14 +124,14 @@ object MissavRecommender {
         }
 
     /**
-     * 首頁推薦區塊的「更多」：續接同一條推薦。
+     * 首页推荐区块的「更多」：续接同一条推荐。
      *
-     * 站點的「載入更多」就是 `RecommendNextItems(recommId, count)`，其餘參數（scenario、
-     * filter、返回欄位）由 Recombee 從基礎請求繼承，所以這裡只需要 recommId 和數量。
+     * 站点的「载入更多」就是 `RecommendNextItems(recommId, count)`，其余参数（scenario、
+     * filter、返回栏位）由 Recombee 从基础请求继承，所以这里只需要 recommId 和数量。
      *
-     * @param recommId 分節自帶的推薦 id
-     * @return 新一批影片與續接後的推薦 id；拿不到（token 丟了／超過 30 分鐘）時返回 null，
-     * 呼叫方保持原樣即可
+     * @param recommId 分节自带的推荐 id
+     * @return 新一批影片与续接后的推荐 id；拿不到（token 丢了／超过 30 分钟）时返回 null，
+     * 呼叫方保持原样即可
      */
     suspend fun fetchNext(
         recommId: String,
@@ -154,7 +154,7 @@ object MissavRecommender {
         )
     }
 
-    //<editor-fold desc="Recombee 調用">
+    //<editor-fold desc="Recombee 调用">
 
     private fun fetchSegments(uuid: String, token: String): List<String> {
         val body = JSONObject()
@@ -195,14 +195,14 @@ object MissavRecommender {
         val blocks = runCatching { JSONArray(json) }.getOrNull() ?: return emptyList()
         return buildList {
             for (i in 0 until blocks.length()) {
-                // 下標必須與請求一一對應（標題按位置取），失敗的段補空列表而不是跳過，
-                // 否則後面某段失敗會讓後續區塊全部錯位到別的標題下。
+                // 下标必须与请求一一对应（标题按位置取），失败的段补空列表而不是跳过，
+                // 否则后面某段失败会让后续区块全部错位到别的标题下。
                 val block = blocks.optJSONObject(i)
                 val data = block?.takeIf { it.optInt("code") == 200 }?.optJSONObject("json")
                 val recomms = data?.optJSONArray("recomms")
                 add(
                     Block(
-                        // recommId 是「載入更多」的憑證，跟著分節一起帶給 UI
+                        // recommId 是「载入更多」的凭证，跟著分节一起带给 UI
                         recommId = data?.optString("recommId")?.takeIf { it.isNotBlank() },
                         videos = if (recomms == null) emptyList() else parseItems(recomms),
                     )
@@ -211,7 +211,7 @@ object MissavRecommender {
         }
     }
 
-    /** 批次裡的一個推薦區塊。 */
+    /** 批次里的一个推荐区块。 */
     private data class Block(val recommId: String?, val videos: List<HanimeInfo>)
 
     private fun recommendRequest(
@@ -246,7 +246,7 @@ object MissavRecommender {
             val id = item.optString("id").takeIf { it.isNotBlank() } ?: continue
             val values = item.optJSONObject("values") ?: JSONObject()
             val titleCn = values.optString("title_cn").trim()
-            // 站點 generateFullItemTitle()：番號大寫去掉後綴 + 中文標題
+            // 站点 generateFullItemTitle()：番号大写去掉后缀 + 中文标题
             val code = id.uppercase()
                 .replace("-UNCENSORED-LEAK", "")
                 .replace("-CHINESE-SUBTITLE", "")
@@ -266,8 +266,8 @@ object MissavRecommender {
     }
 
     private fun post(path: String, token: String, body: String): String? {
-        // Recombee 的路徑是 `/{databaseId}{path}`；簽名裡帶了 database 前綴，
-        // 實際請求 URL 也必須帶，否則第一個 path 段會被當成 databaseId → 401。
+        // Recombee 的路径是 `/{databaseId}{path}`；签名里带了 database 前缀，
+        // 实际请求 URL 也必须带，否则第一个 path 段会被当成 databaseId → 401。
         val request = Request.Builder()
             .url("$BASE_URI/$DATABASE" + signedPath(path, token))
             .post(body.toRequestBody(mediaType))
@@ -277,7 +277,7 @@ object MissavRecommender {
                 val text = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     Log.w(TAG, "HTTP ${response.code} for $path")
-                    // token 輪換或站點改版：下次重新從 app.js 取
+                    // token 轮换或站点改版：下次重新从 app.js 取
                     if (response.code == 401 || response.code == 403) {
                         Preferences.missavRecombeeToken = ""
                     }
@@ -292,7 +292,7 @@ object MissavRecommender {
     }
 
     /**
-     * 復刻 Recombee JS SDK 的 `_signUrl`：
+     * 复刻 Recombee JS SDK 的 `_signUrl`：
      * `sign = HMAC-SHA1(publicToken, "/{databaseId}{path}?frontend_timestamp={秒}")`。
      */
     private fun signedPath(path: String, token: String): String {
@@ -311,11 +311,11 @@ object MissavRecommender {
     //<editor-fold desc="使用者 id / token">
 
     /**
-     * 站點把推薦畫像記在 cookie `user_uuid` 下面。
+     * 站点把推荐画像记在 cookie `user_uuid` 下面。
      *
-     * 站點自己的 id 在登錄 cookie 裏（登入時從 WebView 整串抄過來），必須優先採用 ——
-     * 之前只看 jar，而 jar 裏是舊版寫進去的隨機 UUID，等於每次都在用一個沒有歷史行為的
-     * 新畫像，推薦自然不準。找不到站點 id 才退回 jar / 本地生成的 id。
+     * 站点自己的 id 在登录 cookie 里（登入时从 WebView 整串抄过来），必须优先采用 ——
+     * 之前只看 jar，而 jar 里是旧版写进去的随机 UUID，等于每次都在用一个没有历史行为的
+     * 新画像，推荐自然不准。找不到站点 id 才退回 jar / 本地生成的 id。
      */
     private fun userUuid(): String {
         val host = runCatching { URI(Preferences.baseUrl).host }.getOrNull()
@@ -324,7 +324,7 @@ object MissavRecommender {
                 .firstOrNull { it.name == "user_uuid" }
                 ?.value?.takeIf { it.isNotBlank() }
                 ?.let { uuid ->
-                    // 讓 jar 也回到站點的 id（舊版本可能留了一個隨機 UUID 在裏面）
+                    // 让 jar 也回到站点的 id（旧版本可能留了一个随机 UUID 在里面）
                     HCookieJar.putRawCookieString(host, "user_uuid=$uuid")
                     return uuid
                 }
@@ -344,9 +344,9 @@ object MissavRecommender {
     private fun publicToken(homeHtml: String): String? {
         Preferences.missavRecombeeToken.takeIf { it.isNotBlank() }?.let { return it }
         val jsUrl = extractAppJsUrl(homeHtml) ?: return null
-        // 首次要下載 ~100KB 的 bundle。不能走 hClient：靜態資源被盾攔時
-        // CloudflareInterceptor 會彈出驗證頁（用戶看到的是「驗證頁打開了一個 js 檔」），
-        // 而且會把首頁請求一起卡住。取不到就默默跳過推薦。
+        // 首次要下载 ~100KB 的 bundle。不能走 hClient：静态资源被盾拦时
+        // CloudflareInterceptor 会弹出验证页（用户看到的是「验证页打开了一个 js 档」），
+        // 而且会把首页请求一起卡住。取不到就默默跳过推荐。
         val js = runCatching {
             ServiceCreator.assetClient
                 .newCall(Request.Builder().url(jsUrl).build())
@@ -369,9 +369,9 @@ object MissavRecommender {
         else Preferences.baseUrl.trimEnd('/') + "/" + src.trimStart('/')
     }
 
-    /** 站點 `window.genreMap`（日文標籤 id → 當前語言的名稱）。 */
+    /** 站点 `window.genreMap`（日文标签 id → 当前语言的名称）。 */
     private fun parseGenreMap(homeHtml: String): Map<String, String> {
-        // `}` 在 Java 正則裡要轉義，否則 PatternSyntaxException（同 Parser 裡踩過的坑）
+        // `}` 在 Java 正则里要转义，否则 PatternSyntaxException（同 Parser 里踩过的坑）
         val raw = Regex(
             """window\.genreMap\s*=\s*(\{.*?\})\s*;""",
             RegexOption.DOT_MATCHES_ALL,
